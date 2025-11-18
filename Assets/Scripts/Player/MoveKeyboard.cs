@@ -32,7 +32,8 @@ public class Move_Keyboard : MonoBehaviour
         if (h > 0 && !player.isFacingRight)
             player.Flip();
         else if (h < 0 && player.isFacingRight)
-            player.Flip();
+            player.Flip(); 
+            
     }
 
     void FixedUpdate()

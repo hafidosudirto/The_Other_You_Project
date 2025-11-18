@@ -3,179 +3,185 @@ using System.Collections;
 
 public class Sword_SlashCombo : MonoBehaviour, ISkill
 {
-    [Header("Slash Combo Settings")]
+    [Header("Slash Settings")]
     public float attackRadius = 1.5f;
     public float attackAngle = 90f;
 
-    public float firstDelay = 0.1f;      // jeda sebelum hit pertama
-    public float chain1Delay = 0.2f;
-    public float chain2Delay = 0.25f;
+    public float delaySlash1 = 0.1f;     // jeda sebelum hit 1
+    public float delaySlash2 = 0.15f;    // jeda sebelum hit 2 (sesuaikan dengan anim)
+    public float chainWindow = 0.45f;    // waktu tekan chain
 
-    public float chainWindow = 0.6f;     // batas input chain berikutnya
+    [Header("Hitbox / Gizmo Offset")]
+    // offset dari posisi player ke depan pedang
+    public Vector2 hitOffset = new Vector2(0.5f, 0f);
+
+    [Header("Gizmos")]
     public Color chain1Color = Color.yellow;
-    public Color chain2Color = new Color(1f, 0.4f, 0f);
-
+    public Color chain2Color = Color.red;
     public int arcSegments = 20;
 
     private CharacterBase character;
     private SkillBase skillBase;
+    private PlayerAnimation anim;
 
-    // private bool waitingForChain = false;
-    private int currentChain = 0;
+    private bool isBusy = false;
+    private bool chainRequested = false;
+    private int chain = 0; // 1 = slash1, 2 = slash2
 
     void Awake()
     {
-        character = GetComponentInParent<CharacterBase>();
-        skillBase = GetComponentInParent<SkillBase>();
+        character   = GetComponentInParent<CharacterBase>();
+        skillBase   = GetComponentInParent<SkillBase>();
+        anim        = GetComponentInParent<PlayerAnimation>();
+
+        if (!anim)
+            Debug.LogWarning("Sword_SlashCombo: PlayerAnimation tidak ditemukan!");
     }
 
     public void TriggerSkill()
     {
-        if (character == null || skillBase == null)
-            return;
+        if (isBusy) return;
+        if (!character || !character.CanAct()) return;
 
-        if (!character.CanAct())
-            return;
-
-        // Mulai Combo
-        currentChain = 1;
         StartCoroutine(ComboRoutine());
     }
 
     private IEnumerator ComboRoutine()
     {
-        // Slash 1
-        yield return new WaitForSeconds(firstDelay);
-        PerformSlash(chain1Color);
+        isBusy = true;
+        chain  = 1;
 
-        // waitingForChain = true;
+        // Lock movement / aksi lain
+        if (skillBase != null)
+            skillBase.SendMessage("LockAction", SendMessageOptions.DontRequireReceiver);
 
-        float timer = 0f;
-        bool chainPressed = false;
+        // ============================
+        //           SLASH 1
+        // ============================
+        anim.PlaySlash1();
 
-        // Window input chain 2
-        while (timer < chainWindow)
+        yield return new WaitForSeconds(delaySlash1);
+        PerformSlash();              // HIT 1
+
+        // tunggu input chain
+        yield return StartCoroutine(WaitChainInput());
+        if (!chainRequested)
         {
-            if (Input.GetKeyDown(KeyCode.Alpha1))
-            {
-                chainPressed = true;
-                break;
-            }
-
-            timer += Time.deltaTime;
-            yield return null;
-        }
-
-        // waitingForChain = false;
-
-        if (!chainPressed)
-        {
-            // Tidak ada chain → COMBO selesai
-            currentChain = 0;
-            skillBase.ReleaseLock();
+            EndCombo();
             yield break;
         }
 
-        // ===== SLASH 2 =====
-        currentChain = 2;
-        yield return new WaitForSeconds(chain1Delay);
-        PerformSlash(chain2Color);
+        // ============================
+        //           SLASH 2
+        // ============================
+        chain = 2;
 
-        // waitingForChain = true;
-        timer = 0f;
-        chainPressed = false;
+        anim.PlaySlash2();
 
-        // Window input chain 3
-        while (timer < chainWindow)
-        {
-            if (Input.GetKeyDown(KeyCode.Alpha1))
-            {
-                chainPressed = true;
-                break;
-            }
+        // tunggu timing pedang nyabet di animasi Slash2
+        yield return new WaitForSeconds(delaySlash2);
+        PerformSlash();              // HIT 2
 
-            timer += Time.deltaTime;
-            yield return null;
-        }
-
-        // waitingForChain = false;
-
-        if (!chainPressed)
-        {
-            // Combo berhenti di Slash 2
-            currentChain = 0;
-            skillBase.ReleaseLock();
-            yield break;
-        }
-
-        // ===== SLASH 3 =====
-        currentChain = 3;
-        yield return new WaitForSeconds(chain2Delay);
-        PerformSlash(chain2Color);
-
-        // Combo selesai
-        currentChain = 0;
-        skillBase.ReleaseLock();
+        EndCombo();
     }
 
-    private void PerformSlash(Color color)
+    private IEnumerator WaitChainInput()
     {
-        if (character == null)
-            return;
+        chainRequested = false;
+        float timer = 0f;
 
-        Vector3 origin = character.transform.position;
-        Vector3 dir = character.isFacingRight ? Vector3.right : Vector3.left;
-
-        // Hit detection
-        Collider2D[] hits = Physics2D.OverlapCircleAll(origin, attackRadius);
-        foreach (var hit in hits)
+        while (timer < chainWindow)
         {
-            CharacterBase enemy = hit.GetComponent<CharacterBase>();
-            if (enemy == null || enemy == character) 
-                continue;
-
-            // Cek sudut
-            Vector2 toTarget = (enemy.transform.position - origin).normalized;
-            float angleCheck = Vector2.Angle(dir, toTarget);
-
-            if (angleCheck <= attackAngle * 0.5f)
+            // tekan angka 1 untuk chain
+            if (Input.GetKeyDown(KeyCode.Alpha1))
             {
-                enemy.TakeDamage(character.attack);
-                // Debug.Log("Slash Combo hit: " + enemy.name);
+                chainRequested = true;
+                yield break;
             }
+
+            timer += Time.deltaTime;
+            yield return null;
         }
+    }
+
+    // ======================
+    // HIT DETECTION
+    // ======================
+    private void PerformSlash()
+    {
+        if (!character) return;
+
+        // origin + offset ke depan pedang
+        Vector3 offset = new Vector3(hitOffset.x, hitOffset.y, 0f);
+        if (!character.isFacingRight)
+            offset.x = -offset.x;
+
+        Vector3 origin = character.transform.position + offset;
+        Vector3 dir    = character.isFacingRight ? Vector3.right : Vector3.left;
+
+        Collider2D[] hits = Physics2D.OverlapCircleAll(origin, attackRadius);
+
+        foreach (var h in hits)
+        {
+            var target = h.GetComponent<CharacterBase>();
+            if (!target || target == character) continue;
+
+            Vector2 toTarget    = (target.transform.position - origin).normalized;
+            float   angleBetween = Vector2.Angle(dir, toTarget);
+
+            if (angleBetween <= attackAngle * 0.5f)
+                target.TakeDamage(character.attack);
+        }
+    }
+
+    private void EndCombo()
+    {
+        isBusy = false;
+        chain  = 0;
+
+        if (skillBase != null)
+            skillBase.SendMessage("ReleaseLock", SendMessageOptions.DontRequireReceiver);
     }
 
 #if UNITY_EDITOR
-    void OnDrawGizmos()
+void OnDrawGizmos()
+{
+    if (!character || !anim || !anim.animator) return;
+
+    // Cek state animasi
+    var state = anim.animator.GetCurrentAnimatorStateInfo(0);
+
+    bool isSlash1 = state.IsName("Slash_Combo1 0");
+    bool isSlash2 = state.IsName("Slash_Combo2 0");
+
+    if (!isSlash1 && !isSlash2)
+        return; // ❌ Tidak sedang animasi slash → Gizmo tidak tampil
+
+    // Pilih warna
+    Gizmos.color = isSlash1 ? chain1Color : chain2Color;
+
+    // offset hitbox
+    Vector3 offset = new Vector3(hitOffset.x, hitOffset.y, 0f);
+    if (!character.isFacingRight)
+        offset.x = -offset.x;
+
+    Vector3 origin = character.transform.position + offset;
+    Vector3 dir    = character.isFacingRight ? Vector3.right : Vector3.left;
+
+    // Hit arc
+    float startAngle = -attackAngle * 0.5f;
+    float stepAngle  = attackAngle / Mathf.Max(1, arcSegments);
+
+    Vector3 prev = origin + Quaternion.Euler(0, 0, startAngle) * dir * attackRadius;
+
+    for (int i = 1; i <= arcSegments; i++)
     {
-        if (!Application.isPlaying)
-            return;
+        float ang  = startAngle + stepAngle * i;
+        Vector3 nxt = origin + Quaternion.Euler(0, 0, ang) * dir * attackRadius;
 
-        if (currentChain <= 0) 
-            return;
-
-        CharacterBase c = character;
-        if (c == null)
-            return;
-
-        Vector3 origin = c.transform.position;
-        Vector3 dir = c.isFacingRight ? Vector3.right : Vector3.left;
-
-        Gizmos.color = (currentChain == 1) ? chain1Color : chain2Color;
-
-        float startAngle = -attackAngle * 0.5f;
-        float step = attackAngle / arcSegments;
-
-        Vector3 prev = origin + Quaternion.Euler(0, 0, startAngle) * dir * attackRadius;
-
-        for (int i = 1; i <= arcSegments; i++)
-        {
-            float current = startAngle + step * i;
-            Vector3 next = origin + Quaternion.Euler(0, 0, current) * dir * attackRadius;
-            Gizmos.DrawLine(prev, next);
-            prev = next;
-        }
+        Gizmos.DrawLine(prev, nxt);
+        prev = nxt;
     }
+}
 #endif
 }
