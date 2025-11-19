@@ -48,6 +48,9 @@ public class Dash : MonoBehaviour
         dashDirection = player.isFacingRight ? Vector2.right : Vector2.left;
 
         Debug.Log("Player Dash!");
+
+        // Catat aksi defensif ke DataTracker
+        DataTracker.Instance.RecordAction(PlayerActionType.Defensive, WeaponType.None);
     }
 
     void FixedUpdate()

@@ -76,6 +76,9 @@ public class Sword_Riposte : MonoBehaviour, ISkill
         if (!character.canRiposte) return;
         if (!character.CanAct()) return;
 
+        // Catat aksi defensif ke DataTracker
+        DataTracker.Instance.RecordAction(PlayerActionType.Defensive, WeaponType.Sword);
+
         character.ActivateRiposte();
         isActive = true;
         stanceTimer = stanceDuration;

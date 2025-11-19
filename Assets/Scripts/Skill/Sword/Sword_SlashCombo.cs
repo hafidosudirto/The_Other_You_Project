@@ -26,7 +26,6 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
 
     private bool isBusy = false;
     private bool chainRequested = false;
-    private int chain = 0; // 1 = slash1, 2 = slash2
 
     void Awake()
     {
@@ -49,7 +48,6 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
     private IEnumerator ComboRoutine()
     {
         isBusy = true;
-        chain  = 1;
 
         // Lock movement / aksi lain
         if (skillBase != null)
@@ -74,8 +72,6 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
         // ============================
         //           SLASH 2
         // ============================
-        chain = 2;
-
         anim.PlaySlash2();
 
         // tunggu timing pedang nyabet di animasi Slash2
@@ -137,7 +133,6 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
     private void EndCombo()
     {
         isBusy = false;
-        chain  = 0;
 
         if (skillBase != null)
             skillBase.SendMessage("ReleaseLock", SendMessageOptions.DontRequireReceiver);
