@@ -4,8 +4,8 @@ using System.Collections;
 public class CharacterBase : MonoBehaviour
 {
     [Header("Character Stats")]
-    public float maxHP = 100f;
-    public float currentHP = 100f;
+    public float maxHP = 1000f;
+    public float currentHP = 1000f;
 
     public float attack = 10f;
     public float defense = 5f;
@@ -76,8 +76,6 @@ public class CharacterBase : MonoBehaviour
         float finalDamage = Mathf.Max(1f, dmg - defense);
         currentHP -= finalDamage;
 
-        Debug.Log($"{name} CurrentHP: {currentHP}");
-
         if (currentHP <= 0)
         {
             Die();
@@ -86,20 +84,26 @@ public class CharacterBase : MonoBehaviour
 
     // -------------------------------------------------------------
     // Parry logic → memanggil follow-up dash dari Sword_Riposte
+    // SEKARANG: di sinilah Defensive (D) dihitung SEKALI
     // -------------------------------------------------------------
     private void Parry(GameObject attacker)
     {
-        Debug.Log($"{name} melakukan PARRY!");
+        // Defensive +1 (Riposte)
+        if (DataTracker.Instance != null)
+        {
+            DataTracker.Instance.RecordAction(PlayerActionType.Defensive, WeaponType.Sword);
+            // DebugHub.Skill("CAST Riposte → Defensive +1");
+        }
 
-        // Cari Sword_Riposte di child (SkillRoot_Sword)
+        // Trigger follow-up dash
         Sword_Riposte riposte = GetComponentInChildren<Sword_Riposte>();
         if (riposte != null)
             riposte.TriggerFollowUpDash();
 
-        // Nonaktifkan stance setelah parry
+        // Disable stance
         isRiposteStance = false;
 
-        // Musuh yang diparry diberi stagger kecil
+        // Stagger attacker
         if (attacker != null)
         {
             CharacterBase enemy = attacker.GetComponent<CharacterBase>();
@@ -151,7 +155,7 @@ public class CharacterBase : MonoBehaviour
     {
         isStaggered = true;
 
-        if (rb.bodyType == RigidbodyType2D.Dynamic)
+        if (rb != null && rb.bodyType == RigidbodyType2D.Dynamic)
         {
             rb.AddForce(dir * force, ForceMode2D.Impulse);
         }

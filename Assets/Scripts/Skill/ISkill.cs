@@ -11,7 +11,6 @@ using UnityEngine;
 
 public interface ISkill
 {
-    // Setiap skill harus mengimplementasikan fungsi ini.
-    // Fungsi inilah yang dipanggil SkillBase ketika player menekan tombol 1, 2, 3, atau 4.
-    void TriggerSkill();
+    public void TriggerSkill(int slotIndex);
+
 }

@@ -1,7 +1,4 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-
 
 public enum PlayerActionType
 {
@@ -19,7 +16,6 @@ public enum WeaponType
 
 public class DataTracker : MonoBehaviour
 {
-    // Singelton Pattern
     public static DataTracker Instance { get; private set; }
 
     [SerializeField] private int actionBatchSize = 3;
@@ -41,53 +37,52 @@ public class DataTracker : MonoBehaviour
         }
     }
 
-    // fungsi utama yang akan dipanggil oleh skrip skill pemain
-    public void RecordAction (PlayerActionType actionType, WeaponType weaponType)
+    // ------------------ RECORD ACTION ------------------
+    public void RecordAction(PlayerActionType actionType, WeaponType weaponType)
     {
-        // Simpan senjata terakhir yang digunakan
         if (weaponType != WeaponType.None)
-        {
             lastUsedWeapon = weaponType;
-        }
 
-        // Hitung aksi berdasarkan tipe
         if (actionType == PlayerActionType.Offensive)
-        {
             OffensiveCount++;
-        }
-        else if (actionType == PlayerActionType.Defensive)
-        {
+        else
             DefensiveCount++;
-        }
 
-        Debug.Log($"[DataTracker] Aksi dicatat: {actionType} (Senjata: {weaponType}). Total O: {OffensiveCount} / D: {DefensiveCount}");
+        DebugHub.DDA($"Action: {actionType}, Weapon: {weaponType} → O={OffensiveCount}, D={DefensiveCount}");
+
         CheckForAnalysis();
     }
 
-    // Periksa apakah sudah waktunya untuk analisis
+    // ------------------ CHECK ANALYTICS ------------------
     private void CheckForAnalysis()
     {
         int totalActions = OffensiveCount + DefensiveCount;
+
         if (totalActions >= actionBatchSize)
         {
             SendDataToDDA();
-            // Reset hitungan setelah analisis
+
+            // Reset
             OffensiveCount = 0;
             DefensiveCount = 0;
         }
     }
 
-    // Kirim data ke DDA (Dynamic Difficulty Adjustment)
+    // ------------------ SEND TO DDA ------------------
     private void SendDataToDDA()
     {
         if (DDAController.Instance != null)
         {
-            Debug.Log($"[DataTracker] Mengirim batch data ke DDA... (O: {OffensiveCount}, D: {DefensiveCount}, W: {lastUsedWeapon})");
-            DDAController.Instance.UpdatePlayerPlaystyle(OffensiveCount, DefensiveCount, lastUsedWeapon);
+            DebugHub.DDA($"Send Batch → O={OffensiveCount}, D={DefensiveCount}, W={lastUsedWeapon}");
+            DDAController.Instance.UpdatePlayerPlaystyle(
+                OffensiveCount,
+                DefensiveCount,
+                lastUsedWeapon
+            );
         }
         else
         {
-            Debug.LogWarning("DDAController tidak ditemukan!");
+            DebugHub.Warning("DDAController tidak ditemukan!");
         }
     }
 }

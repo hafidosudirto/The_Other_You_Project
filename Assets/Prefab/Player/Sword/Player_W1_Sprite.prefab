@@ -139,6 +139,7 @@ MonoBehaviour:
   canRiposte: 1
   riposteWindow: 0.6
   staggerResistance: 1
+  weaponType: 1
 --- !u!114 &5387256162423111338
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -212,10 +213,31 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 3019785914136632114}
-  slot1: {fileID: 2714046786445390265}
-  slot2: {fileID: 0}
-  slot3: {fileID: 0}
-  slot4: {fileID: 0}
+  slots:
+  - slotName: Slash Combo
+    skillBehaviour: {fileID: 2714046786445390265}
+    actionType: 0
+    weaponType: 1
+    dValue: 0.5
+  - slotName: Charged Strike
+    skillBehaviour: {fileID: 0}
+    actionType: 0
+    weaponType: 1
+    dValue: 1
+  - slotName: Whirldwind
+    skillBehaviour: {fileID: 0}
+    actionType: 0
+    weaponType: 1
+    dValue: 1
+  - slotName: Riposte
+    skillBehaviour: {fileID: 0}
+    actionType: 1
+    weaponType: 1
+    dValue: 1
+  slot1Key: 49
+  slot2Key: 50
+  slot3Key: 51
+  slot4Key: 52
   skillLocked: 0
 --- !u!114 &2714046786445390265
 MonoBehaviour:
@@ -238,6 +260,7 @@ MonoBehaviour:
   chain1Color: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   chain2Color: {r: 0.21960786, g: 0.21960786, b: 0.21960786, a: 1}
   arcSegments: 20
+  isBusy: 0
 --- !u!1 &8000750785686306608
 GameObject:
   m_ObjectHideFlags: 0

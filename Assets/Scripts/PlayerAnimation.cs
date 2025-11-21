@@ -16,9 +16,22 @@ public class PlayerAnimation : MonoBehaviour
     private static readonly int HashSlash1   = Animator.StringToHash("Slash1");
     private static readonly int HashSlash2   = Animator.StringToHash("Slash2");
 
+    // Whirlwind trigger
+    private static readonly int HashWhirlwind = Animator.StringToHash("Whirlwind");
+
+    // ===============================
+    // R I P O S T E   A N I M A T I O N
+    // ===============================
+    private static readonly int HashRiposteStance  = Animator.StringToHash("Riposte_Stance");
+    private static readonly int HashRiposteAttack  = Animator.StringToHash("Riposte_Parry_Attack");
+
     // Disiapkan untuk nanti (hurt / dead)
-    private static readonly int HashIsDead   = Animator.StringToHash("IsDead");
-    private static readonly int HashHurt     = Animator.StringToHash("Hurt");
+    private static readonly int HashIsDead = Animator.StringToHash("IsDead");
+    private static readonly int HashHurt   = Animator.StringToHash("Hurt");
+
+    private static readonly int HashBowChargeStart = Animator.StringToHash("Bow_ChargeStart");
+    private static readonly int HashBowRelease     = Animator.StringToHash("Bow_Release");
+
 
     private void Awake()
     {
@@ -32,11 +45,6 @@ public class PlayerAnimation : MonoBehaviour
     // =========================
     //  MOVEMENT
     // =========================
-
-    /// <summary>
-    /// Dipanggil dari script movement (contoh: MoveKeyboard)
-    /// dengan nilai kecepatan absolut (0 = diam).
-    /// </summary>
     public void SetMoveSpeed(float speed)
     {
         if (!animator) return;
@@ -46,36 +54,48 @@ public class PlayerAnimation : MonoBehaviour
     // =========================
     //  COMBAT / SLASH COMBO
     // =========================
-
-    /// <summary>
-    /// Mainkan animasi Slash Combo 1.
-    /// Dipanggil dari Sword_SlashCombo saat hit pertama.
-    /// </summary>
     public void PlaySlash1()
     {
         if (!animator) return;
-
-        // Pastikan trigger lain di-reset supaya nggak nyangkut
         animator.ResetTrigger(HashSlash2);
         animator.SetTrigger(HashSlash1);
     }
 
-    /// <summary>
-    /// Mainkan animasi Slash Combo 2.
-    /// Dipanggil dari Sword_SlashCombo saat chain kedua.
-    /// </summary>
     public void PlaySlash2()
     {
         if (!animator) return;
-
         animator.ResetTrigger(HashSlash1);
         animator.SetTrigger(HashSlash2);
     }
 
     // =========================
-    //  DAMAGE / DEATH (buat nanti)
+    //  WHIRLWIND
+    // =========================
+    public void PlayWhirlwind()
+    {
+        if (!animator) return;
+        animator.SetTrigger(HashWhirlwind);
+    }
+
+    // =========================
+    //  R I P O S T E
     // =========================
 
+    public void PlayRiposteStance()
+    {
+        if (!animator) return;
+        animator.SetTrigger(HashRiposteStance);
+    }
+
+    public void PlayRiposteAttack()
+    {
+        if (!animator) return;
+        animator.SetTrigger(HashRiposteAttack);
+    }
+
+    // =========================
+    //  HURT / DEATH
+    // =========================
     public void PlayHurt()
     {
         if (!animator) return;
@@ -87,4 +107,26 @@ public class PlayerAnimation : MonoBehaviour
         if (!animator) return;
         animator.SetBool(HashIsDead, isDead);
     }
+
+    private static readonly int HashQuickShot = Animator.StringToHash("QuickShot");
+
+    public void PlayQuickShot()
+    {
+        if (!animator) return;
+        animator.SetTrigger(HashQuickShot);
+    }
+
+    public void PlayBowChargeStart()
+    {
+        if (!animator) return;
+        animator.SetTrigger(HashBowChargeStart);
+    }
+
+    public void PlayBowRelease()
+    {
+        if (!animator) return;
+        animator.SetTrigger(HashBowRelease);
+    }
+
+
 }

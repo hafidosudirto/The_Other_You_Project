@@ -35,7 +35,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 5480325013948174721}
-  - {fileID: 1295630744342105822}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &4235862715829471927
@@ -140,6 +139,7 @@ MonoBehaviour:
   canRiposte: 1
   riposteWindow: 0.6
   staggerResistance: 1
+  weaponType: 1
 --- !u!114 &5387256162423111338
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -195,7 +195,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 1295630744342105822}
   m_Father: {fileID: 7686073481702737145}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &7955049090739457126
@@ -227,12 +228,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7955049090739457126}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 7686073481702737145}
+  m_Father: {fileID: 5480325013948174721}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &8806357304377255571
 MonoBehaviour:
@@ -247,10 +248,31 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 0}
-  slot1: {fileID: 2714046786445390265}
-  slot2: {fileID: 8654709856407921516}
-  slot3: {fileID: 8485656031795396555}
-  slot4: {fileID: 1173381250006101537}
+  slots:
+  - slotName: Slash Combo
+    skillBehaviour: {fileID: 2714046786445390265}
+    actionType: 0
+    weaponType: 1
+    dValue: 0.5
+  - slotName: Charged Strike
+    skillBehaviour: {fileID: 8654709856407921516}
+    actionType: 0
+    weaponType: 1
+    dValue: 1
+  - slotName: Whirlwind
+    skillBehaviour: {fileID: 8485656031795396555}
+    actionType: 0
+    weaponType: 1
+    dValue: 1
+  - slotName: Riposte
+    skillBehaviour: {fileID: 1173381250006101537}
+    actionType: 1
+    weaponType: 1
+    dValue: 1
+  slot1Key: 49
+  slot2Key: 50
+  slot3Key: 51
+  slot4Key: 52
   skillLocked: 0
 --- !u!114 &2714046786445390265
 MonoBehaviour:
@@ -266,13 +288,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   attackRadius: 1.5
   attackAngle: 90
-  firstDelay: 0.1
-  chain1Delay: 0.2
-  chain2Delay: 0.25
+  delaySlash1: 0.1
+  delaySlash2: 0.15
   chainWindow: 0.6
+  hitOffset: {x: 0.5, y: 0}
   chain1Color: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   chain2Color: {r: 0.21960786, g: 0.21960786, b: 0.21960786, a: 1}
   arcSegments: 20
+  isBusy: 0
 --- !u!114 &8654709856407921516
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -328,19 +351,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: df58cd6e606f4c9409b76bc43cd1dd97, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  activateKey: 52
   stanceDuration: 0.6
   cooldownTime: 1
   dashDistance: 2.5
   dashSpeed: 10
   hitRadius: 0.8
-  dashKnockbackForce: 6
-  dashStunDuration: 0.3
   enemyLayer:
     serializedVersion: 2
     m_Bits: 8
-  activeColor: {r: 0, g: 1, b: 0.8, a: 0.4}
-  dashColor: {r: 0, g: 0.5, b: 1, a: 0.4}
-  stanceRadius: 1.2
-  arcSegments: 20
-  stanceAngle: 100

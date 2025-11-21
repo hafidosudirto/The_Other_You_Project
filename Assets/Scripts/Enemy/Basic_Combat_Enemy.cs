@@ -97,13 +97,13 @@ public class Basic_Combat_Enemy : MonoBehaviour
         {
             dmg = enemy.attack;
             gizmoColor = primaryColor;
-            Debug.Log(name + " melakukan Primary Attack");
+            // Debug.Log(name + " melakukan Primary Attack");
         }
         else
         {
             dmg = enemy.attack * 1.5f;
             gizmoColor = heavyColor;
-            Debug.Log(name + " melakukan Heavy Attack");
+            // Debug.Log(name + " melakukan Heavy Attack");
         }
 
         TriggerAttackGizmo();
