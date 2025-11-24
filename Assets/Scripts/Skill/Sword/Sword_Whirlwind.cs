@@ -41,8 +41,8 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill
         if (player == null || !player.CanAct()) return;
 
         // SkillBase.TriggerSlot() sudah melakukan CAST.
-        if (skillBase != null)
-            skillBase.skillLocked = true;
+        // if (skillBase != null)
+        //     skillBase.skillLocked = true;
 
         StartCoroutine(WhirlwindRoutine());
     }
@@ -91,8 +91,8 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill
 
         isActive = false;
 
-        if (skillBase != null)
-            skillBase.ReleaseLock();
+        // if (skillBase != null)
+        //     skillBase.ReleaseLock();
     }
 
     private void ApplyWhirlwindDamage()
@@ -141,8 +141,8 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill
     // ============================================================
     void OnDisable()
     {
-        if (skillBase != null)
-            skillBase.ReleaseLock();
+        // if (skillBase != null)
+        //     skillBase.ReleaseLock();
 
         if (player != null)
             player.moveSpeed = originalSpeed;

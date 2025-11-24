@@ -8,126 +8,62 @@ public class SkillSlot
 
     [Header("DDA / DataTracker")]
     public PlayerActionType actionType = PlayerActionType.Offensive;
-    public WeaponType weaponType = WeaponType.Sword;
+    public WeaponType weaponType = WeaponType.Bow;
 
-    // dValue: kontribusi ke O/D (0.5, 1, dll) untuk skill ini per CAST
+    // nilai kontribusi ke DDA
     public float dValue = 1f;
 }
 
 public class SkillBase : MonoBehaviour
 {
-    [Header("Referensi Pemilik Skill")]
-    public Player player;
+    [Header("Skill Slots")]
+    public SkillSlot[] slots;
 
-    [Header("Skill Slots (1–4)")]
-    public SkillSlot[] slots = new SkillSlot[4];
-
-    [Header("Input Keys")]
+    [Header("Input Settings")]
     public KeyCode slot1Key = KeyCode.Alpha1;
     public KeyCode slot2Key = KeyCode.Alpha2;
     public KeyCode slot3Key = KeyCode.Alpha3;
     public KeyCode slot4Key = KeyCode.Alpha4;
 
-    [HideInInspector]
-    public bool skillLocked = false;
-
-    private float lockTimer = 0f;
-    private const float MAX_LOCK_TIME = 2f;
-
-    // ============================================
-    //  BUFFER DDA (fractional → integer)
-    // ============================================
+    // Buffer DDA lokal
     private float bufferedOffensive = 0f;
     private float bufferedDefensive = 0f;
 
-    void Awake()
+    private void Update()
     {
-        if (player == null)
-            player = GetComponentInParent<Player>();
-    }
+        if (slots == null || slots.Length == 0)
+            return;
 
-    void Update()
-    {
-        if (!player) return;
-
-        // ---------- Fail-safe auto unlock ----------
-        if (skillLocked)
-        {
-            lockTimer += Time.deltaTime;
-
-            if (lockTimer > MAX_LOCK_TIME)
-            {
-                DebugHub.Warning("SkillBase Auto-Unlock Triggered");
-                ReleaseLock();
-            }
-        }
-        else
-        {
-            lockTimer = 0f;
-        }
-
-        // ---------- INPUT (dengan cek busy per slot) ----------
-        if (Input.GetKeyDown(slot1Key))
-        {
-            if (!IsSlotBusy(0))
-                TriggerSlot(0);
-        }
-
-        if (Input.GetKeyDown(slot2Key))
-        {
-            if (!IsSlotBusy(1))
-                TriggerSlot(1);
-        }
-
-        if (Input.GetKeyDown(slot3Key))
-        {
-            if (!IsSlotBusy(2))
-                TriggerSlot(2);
-        }
-
-        if (Input.GetKeyDown(slot4Key))
-        {
-            if (!IsSlotBusy(3))
-                TriggerSlot(3);
-        }
+        // --------------- INPUT ---------------
+        if (Input.GetKeyDown(slot1Key)) TriggerSlot(0);
+        if (Input.GetKeyDown(slot2Key)) TriggerSlot(1);
+        if (Input.GetKeyDown(slot3Key)) TriggerSlot(2);
+        if (Input.GetKeyDown(slot4Key)) TriggerSlot(3);
     }
 
     // ============================================================
-    //                         TRIGGER SLOT
+    //                        TRIGGER SLOT
     // ============================================================
     public void TriggerSlot(int slotIndex)
     {
-        if (skillLocked) return;
         if (slotIndex < 0 || slotIndex >= slots.Length) return;
 
         ISkill skill = slots[slotIndex].skillBehaviour as ISkill;
         if (skill == null) return;
 
-        // ---------- Lock skill ----------
-        skillLocked = true;
+        // DDA update saat CAST
+        RegisterSkillCast(slotIndex);
 
-        // ---------- DDA Update saat CAST ----------
-        // • Riposte: dikelola di CharacterBase.Parry()
-        // • SlashCombo: punya 2 CAST (0.5 + 0.5) di dalam script skill,
-        //   jadi TIDAK dihitung di sini supaya tidak triple-count.
-        string typeName = slots[slotIndex].skillBehaviour.GetType().Name;
-
-        if (typeName != "Sword_Riposte" && typeName != "Sword_SlashCombo")
-        {
-            RegisterSkillCast(slotIndex);
-        }
-
-        // ---------- Trigger skill behaviour ----------
+        // Jalankan behaviour skill
         skill.TriggerSkill(slotIndex);
     }
 
     // ============================================================
-    //                    REGISTER D-VALUE (BUFFER)
+    //                REGISTER D-VALUE (BUFFER)
     // ============================================================
     public void RegisterSkillCast(int slotIndex)
     {
         if (slotIndex < 0 || slotIndex >= slots.Length) return;
-
         if (DataTracker.Instance == null)
         {
             DebugHub.Warning("DataTracker.Instance NULL");
@@ -137,81 +73,31 @@ public class SkillBase : MonoBehaviour
         SkillSlot slot = slots[slotIndex];
         float dValue = slot.dValue;
 
-        // Nabung dValue ke buffer lokal di SkillBase
+        // Nabung nilai ke buffer
         if (slot.actionType == PlayerActionType.Offensive)
-        {
             bufferedOffensive += dValue;
-        }
         else
-        {
             bufferedDefensive += dValue;
-        }
 
-        // Debug untuk game designer
-        DebugHub.Skill(
-            $"CAST {slot.slotName} → {slot.actionType} +{dValue}"
-        );
+        // Debug
+        DebugHub.Skill($"CAST {slot.slotName}");
 
-        // Coba flush ke DataTracker kalau sudah >= 1
+        // flush ketika sudah >= 1
         TryFlushToDDA(slot.weaponType);
     }
 
-    // ============================================================
-    //                  FLUSH BUFFER KE DATATRACKER
-    // ============================================================
     private void TryFlushToDDA(WeaponType weaponType)
     {
-        // Offensive
         while (bufferedOffensive >= 1f)
         {
-            DataTracker.Instance.RecordAction(
-                PlayerActionType.Offensive,
-                weaponType
-            );
+            DataTracker.Instance.RecordAction(PlayerActionType.Offensive, weaponType);
             bufferedOffensive -= 1f;
         }
 
-        // Defensive
         while (bufferedDefensive >= 1f)
         {
-            DataTracker.Instance.RecordAction(
-                PlayerActionType.Defensive,
-                weaponType
-            );
+            DataTracker.Instance.RecordAction(PlayerActionType.Defensive, weaponType);
             bufferedDefensive -= 1f;
         }
-    }
-
-    // ============================================================
-    //          CEK APAKAH SKILL SEDANG BUSY (COMBO / CAST)
-    // ============================================================
-    private bool IsSlotBusy(int slotIndex)
-    {
-        if (slotIndex < 0 || slotIndex >= slots.Length)
-            return false;
-
-        var behaviour = slots[slotIndex].skillBehaviour as MonoBehaviour;
-        if (behaviour == null) return false;
-
-        // --- Slash Combo ---
-        var slash = behaviour as Sword_SlashCombo;
-        if (slash != null)
-        {
-            // Pastikan di Sword_SlashCombo: public bool isBusy;
-            return slash.isBusy;
-        }
-
-        // Skill lain (kalau nanti butuh cek busy) bisa ditambah di sini
-
-        return false;
-    }
-
-    // ============================================================
-    //                      UNLOCK SKILL
-    // ============================================================
-    public void ReleaseLock()
-    {
-        skillLocked = false;
-        lockTimer = 0f;
     }
 }

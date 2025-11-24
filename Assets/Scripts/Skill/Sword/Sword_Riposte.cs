@@ -45,8 +45,8 @@ public class Sword_Riposte : MonoBehaviour, ISkill
                     character.EndRiposteStance();
 
                 // Release lock ONLY IF not dashing
-                if (!isDashing && skillBase != null)
-                    skillBase.ReleaseLock();
+                // if (!isDashing && skillBase != null)
+                //     skillBase.ReleaseLock();
 
                 // reset riposte ability
                 if (character != null)
@@ -85,8 +85,8 @@ public class Sword_Riposte : MonoBehaviour, ISkill
         if (!character.canRiposte || isOnCooldown)
             return;
 
-        if (skillBase != null)
-            skillBase.skillLocked = true;
+        // if (skillBase != null)
+        //     skillBase.skillLocked = true;
 
         character.ActivateRiposte();
 
@@ -138,8 +138,8 @@ public class Sword_Riposte : MonoBehaviour, ISkill
             if (character != null)
                 character.canRiposte = true;
 
-            if (skillBase != null)
-                skillBase.ReleaseLock();
+            // if (skillBase != null)
+                // skillBase.ReleaseLock();
         }
     }
 
@@ -179,8 +179,8 @@ public class Sword_Riposte : MonoBehaviour, ISkill
     // ---------------------------------------
     void OnDisable()
     {
-        if (skillBase != null)
-            skillBase.ReleaseLock();
+        // if (skillBase != null)
+        //     skillBase.ReleaseLock();
 
         if (character != null)
             character.canRiposte = true;

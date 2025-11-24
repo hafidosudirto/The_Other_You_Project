@@ -60,8 +60,8 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill
         showGizmo = true;
         chargeTimer = 0f;
 
-        if (skillBase != null)
-            skillBase.skillLocked = true;
+        // if (skillBase != null)
+        //     skillBase.skillLocked = true;
 
         KeyCode holdKey = skillBase.slot2Key;
 
@@ -82,8 +82,8 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill
 
         PerformChargedStrike(multiplier);
 
-        if (skillBase != null)
-            skillBase.ReleaseLock();
+        // if (skillBase != null)
+        //     skillBase.ReleaseLock();
     }
 
     // ============================================================
@@ -122,8 +122,8 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill
 
     void OnDisable()
     {
-        if (skillBase != null)
-            skillBase.ReleaseLock();
+        // if (skillBase != null)
+        //     skillBase.ReleaseLock();
 
         isCharging = false;
         showGizmo = false;

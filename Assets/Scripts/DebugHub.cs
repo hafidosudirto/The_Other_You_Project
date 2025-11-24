@@ -12,6 +12,7 @@ public static class DebugHub
     public static bool ENABLE_ENEMY = true;
     public static bool ENABLE_WARN  = true;
     public static bool ENABLE_SYS   = true;
+    public static bool ENABLE_BOW   = true;   // NEW: khusus log Bow
 
     // ======================
     //   CATEGORY METHODS
@@ -36,6 +37,13 @@ public static class DebugHub
     {
         if (!ENABLE_DDA) return;
         Debug.Log($"<color=#FFD700>[DDA]</color> {msg}");
+    }
+
+    // Bow-specific logs (arrow spawn, velocity, damage, dll)
+    public static void Bow(string msg)
+    {
+        if (!ENABLE_BOW) return;
+        Debug.Log($"<color=#3CD2FF>[Bow]</color> {msg}");
     }
 
     // Enemy Logs (attack type, AI, alerts)

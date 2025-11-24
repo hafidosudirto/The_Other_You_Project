@@ -53,8 +53,8 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
         isBusy = true;
         isSlash2 = false;
 
-        if (skillBase != null)
-            skillBase.skillLocked = true;
+        // if (skillBase != null)
+        //     skillBase.skillLocked = true;
 
         // ====================
         // SLASH 1
@@ -63,8 +63,8 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
             anim.PlaySlash1();
 
         // CAST Slash1 → +0.5
-        if (skillBase != null)
-            skillBase.RegisterSkillCast(mySlotIndex);
+        // if (skillBase != null)
+        //     skillBase.RegisterSkillCast(mySlotIndex);
 
         yield return new WaitForSeconds(delaySlash1);
         PerformSlash();
@@ -85,8 +85,8 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
         isSlash2 = true;
 
         // CAST Slash2 → +0.5
-        if (skillBase != null)
-            skillBase.RegisterSkillCast(mySlotIndex);
+        // if (skillBase != null)
+        //     skillBase.RegisterSkillCast(mySlotIndex);
 
         if (anim != null)
             anim.PlaySlash2();
@@ -146,14 +146,14 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
         isBusy = false;
         isSlash2 = false;
 
-        if (skillBase != null)
-            skillBase.ReleaseLock();
+        // if (skillBase != null)
+        //     skillBase.ReleaseLock();
     }
 
     void OnDisable()
     {
-        if (skillBase != null)
-            skillBase.ReleaseLock();
+        // if (skillBase != null)
+        //     skillBase.ReleaseLock();
 
         isBusy = false;
         chainRequested = false;

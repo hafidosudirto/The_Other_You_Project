@@ -39,7 +39,7 @@ public class CharacterBase : MonoBehaviour
     }
 
     // -------------------------------------------------------------
-    // Flip mengatur arah hadap karakter (Player & Enemy)
+    // Flip
     // -------------------------------------------------------------
     public void Flip()
     {
@@ -50,7 +50,7 @@ public class CharacterBase : MonoBehaviour
     }
 
     // -------------------------------------------------------------
-    // Mengecek apakah karakter bisa bertindak (tidak stagger, tidak mati)
+    // Can Act?
     // -------------------------------------------------------------
     public bool CanAct()
     {
@@ -58,15 +58,14 @@ public class CharacterBase : MonoBehaviour
     }
 
     // -------------------------------------------------------------
-    // Fungsi utama untuk menerima damage
-    // attacker = musuh (enemy atau player)
+    // Damage
     // -------------------------------------------------------------
     public virtual void TakeDamage(float dmg, GameObject attacker = null)
     {
         if (currentHP <= 0)
             return;
 
-        // Jika sedang stance riposte → parry sukses
+        // Riposte parry
         if (isRiposteStance)
         {
             Parry(attacker);
@@ -83,27 +82,24 @@ public class CharacterBase : MonoBehaviour
     }
 
     // -------------------------------------------------------------
-    // Parry logic → memanggil follow-up dash dari Sword_Riposte
-    // SEKARANG: di sinilah Defensive (D) dihitung SEKALI
+    // Parry (Riposte)
     // -------------------------------------------------------------
     private void Parry(GameObject attacker)
     {
-        // Defensive +1 (Riposte)
+        // Defensive +1
         if (DataTracker.Instance != null)
         {
             DataTracker.Instance.RecordAction(PlayerActionType.Defensive, WeaponType.Sword);
-            // DebugHub.Skill("CAST Riposte → Defensive +1");
         }
 
-        // Trigger follow-up dash
+        // Follow-up dash
         Sword_Riposte riposte = GetComponentInChildren<Sword_Riposte>();
         if (riposte != null)
             riposte.TriggerFollowUpDash();
 
-        // Disable stance
         isRiposteStance = false;
 
-        // Stagger attacker
+        // Stagger musuh yang kena parry
         if (attacker != null)
         {
             CharacterBase enemy = attacker.GetComponent<CharacterBase>();
@@ -115,9 +111,6 @@ public class CharacterBase : MonoBehaviour
         }
     }
 
-    // -------------------------------------------------------------
-    // Mengaktifkan riposte stance (dipanggil dari Sword_Riposte)
-    // -------------------------------------------------------------
     public void ActivateRiposte()
     {
         if (!canRiposte) return;
@@ -126,7 +119,6 @@ public class CharacterBase : MonoBehaviour
         canRiposte = false;
     }
 
-    // Dipanggil setelah stance selesai oleh Sword_Riposte
     public void EndRiposteStance()
     {
         isRiposteStance = false;
@@ -140,7 +132,40 @@ public class CharacterBase : MonoBehaviour
     }
 
     // -------------------------------------------------------------
-    // Stagger / Knockback logic (manual untuk Kinematic)
+    // SIMPLE Knockback + SIMPLE Stun
+    // -------------------------------------------------------------
+    public void ApplyKnockback(Vector2 direction, float force)
+    {
+        if (force <= 0f || currentHP <= 0f)
+            return;
+
+        float knockDuration = 0.15f; 
+        ApplyStagger(direction, force, knockDuration);
+    }
+
+    private Coroutine stunRoutine;
+
+    public void ApplyStun(float duration)
+    {
+        if (duration <= 0f || currentHP <= 0f)
+            return;
+
+        if (stunRoutine != null)
+            StopCoroutine(stunRoutine);
+
+        stunRoutine = StartCoroutine(ApplyStunRoutine(duration));
+    }
+
+    private IEnumerator ApplyStunRoutine(float duration)
+    {
+        isStaggered = true;
+        yield return new WaitForSeconds(duration);
+        isStaggered = false;
+        stunRoutine = null;
+    }
+
+    // -------------------------------------------------------------
+    // Stagger (for sword hits, riposte, knockback base)
     // -------------------------------------------------------------
     public void ApplyStagger(Vector2 direction, float force, float duration)
     {
@@ -165,7 +190,6 @@ public class CharacterBase : MonoBehaviour
         }
 
         yield return new WaitForSeconds(duration);
-
         isStaggered = false;
     }
 
@@ -183,7 +207,7 @@ public class CharacterBase : MonoBehaviour
     }
 
     // -------------------------------------------------------------
-    // Kematian karakter
+    // Death
     // -------------------------------------------------------------
     public virtual void Die()
     {
