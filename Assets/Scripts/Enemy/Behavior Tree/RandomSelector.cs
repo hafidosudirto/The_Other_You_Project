@@ -4,16 +4,24 @@ using UnityEngine;
 
 public class RandomSelector : Node
 {
-    public RandomSelector(List<Node> children) : base(children) { }
+    private List<Node> nodes;
+
+    public RandomSelector(List<Node> children)
+    {
+        nodes = children;
+    }
 
     public override NodeState Evaluate()
     {
-        if (children.Count > 0)
-        {
-            int randomIndex = Random.Range(0, children.Count);
-            Node randomChild = children[randomIndex];
-            return randomChild.Evaluate();
-        }
-        return NodeState.Failure;
+        if (nodes.Count == 0)
+            return NodeState.Failure;
+
+        int index = Random.Range(0, nodes.Count);
+        Node chosen = nodes[index];
+
+        NodeState s = chosen.Evaluate();
+        state = s;
+        return state;
     }
 }
+

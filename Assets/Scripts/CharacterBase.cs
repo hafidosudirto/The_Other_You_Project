@@ -213,5 +213,9 @@ public class CharacterBase : MonoBehaviour
     {
         Debug.Log($"{name} MATI");
         Destroy(gameObject);
+
+        EnemyDeathHandler death = GetComponent<EnemyDeathHandler>();
+        if (death != null)
+            death.HandleDeath();
     }
 }

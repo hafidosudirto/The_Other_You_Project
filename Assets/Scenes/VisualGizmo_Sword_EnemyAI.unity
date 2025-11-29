@@ -122,6 +122,11 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &225023556 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1718376399928103269, guid: 1579b06cd1c1f574d90621b0899d9ded, type: 3}
+  m_PrefabInstance: {fileID: 3269455387318241678}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &231379896 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7686073481702737145, guid: 1579b06cd1c1f574d90621b0899d9ded, type: 3}
@@ -132,12 +137,47 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 3019785914136632114, guid: 1579b06cd1c1f574d90621b0899d9ded, type: 3}
   m_PrefabInstance: {fileID: 3269455387318241678}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 225023556}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 53a158118594bf04d8dede1dc7fef1e9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!58 &231379905
+CircleCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 225023556}
+  m_Enabled: 1
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_UsedByComposite: 0
+  m_Offset: {x: 0, y: 0}
+  serializedVersion: 2
+  m_Radius: 0.5
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0
@@ -230,6 +270,117 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &598364386
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 598364387}
+  - component: {fileID: 598364391}
+  - component: {fileID: 598364390}
+  - component: {fileID: 598364389}
+  - component: {fileID: 598364388}
+  m_Layer: 0
+  m_Name: Sword_Skills
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &598364387
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 598364386}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1251340663}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &598364388
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 598364386}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e51dc04a48bea04fa20a42f3243279f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  radius: 2
+  duration: 1.5
+  damageMultiplier: 1.2
+  hitMask:
+    serializedVersion: 2
+    m_Bits: 0
+--- !u!114 &598364389
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 598364386}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c05d231150c90d4eb17d6c90dc89b52, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  attackRadius: 1.5
+  attackAngle: 90
+  windupTime: 0.15
+  activeTime: 0.05
+  recoveryTime: 0.35
+  hitMask:
+    serializedVersion: 2
+    m_Bits: 0
+  hitOffset: {x: 0.6, y: 0}
+--- !u!114 &598364390
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 598364386}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59ea4e6bcef6eb942b825bcb77c43017, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  stanceDuration: 0.6
+  hitMask:
+    serializedVersion: 2
+    m_Bits: 0
+--- !u!114 &598364391
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 598364386}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d01682e6c33ef34289a368f5335da08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  attackRadius: 1.6
+  attackAngle: 100
+  damageMultiplier: 2
+  windupTime: 0.5
+  activeTime: 0.1
+  recoveryTime: 0.5
+  hitMask:
+    serializedVersion: 2
+    m_Bits: 0
 --- !u!114 &655989498 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 6476649333990031288, guid: c644caea46e765c4e857b573cb8deaa5, type: 3}
@@ -303,6 +454,11 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &757240091 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4090163703377844648, guid: 101119f0b26e7ae419f2d94c7ad54772, type: 3}
+  m_PrefabInstance: {fileID: 6755436308742435603}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &1251340663 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7572972748763347532, guid: 101119f0b26e7ae419f2d94c7ad54772, type: 3}
@@ -313,12 +469,86 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 3817100853546906439, guid: 101119f0b26e7ae419f2d94c7ad54772, type: 3}
   m_PrefabInstance: {fileID: 6755436308742435603}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 757240091}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e5fc9ce6d7dec0a49a423bbd5b5adebd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!50 &1251340671 stripped
+Rigidbody2D:
+  m_CorrespondingSourceObject: {fileID: 900927698793162225, guid: 101119f0b26e7ae419f2d94c7ad54772, type: 3}
+  m_PrefabInstance: {fileID: 6755436308742435603}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1251340674
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 757240091}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2e6c004dcf5722445860911ee4520cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  player: {fileID: 231379896}
+  rb: {fileID: 1251340671}
+  moveSpeed: 3
+  accel: 10
+  idealSwordDistance: 1.8
+  tolerance: 0.25
+--- !u!114 &1251340679
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 757240091}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7dba363f7cbb4a4091317e87a6cdc10, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerTransform: {fileID: 231379896}
+  attackRange: 1.8
+  isPerformingAction: 1
+--- !u!114 &1251340680
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 757240091}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 654c9d779108be34fab5ff69fe87ab3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  enemyFSM: {fileID: 1251340674}
+  enemyAI: {fileID: 1251340679}
+  slashCombo: {fileID: 0}
+  whirlwind: {fileID: 0}
+  riposte: {fileID: 0}
+  chargedStrike: {fileID: 0}
+  isPerformingSkill: 1
+--- !u!114 &1251340681
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 757240091}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8adcbc455213a7d4d8bd32ee79ddf3bc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  stats: {fileID: 1251340667}
+  slashCombo: {fileID: 0}
+  whirlwind: {fileID: 0}
+  chargedStrike: {fileID: 0}
+  riposte: {fileID: 0}
 --- !u!1 &1965485384
 GameObject:
   m_ObjectHideFlags: 0
@@ -555,7 +785,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1718376399928103269, guid: 1579b06cd1c1f574d90621b0899d9ded, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 231379905}
   m_SourcePrefab: {fileID: 100100000, guid: 1579b06cd1c1f574d90621b0899d9ded, type: 3}
 --- !u!1001 &6755436308742435603
 PrefabInstance:
@@ -611,8 +844,23 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 7572972748763347532, guid: 101119f0b26e7ae419f2d94c7ad54772, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 598364387}
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4090163703377844648, guid: 101119f0b26e7ae419f2d94c7ad54772, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1251340674}
+    - targetCorrespondingSourceObject: {fileID: 4090163703377844648, guid: 101119f0b26e7ae419f2d94c7ad54772, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1251340679}
+    - targetCorrespondingSourceObject: {fileID: 4090163703377844648, guid: 101119f0b26e7ae419f2d94c7ad54772, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1251340681}
+    - targetCorrespondingSourceObject: {fileID: 4090163703377844648, guid: 101119f0b26e7ae419f2d94c7ad54772, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1251340680}
   m_SourcePrefab: {fileID: 100100000, guid: 101119f0b26e7ae419f2d94c7ad54772, type: 3}
 --- !u!1001 &8805805605108114448
 PrefabInstance:

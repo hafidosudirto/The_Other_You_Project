@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class Bow_QuickShot : MonoBehaviour, ISkill
+public class Bow_QuickShot : MonoBehaviour, ISkill  
 {
     [Header("Quick Shot Settings")]
     public GameObject arrowPrefab;

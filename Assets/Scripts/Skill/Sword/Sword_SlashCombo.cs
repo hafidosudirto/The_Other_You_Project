@@ -46,6 +46,8 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
 
         mySlotIndex = slotIndex;
         StartCoroutine(ComboRoutine());
+        DataTracker.Instance.RecordAction(PlayerActionType.Offensive, WeaponType.Sword);
+
     }
 
     private IEnumerator ComboRoutine()
