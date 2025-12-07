@@ -6,6 +6,9 @@ public class Sword_Riposte : MonoBehaviour, ISkill
     private CharacterBase character;
     private SkillBase skillBase;
 
+    [Header("Animation")]
+    public PlayerAnimation anim;
+
     [Header("Riposte Settings")]
     public float stanceDuration = 0.6f;
     public float cooldownTime = 1.0f;
@@ -29,6 +32,9 @@ public class Sword_Riposte : MonoBehaviour, ISkill
     {
         character = GetComponentInParent<CharacterBase>();
         skillBase = GetComponentInParent<SkillBase>();
+
+        if (anim == null)
+            anim = GetComponentInParent<PlayerAnimation>();
     }
 
     void Update()
@@ -44,13 +50,13 @@ public class Sword_Riposte : MonoBehaviour, ISkill
                 if (character != null)
                     character.EndRiposteStance();
 
-                // Release lock ONLY IF not dashing
-                // if (!isDashing && skillBase != null)
-                //     skillBase.ReleaseLock();
-
                 // reset riposte ability
                 if (character != null)
                     character.canRiposte = true;
+
+                // MATIKAN ANIMASI STANCE
+                if (anim != null)
+                    anim.SetRiposteReady(false);
             }
         }
 
@@ -63,35 +69,57 @@ public class Sword_Riposte : MonoBehaviour, ISkill
     // ---------------------------------------
     public void TriggerSkill(int slotIndex)
     {
+        Debug.Log("[Riposte] TriggerSkill dipanggil, slot = " + slotIndex);
+
         if (isActive || isDashing || isOnCooldown)
+        {
+            Debug.Log("[Riposte] Gagal: isActive/isDashing/isOnCooldown = " + isActive + "/" + isDashing + "/" + isOnCooldown);
             return;
+        }
 
         if (character == null || !character.CanAct())
+        {
+            Debug.Log("[Riposte] Gagal: character null atau !CanAct()");
             return;
+        }
 
         mySlotIndex = slotIndex;
-
-        // IMPORTANT:
-        // Riposte stance SHOULD NOT register DDA
-        // only FUA should
         TryActivateRiposte();
     }
 
-    // ---------------------------------------
-    // ACTIVATE RIPOSTE STANCE
-    // ---------------------------------------
     private void TryActivateRiposte()
     {
-        if (!character.canRiposte || isOnCooldown)
-            return;
+        Debug.Log("[Riposte] TryActivateRiposte()");
 
-        // if (skillBase != null)
-        //     skillBase.skillLocked = true;
+        if (character == null)
+        {
+            Debug.Log("[Riposte] Gagal: character null");
+            return;
+        }
+
+        Debug.Log("[Riposte] canRiposte = " + character.canRiposte + ", isOnCooldown = " + isOnCooldown);
+
+        if (!character.canRiposte || isOnCooldown)
+        {
+            Debug.Log("[Riposte] Gagal: !canRiposte atau isOnCooldown");
+            return;
+        }
 
         character.ActivateRiposte();
-
         isActive = true;
         stanceTimer = stanceDuration;
+
+        Debug.Log("[Riposte] BERHASIL: stance aktif, timer = " + stanceTimer);
+
+        if (anim != null)
+        {
+            anim.SetRiposteReady(true);
+            Debug.Log("[Riposte] SetRiposteReady(true) dikirim ke Animator");
+        }
+        else
+        {
+            Debug.Log("[Riposte] Gagal: anim == null");
+        }
 
         StartCoroutine(StartCooldown());
     }
@@ -102,6 +130,9 @@ public class Sword_Riposte : MonoBehaviour, ISkill
     // ---------------------------------------
     public void TriggerFollowUpDash()
     {
+        if (character == null)
+            return;
+
         if (!isActive) return;
         if (isDashing) return;
 
@@ -112,6 +143,13 @@ public class Sword_Riposte : MonoBehaviour, ISkill
 
         isDashing = true;
         isActive = false;
+
+        // MATIKAN ANIMASI STANCE & MAINKAN COUNTER
+        if (anim != null)
+        {
+            anim.SetRiposteReady(false);
+            anim.TriggerRiposteCounter();
+        }
 
         // ❌ Jangan CAST Defensive lagi!
         // Riposte D-value sudah dihitung sekali saat Parry()
@@ -139,7 +177,7 @@ public class Sword_Riposte : MonoBehaviour, ISkill
                 character.canRiposte = true;
 
             // if (skillBase != null)
-                // skillBase.ReleaseLock();
+            //     skillBase.ReleaseLock();
         }
     }
 
@@ -185,6 +223,10 @@ public class Sword_Riposte : MonoBehaviour, ISkill
         if (character != null)
             character.canRiposte = true;
 
+        // Pastikan animasi stance mati
+        if (anim != null)
+            anim.SetRiposteReady(false);
+
         isActive = false;
         isDashing = false;
     }
@@ -194,7 +236,7 @@ public class Sword_Riposte : MonoBehaviour, ISkill
     // ---------------------------------------
     void OnDrawGizmos()
     {
-        if (!Application.isPlaying) return;
+        if (!Application.isPlaying || character == null) return;
 
         Vector3 center = character.transform.position;
         Vector3 facing = character.isFacingRight ? Vector3.right : Vector3.left;

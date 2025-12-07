@@ -3,6 +3,9 @@ using System.Collections;
 
 public class Sword_ChargedStrike : MonoBehaviour, ISkill
 {
+    // ============================================================
+    //  SETTINGS
+    // ============================================================
     [Header("Charge Settings")]
     public float maxChargeTime = 2.0f;
     public float minDamageMultiplier = 1f;
@@ -22,49 +25,88 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill
     public float gizmoAngle = 100f;
     public int gizmoSegments = 20;
 
+    // ============================================================
+    //  INTERNAL
+    // ============================================================
     private Player player;
     private SkillBase skillBase;
     private PlayerAnimation anim;
+    private MoveKeyboard mover;
 
     private bool isCharging = false;
     private float chargeTimer = 0f;
     private bool showGizmo = false;
     private int mySlotIndex = 0;
 
+    // ============================================================
     void Awake()
     {
+        player    = GetComponentInParent<Player>();
+        anim      = GetComponentInParent<PlayerAnimation>();
+        mover     = GetComponentInParent<MoveKeyboard>();
         skillBase = GetComponentInParent<SkillBase>();
-        player = GetComponentInParent<Player>();
-        anim   = GetComponentInParent<PlayerAnimation>();
     }
 
     // ============================================================
-    //   CAST (TRIGGER)
-    //   🔥 SkillBase sudah menghitung CAST → Jangan hitung lagi.
+    //  TRIGGER BY SKILLBASE
     // ============================================================
     public void TriggerSkill(int slotIndex)
     {
         if (isCharging) return;
 
         mySlotIndex = slotIndex;
-
-        // ❌ Dihapus — CAST sudah dilakukan oleh SkillBase
-        // skillBase.RegisterSkillCast(mySlotIndex);
-
         StartCoroutine(ChargeRoutine());
     }
 
+    // Tombol mana yang harus ditahan, mengikuti index slot
+    private KeyCode GetHoldKey()
+    {
+        if (skillBase == null) return KeyCode.None;
+
+        switch (mySlotIndex)
+        {
+            case 0: return skillBase.slot1Key;
+            case 1: return skillBase.slot2Key;
+            case 2: return skillBase.slot3Key;
+            case 3: return skillBase.slot4Key;
+            default: return KeyCode.None;
+        }
+    }
+
+    // ============================================================
+    //  MAIN CHARGE ROUTINE
+    // ============================================================
     private IEnumerator ChargeRoutine()
     {
-        isCharging = true;
-        showGizmo = true;
+        isCharging  = true;
         chargeTimer = 0f;
+        showGizmo   = true;
 
-        // if (skillBase != null)
-        //     skillBase.skillLocked = true;
+        KeyCode holdKey = GetHoldKey();
 
-        KeyCode holdKey = skillBase.slot2Key;
+        if (holdKey == KeyCode.None)
+        {
+            // Safety kalau konfigurasi salah
+            isCharging = false;
+            showGizmo  = false;
+            anim.SetCharging(false);
+            yield break;
+        }
 
+        // 🔒 Lock movement while charging
+        if (mover != null)
+            mover.LockExternal(999f);
+
+        // 🔥 Play charging animation (set bool isCharging = true di Animator)
+        if (anim != null)
+            anim.SetCharging(true);
+
+        // Pastikan minimal 1 frame penuh dalam kondisi "charging"
+        yield return null;
+
+        // ==========================
+        //  HOLD CHARGE
+        // ==========================
         while (Input.GetKey(holdKey))
         {
             chargeTimer += Time.deltaTime;
@@ -72,29 +114,38 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill
             yield return null;
         }
 
-        showGizmo = false;
+        // RELEASE INPUT
         isCharging = false;
+        showGizmo  = false;
 
-        float chargePercent = chargeTimer / maxChargeTime;
+        // 🔥 STOP charging animation → START STRIKE animation
+        if (anim != null)
+            anim.SetCharging(false);
+
+        // Hitbox multiplier
+        float chargePercent = (maxChargeTime > 0f)
+            ? chargeTimer / maxChargeTime
+            : 1f;
+
         float multiplier = Mathf.Lerp(minDamageMultiplier, maxDamageMultiplier, chargePercent);
-
         multiplier = Mathf.Round(multiplier);
 
         PerformChargedStrike(multiplier);
 
-        // if (skillBase != null)
-        //     skillBase.ReleaseLock();
+        // Lock movement selama animasi strike
+        if (mover != null)
+            mover.LockExternal(0.35f);
     }
 
     // ============================================================
-    //   HIT — DAMAGE ONLY (NO DDA)
+    //   STRIKE DAMAGE
     // ============================================================
     private void PerformChargedStrike(float multiplier)
     {
         if (!player) return;
 
         Vector3 origin = player.transform.position;
-        Vector3 dir = player.isFacingRight ? Vector3.right : Vector3.left;
+        Vector3 dir    = player.isFacingRight ? Vector3.right : Vector3.left;
 
         Collider2D[] hits = Physics2D.OverlapCircleAll(origin, attackRadius);
 
@@ -110,50 +161,55 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill
             {
                 float damage = player.attack * multiplier;
 
-                // Damage only — tidak memicu count Offensive
+                // Damage only — tidak menaikkan DDA offensive
                 target.TakeDamage(damage, null);
 
                 Vector2 knockDir = (target.transform.position - origin).normalized;
                 target.ApplyStagger(knockDir, knockbackForce, stunDuration);
-                
             }
         }
     }
 
+    // ============================================================
+    //   SAFETY RESET
+    // ============================================================
     void OnDisable()
     {
-        // if (skillBase != null)
-        //     skillBase.ReleaseLock();
-
-        isCharging = false;
-        showGizmo = false;
+        isCharging  = false;
+        showGizmo   = false;
         chargeTimer = 0f;
+
+        if (anim != null)
+            anim.SetCharging(false);
     }
-    #if UNITY_EDITOR
-void OnDrawGizmos()
-{
-    if (!showGizmo || player == null) 
-        return;
 
-    Vector3 origin = player.transform.position;
-    Vector3 dir = player.isFacingRight ? Vector3.right : Vector3.left;
-
-    Gizmos.color = gizmoColor;
-
-    float startAngle = -gizmoAngle * 0.5f;
-    float step = gizmoAngle / Mathf.Max(1, gizmoSegments);
-
-    // Titik awal garis
-    Vector3 prev = origin + Quaternion.Euler(0, 0, startAngle) * dir * gizmoRadius;
-
-    for (int i = 1; i <= gizmoSegments; i++)
+    // ============================================================
+    //   GIZMO DRAW
+    // ============================================================
+#if UNITY_EDITOR
+    void OnDrawGizmos()
     {
-        float ang = startAngle + step * i;
-        Vector3 next = origin + Quaternion.Euler(0, 0, ang) * dir * gizmoRadius;
+        if (!showGizmo || player == null)
+            return;
 
-        Gizmos.DrawLine(prev, next);
-        prev = next;
+        Vector3 origin = player.transform.position;
+        Vector3 dir    = player.isFacingRight ? Vector3.right : Vector3.left;
+
+        Gizmos.color = gizmoColor;
+
+        float startAngle = -gizmoAngle * 0.5f;
+        float step       = gizmoAngle / Mathf.Max(1, gizmoSegments);
+
+        Vector3 prev = origin + Quaternion.Euler(0, 0, startAngle) * dir * gizmoRadius;
+
+        for (int i = 1; i <= gizmoSegments; i++)
+        {
+            float ang  = startAngle + step * i;
+            Vector3 next = origin + Quaternion.Euler(0, 0, ang) * dir * gizmoRadius;
+
+            Gizmos.DrawLine(prev, next);
+            prev = next;
+        }
     }
-}
 #endif
 }

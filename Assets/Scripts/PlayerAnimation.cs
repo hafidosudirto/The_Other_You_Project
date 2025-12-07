@@ -1,132 +1,145 @@
 using UnityEngine;
 
-/// <summary>
-/// Satu pintu untuk semua animasi player.
-/// Script lain (movement, skill, skill sword, dll)
-/// cukup memanggil fungsi di sini, tidak menyentuh Animator langsung.
-/// </summary>
 public class PlayerAnimation : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] public Animator animator;
+    public Animator animator;
+    private SpriteRenderer sr;
 
-    // Hash parameter animator
-    private static readonly int HashMoveSpeed = Animator.StringToHash("MoveSpeed");
+    // =========================
+    // HASH PARAMETERS
+    // =========================
+    private static readonly int HashMoveSpeed        = Animator.StringToHash("MoveSpeed");
+    private static readonly int HashDash             = Animator.StringToHash("Dash");
 
-    private static readonly int HashSlash1   = Animator.StringToHash("Slash1");
-    private static readonly int HashSlash2   = Animator.StringToHash("Slash2");
+    // Slash1 & Slash2 sekarang dipakai sebagai BOOLEAN di Animator
+    private static readonly int HashSlash1           = Animator.StringToHash("Slash1");
+    private static readonly int HashSlash2           = Animator.StringToHash("Slash2");
+    private static readonly int HashWhirlwind        = Animator.StringToHash("Whirlwind");
 
-    // Whirlwind trigger
-    private static readonly int HashWhirlwind = Animator.StringToHash("Whirlwind");
+    private static readonly int HashQuickShot        = Animator.StringToHash("QuickShot");
+    private static readonly int HashBowChargeStart   = Animator.StringToHash("Bow_ChargeStart");
+    private static readonly int HashBowChargeRelease = Animator.StringToHash("Bow_ChargeRelease");
 
-    // ===============================
-    // R I P O S T E   A N I M A T I O N
-    // ===============================
-    private static readonly int HashRiposteStance  = Animator.StringToHash("Riposte_Stance");
-    private static readonly int HashRiposteAttack  = Animator.StringToHash("Riposte_Parry_Attack");
+    // Charged Strike
+    private static readonly int HashCharging         = Animator.StringToHash("isCharging");
 
-    // Disiapkan untuk nanti (hurt / dead)
-    private static readonly int HashIsDead = Animator.StringToHash("IsDead");
-    private static readonly int HashHurt   = Animator.StringToHash("Hurt");
-
-    private static readonly int HashBowChargeStart = Animator.StringToHash("Bow_ChargeStart");
-    private static readonly int HashBowRelease     = Animator.StringToHash("Bow_Release");
-
+    // =========================
+    // RIPOSTE
+    // =========================
+    private static readonly int HashRiposteReady     = Animator.StringToHash("RiposteReady");
+    private static readonly int HashRiposteCounter   = Animator.StringToHash("RiposteCounter");
 
     private void Awake()
     {
         if (!animator)
             animator = GetComponentInChildren<Animator>();
 
-        if (!animator)
-            Debug.LogWarning("PlayerAnimation: Animator tidak ditemukan di child.");
+        sr = GetComponentInChildren<SpriteRenderer>();
     }
 
     // =========================
-    //  MOVEMENT
+    // MOVEMENT
     // =========================
     public void SetMoveSpeed(float speed)
     {
-        if (!animator) return;
-        animator.SetFloat(HashMoveSpeed, Mathf.Abs(speed));
+        animator.SetFloat(HashMoveSpeed, speed);
+    }
+
+    public void SetFlip(bool flip)
+    {
+        if (sr) sr.flipX = flip;
     }
 
     // =========================
-    //  COMBAT / SLASH COMBO
+    // GLOBAL BOOLS
     // =========================
+    public void SetCharging(bool value)
+    {
+        animator.SetBool(HashCharging, value);
+    }
+
+    // =========================
+    // DASH
+    // =========================
+    public void PlayDash()
+    {
+        animator.SetTrigger(HashDash);
+    }
+
+    // =========================
+    // SWORD: SLASH COMBO (BOOL)
+    // =========================
+    // Slash1 & Slash2 di Animator harus TIPE BOOL
+
+    public void SetSlash1(bool value)
+    {
+        animator.SetBool(HashSlash1, value);
+    }
+
+    public void SetSlash2(bool value)
+    {
+        animator.SetBool(HashSlash2, value);
+    }
+
+    // Wrapper kalau masih ada kode lama yang memanggil "PlaySlash1/2"
     public void PlaySlash1()
     {
-        if (!animator) return;
-        animator.ResetTrigger(HashSlash2);
-        animator.SetTrigger(HashSlash1);
+        SetSlash1(true);
     }
 
     public void PlaySlash2()
     {
-        if (!animator) return;
-        animator.ResetTrigger(HashSlash1);
-        animator.SetTrigger(HashSlash2);
+        SetSlash2(true);
     }
 
-    // =========================
-    //  WHIRLWIND
-    // =========================
+    public void ResetSlashFlags()
+    {
+        animator.SetBool(HashSlash1, false);
+        animator.SetBool(HashSlash2, false);
+    }
+
     public void PlayWhirlwind()
     {
-        if (!animator) return;
         animator.SetTrigger(HashWhirlwind);
     }
 
     // =========================
-    //  R I P O S T E
+    // RIPOSTE
     // =========================
-
-    public void PlayRiposteStance()
+    /// <summary>
+    /// Mengatur bool RiposteReady untuk masuk/keluar stance riposte.
+    /// </summary>
+    public void SetRiposteReady(bool isReady)
     {
-        if (!animator) return;
-        animator.SetTrigger(HashRiposteStance);
+        animator.SetBool(HashRiposteReady, isReady);
     }
 
-    public void PlayRiposteAttack()
+    /// <summary>
+    /// Memicu animasi Riposte_Counter (follow-up attack).
+    /// </summary>
+    public void TriggerRiposteCounter()
     {
-        if (!animator) return;
-        animator.SetTrigger(HashRiposteAttack);
+        // Optional: pastikan trigger bersih dulu
+        animator.ResetTrigger(HashRiposteCounter);
+        animator.SetTrigger(HashRiposteCounter);
     }
 
     // =========================
-    //  HURT / DEATH
+    // BOW
     // =========================
-    public void PlayHurt()
-    {
-        if (!animator) return;
-        animator.SetTrigger(HashHurt);
-    }
-
-    public void SetDead(bool isDead)
-    {
-        if (!animator) return;
-        animator.SetBool(HashIsDead, isDead);
-    }
-
-    private static readonly int HashQuickShot = Animator.StringToHash("QuickShot");
-
     public void PlayQuickShot()
     {
-        if (!animator) return;
         animator.SetTrigger(HashQuickShot);
     }
 
-    public void PlayBowChargeStart()
+    public void TriggerBowChargeStart()
     {
-        if (!animator) return;
         animator.SetTrigger(HashBowChargeStart);
     }
 
-    public void PlayBowRelease()
+    public void TriggerBowChargeRelease()
     {
-        if (!animator) return;
-        animator.SetTrigger(HashBowRelease);
+        animator.SetTrigger(HashBowChargeRelease);
     }
-
-
 }

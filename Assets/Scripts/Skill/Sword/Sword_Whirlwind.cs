@@ -9,30 +9,34 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill
     public float duration = 1.5f;
     public float damageMultiplier = 1.2f;
     public float hitInterval = 0.3f;
-    public float speedMultiplierWhileActive = 0.5f;
 
-    [Header("Stagger")]
-    public float staggerForce = 2f;
-    public float staggerDuration = 0.4f;
-    public float staggerInterval = 0.8f;
+    [Header("Movement")]
+    [Tooltip("Rasio kecepatan selama Whirlwind (0 = diam, 1 = normal).")]
+    public float speedMultiplierWhileActive = 0.4f;
+
+    [Header("Stagger / Knockback")]
+    public float knockForce = 2.5f;
+    public float staggerDuration = 0.35f;
+    public float staggerCooldown = 0.7f;
 
     private Player player;
+    private PlayerAnimation anim;
+    private MoveKeyboard mover;
     private SkillBase skillBase;
-    private PlayerAnimation anim;     // boleh null
 
     private bool isActive = false;
     private float tDuration;
     private float tHit;
-
     private float originalSpeed;
 
     private Dictionary<CharacterBase, float> staggerTimers = new Dictionary<CharacterBase, float>();
 
-    void Awake()
+    private void Awake()
     {
-        skillBase = GetComponentInParent<SkillBase>();
-        player    = GetComponentInParent<Player>();
-        anim      = GetComponentInParent<PlayerAnimation>();   // aman jika null
+        player     = GetComponentInParent<Player>();
+        anim       = GetComponentInParent<PlayerAnimation>();
+        mover      = GetComponentInParent<MoveKeyboard>();
+        skillBase  = GetComponentInParent<SkillBase>();
     }
 
     public void TriggerSkill(int slotIndex)
@@ -40,34 +44,32 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill
         if (isActive) return;
         if (player == null || !player.CanAct()) return;
 
-        // SkillBase.TriggerSlot() sudah melakukan CAST.
-        // if (skillBase != null)
-        //     skillBase.skillLocked = true;
-
         StartCoroutine(WhirlwindRoutine());
     }
 
     private IEnumerator WhirlwindRoutine()
     {
         isActive = true;
-
         tDuration = duration;
         tHit = 0f;
 
+        // Simpan kecepatan awal
         if (player != null)
         {
             originalSpeed = player.moveSpeed;
             player.moveSpeed *= speedMultiplierWhileActive;
         }
 
+        // Lock input gerak agar tidak bisa jalan/dash
+        if (mover != null)
+            mover.LockExternal(duration, true);
+
+        // Mainkan animasi
         if (anim != null)
-        {
             anim.PlayWhirlwind();
-        }
-        else
-        {
-            
-        }
+
+        // Reset dictionary stagger timer
+        staggerTimers.Clear();
 
         while (tDuration > 0f)
         {
@@ -81,18 +83,17 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill
             }
 
             UpdateStaggerTimers();
-
             yield return null;
         }
 
-        // Reset movement
+        // Pulihkan kecepatan & unlock movement
         if (player != null)
             player.moveSpeed = originalSpeed;
 
-        isActive = false;
+        if (mover != null)
+            mover.UnlockExternal();
 
-        // if (skillBase != null)
-        //     skillBase.ReleaseLock();
+        isActive = false;
     }
 
     private void ApplyWhirlwindDamage()
@@ -107,14 +108,16 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill
             if (target == null || target == player)
                 continue;
 
+            // Damage
             float dmg = player.attack * damageMultiplier;
             target.TakeDamage(dmg);
 
+            // Knockback + stagger dengan cooldown
             if (CanStagger(target))
             {
                 Vector2 dir = (target.transform.position - player.transform.position).normalized;
-                target.ApplyStagger(dir, staggerForce, staggerDuration);
-                staggerTimers[target] = staggerInterval;
+                target.ApplyStagger(dir, knockForce, staggerDuration);
+                staggerTimers[target] = staggerCooldown;
             }
         }
     }
@@ -122,7 +125,6 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill
     private void UpdateStaggerTimers()
     {
         var keys = new List<CharacterBase>(staggerTimers.Keys);
-
         foreach (CharacterBase cb in keys)
         {
             staggerTimers[cb] -= Time.deltaTime;
@@ -133,39 +135,37 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill
 
     private bool CanStagger(CharacterBase target)
     {
-        return staggerTimers.ContainsKey(target) == false;
+        return !staggerTimers.ContainsKey(target);
     }
 
-    // ============================================================
-    //   FAIL-SAFE: jika skillRoot / player disable → unlock skill
-    // ============================================================
-    void OnDisable()
+    private void OnDisable()
     {
-        // if (skillBase != null)
-        //     skillBase.ReleaseLock();
-
         if (player != null)
             player.moveSpeed = originalSpeed;
 
         isActive = false;
-        tDuration = 0f;
-        tHit = 0f;
         staggerTimers.Clear();
     }
 
 #if UNITY_EDITOR
-    void OnDrawGizmos()
-    {
-        if (!Application.isPlaying || !isActive)
-            return;
+private void OnDrawGizmos()
+{
+    // Saat tidak play, tidak usah gambar apa-apa
+    if (!Application.isPlaying)
+        return;
 
-        if (player == null)
-            player = GetComponentInParent<Player>();
+    // Saat play, hanya tampilkan gizmo kalau Whirlwind sedang aktif
+    if (!isActive)
+        return;
 
-        if (player == null) return;
+    if (player == null)
+        player = GetComponentInParent<Player>();
+    if (player == null)
+        return;
 
-        Gizmos.color = new Color(0.4f, 0.9f, 1f, 0.4f);
-        Gizmos.DrawWireSphere(player.transform.position, radius);
-    }
+    Gizmos.color = new Color(0.3f, 0.8f, 1f, 0.4f);
+    Gizmos.DrawWireSphere(player.transform.position, radius);
+}
 #endif
+
 }
