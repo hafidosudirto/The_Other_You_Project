@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public enum PlayerActionType
 {
@@ -25,25 +25,27 @@ public class DataTracker : MonoBehaviour
 {
     public static DataTracker Instance { get; private set; }
 
-    [Header("Action Tracking")]
-    [SerializeField] private int actionBatchSize = 3;
-
+    // ===============================
+    // ACTION + WEAPON TRACKING
+    // ===============================
     private int OffensiveCount;
     private int DefensiveCount;
+
+    // Senjata terakhir yang dipakai player
     private WeaponType lastUsedWeapon = WeaponType.None;
 
     [Header("Distance Tracking")]
     [SerializeField] private Transform playerTransform;
     [SerializeField] private Transform enemyTransform;
 
-    [SerializeField] private float distanceCheckInterval = 0.1f;     // lebih responsif
-    [SerializeField] private float idleMovementThreshold = 0.03f;    // threshold idle kecil
+    [SerializeField] private float distanceCheckInterval = 0.1f;
+    [SerializeField] private float idleMovementThreshold = 0.03f;
 
     public PlayerDistanceState CurrentDistanceState { get; private set; }
 
-    private float lastCheckTime;
     private Vector3 lastPlayerPos;
     private float lastDistance;
+    private float lastCheckTime;
 
     private void Awake()
     {
@@ -83,6 +85,9 @@ public class DataTracker : MonoBehaviour
         }
     }
 
+    // ================================================================
+    // MOVEMENT / DISTANCE STATE TRACKER
+    // ================================================================
     private void TrackPlayerMovement()
     {
         if (playerTransform == null || enemyTransform == null)
@@ -94,76 +99,65 @@ public class DataTracker : MonoBehaviour
         float playerMovement = delta.magnitude;
         float currentDistance = Vector2.Distance(currentPlayerPos, enemyTransform.position);
 
-        // ---- 1. PLAYER IDLE ----
         if (playerMovement < idleMovementThreshold)
         {
             CurrentDistanceState = PlayerDistanceState.Idle;
         }
         else
         {
-            // ---- 2. PLAYER MOVING: tentukan mendekat / menjauh ----
-            if (currentDistance < lastDistance)
-            {
-                CurrentDistanceState = PlayerDistanceState.Chase; // mendekat
-            }
-            else
-            {
-                CurrentDistanceState = PlayerDistanceState.Retreat; // menjauh
-            }
+            CurrentDistanceState = (currentDistance < lastDistance)
+                ? PlayerDistanceState.Chase
+                : PlayerDistanceState.Retreat;
         }
 
-        // Debugging
-        Debug.Log($"<color=yellow>[DataTracker] State={CurrentDistanceState}, Player={playerMovement}</color>");
-
-        // Save values for next frame
         lastPlayerPos = currentPlayerPos;
         lastDistance = currentDistance;
     }
 
-    // =====================================================================
-    // PLAYER ACTION TRACKING
-    // =====================================================================
-
+    // ================================================================
+    // ACTION TRACKING (NO BATCH)
+    // ================================================================
     public void RecordAction(PlayerActionType actionType, WeaponType weaponType)
     {
+        // simpan weapon yang dipakai pemain
         if (weaponType != WeaponType.None)
             lastUsedWeapon = weaponType;
 
+        // catat playstyle
         if (actionType == PlayerActionType.Offensive)
             OffensiveCount++;
         else
             DefensiveCount++;
 
-        CheckForAnalysis();
+        DebugHub.DDA($"Action Recorded → O={OffensiveCount}, D={DefensiveCount}, Weapon={lastUsedWeapon}");
     }
 
-    private void CheckForAnalysis()
+    // ================================================================
+    // STAGE FINALIZATION (Dipanggil ketika enemy mati)
+    // ================================================================
+    public void FinalizeStageData()
     {
-        int totalActions = OffensiveCount + DefensiveCount;
-
-        if (totalActions >= actionBatchSize)
+        if (DDAController.Instance == null)
         {
-            SendDataToDDA();
-
-            OffensiveCount = 0;
-            DefensiveCount = 0;
+            Debug.LogWarning("[DataTracker] DDAController missing!");
+            return;
         }
+
+        DDAController.Instance.UpdatePlayerPlaystyle(
+            OffensiveCount,
+            DefensiveCount,
+            lastUsedWeapon
+        );
+
+        DebugHub.DDA($"Stage Final Data Sent → Offensive={OffensiveCount}, Defensive={DefensiveCount}, Weapon={lastUsedWeapon}");
+
+        ResetStageData();
     }
 
-    private void SendDataToDDA()
+    private void ResetStageData()
     {
-        if (DDAController.Instance != null)
-        {
-            DDAController.Instance.UpdatePlayerPlaystyle(
-                OffensiveCount,
-                DefensiveCount,
-                lastUsedWeapon
-            );
-        }
-        else
-        {
-            Debug.LogWarning("DDAController tidak ditemukan!");
-        }
+        OffensiveCount = 0;
+        DefensiveCount = 0;
+        lastUsedWeapon = WeaponType.None;
     }
 }
-

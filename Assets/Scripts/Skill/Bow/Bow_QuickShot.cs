@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class Bow_QuickShot : MonoBehaviour, ISkill
+public class Bow_QuickShot : MonoBehaviour, ISkill  
 {
     [Header("References")]
     public Transform firePoint;
