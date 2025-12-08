@@ -81,12 +81,21 @@ public class Dash : MonoBehaviour, ISkill
         if (Time.time < lastDashTime + dashCooldown)
             return;
 
-        // Kalau punya Player, cek CanAct(); kalau tidak ada, lewati saja
-        if (player != null && !player.CanAct())
-            return;
+        // Kalau punya Player, hormati state global-nya
+        if (player != null)
+        {
+            // Tidak bisa dash kalau memang tidak boleh bertindak
+            if (!player.CanAct())
+                return;
+
+            // Tambahan: selama sedang menyerang / casting skill besar, dash dimatikan
+            if (player.isAttacking)
+                return;
+        }
 
         StartCoroutine(DashRoutine());
     }
+
 
     private IEnumerator DashRoutine()
     {

@@ -52,7 +52,20 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill
     // ============================================================
     public void TriggerSkill(int slotIndex)
     {
+        // Jangan mulai kalau sedang charge
         if (isCharging) return;
+
+        // Hormati state global player
+        if (player != null)
+        {
+            // Tidak bisa cast kalau player tidak boleh bertindak
+            if (!player.CanAct())
+                return;
+
+            // Selama sedang melakukan serangan besar lain, ChargedStrike dimatikan
+            if (player.isAttacking)
+                return;
+        }
 
         mySlotIndex = slotIndex;
         StartCoroutine(ChargeRoutine());
@@ -82,6 +95,10 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill
         chargeTimer = 0f;
         showGizmo   = true;
 
+        // Selama proses charge+strike, anggap player sedang attacking
+        if (player != null)
+            player.isAttacking = true;
+
         KeyCode holdKey = GetHoldKey();
 
         if (holdKey == KeyCode.None)
@@ -89,7 +106,13 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill
             // Safety kalau konfigurasi salah
             isCharging = false;
             showGizmo  = false;
-            anim.SetCharging(false);
+
+            if (anim != null)
+                anim.SetCharging(false);
+
+            if (player != null)
+                player.isAttacking = false;
+
             yield break;
         }
 
@@ -135,6 +158,12 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill
         // Lock movement selama animasi strike
         if (mover != null)
             mover.LockExternal(0.35f);
+
+        // Tahan flag attacking sampai animasi strike kurang-lebih selesai
+        yield return new WaitForSeconds(0.35f);
+
+        if (player != null)
+            player.isAttacking = false;
     }
 
     // ============================================================
@@ -181,6 +210,9 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill
 
         if (anim != null)
             anim.SetCharging(false);
+
+        if (player != null)
+            player.isAttacking = false;
     }
 
     // ============================================================

@@ -41,26 +41,36 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill
 
     public void TriggerSkill(int slotIndex)
     {
-        if (isActive) return;
-        if (player == null || !player.CanAct()) return;
+        // Sudah sedang Whirlwind → tolak
+        if (isActive)
+            return;
+
+        // Tidak ada player atau tidak boleh bertindak → tolak
+        if (player == null || !player.CanAct())
+            return;
+
+        // Selama sedang melakukan serangan besar lain, Whirlwind dimatikan
+        if (player.isAttacking)
+            return;
 
         StartCoroutine(WhirlwindRoutine());
     }
 
     private IEnumerator WhirlwindRoutine()
     {
-        isActive = true;
-        tDuration = duration;
-        tHit = 0f;
+        isActive   = true;
+        tDuration  = duration;
+        tHit       = 0f;
 
-        // Simpan kecepatan awal
+        // Simpan kecepatan awal & set flag menyerang
         if (player != null)
         {
-            originalSpeed = player.moveSpeed;
-            player.moveSpeed *= speedMultiplierWhileActive;
+            originalSpeed       = player.moveSpeed;
+            player.moveSpeed   *= speedMultiplierWhileActive;
+            player.isAttacking  = true;
         }
 
-        // Lock input gerak agar tidak bisa jalan/dash
+        // Lock input gerak agar tidak bisa jalan/dash via MoveKeyboard
         if (mover != null)
             mover.LockExternal(duration, true);
 
@@ -74,7 +84,7 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill
         while (tDuration > 0f)
         {
             tDuration -= Time.deltaTime;
-            tHit -= Time.deltaTime;
+            tHit      -= Time.deltaTime;
 
             if (tHit <= 0f)
             {
@@ -86,9 +96,12 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill
             yield return null;
         }
 
-        // Pulihkan kecepatan & unlock movement
+        // Pulihkan kecepatan & flag menyerang, unlock movement
         if (player != null)
-            player.moveSpeed = originalSpeed;
+        {
+            player.moveSpeed    = originalSpeed;
+            player.isAttacking  = false;
+        }
 
         if (mover != null)
             mover.UnlockExternal();
@@ -141,31 +154,34 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill
     private void OnDisable()
     {
         if (player != null)
-            player.moveSpeed = originalSpeed;
+        {
+            player.moveSpeed   = originalSpeed;
+            player.isAttacking = false;
+        }
 
         isActive = false;
         staggerTimers.Clear();
     }
 
 #if UNITY_EDITOR
-private void OnDrawGizmos()
-{
-    // Saat tidak play, tidak usah gambar apa-apa
-    if (!Application.isPlaying)
-        return;
+    private void OnDrawGizmos()
+    {
+        // Saat tidak play, tidak usah gambar apa-apa
+        if (!Application.isPlaying)
+            return;
 
-    // Saat play, hanya tampilkan gizmo kalau Whirlwind sedang aktif
-    if (!isActive)
-        return;
+        // Saat play, hanya tampilkan gizmo kalau Whirlwind sedang aktif
+        if (!isActive)
+            return;
 
-    if (player == null)
-        player = GetComponentInParent<Player>();
-    if (player == null)
-        return;
+        if (player == null)
+            player = GetComponentInParent<Player>();
+        if (player == null)
+            return;
 
-    Gizmos.color = new Color(0.3f, 0.8f, 1f, 0.4f);
-    Gizmos.DrawWireSphere(player.transform.position, radius);
-}
+        Gizmos.color = new Color(0.3f, 0.8f, 1f, 0.4f);
+        Gizmos.DrawWireSphere(player.transform.position, radius);
+    }
 #endif
 
 }

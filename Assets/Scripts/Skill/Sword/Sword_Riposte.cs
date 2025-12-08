@@ -4,34 +4,36 @@ using System.Collections;
 public class Sword_Riposte : MonoBehaviour, ISkill
 {
     private CharacterBase character;
-    private SkillBase skillBase;
+    private SkillBase     skillBase;
+    private Player        player;
 
     [Header("Animation")]
     public PlayerAnimation anim;
 
     [Header("Riposte Settings")]
     public float stanceDuration = 0.6f;
-    public float cooldownTime = 1.0f;
+    public float cooldownTime   = 1.0f;
 
-    private bool isOnCooldown = false;
-    private bool isActive = false;
-    private float stanceTimer = 0f;
+    private bool  isOnCooldown = false;
+    private bool  isActive     = false;
+    private float stanceTimer  = 0f;
 
     [Header("Follow-Up Attack")]
     public float dashDistance = 2.5f;
-    public float dashSpeed = 10f;
-    public float hitRadius = 0.8f;
+    public float dashSpeed    = 10f;
+    public float hitRadius    = 0.8f;
     public LayerMask enemyLayer;
 
-    private bool isDashing = false;
+    private bool   isDashing  = false;
     private Vector3 dashStart;
     private Vector3 dashTarget;
-    private int mySlotIndex;
+    private int     mySlotIndex;
 
     void Awake()
     {
         character = GetComponentInParent<CharacterBase>();
         skillBase = GetComponentInParent<SkillBase>();
+        player    = GetComponentInParent<Player>();
 
         if (anim == null)
             anim = GetComponentInParent<PlayerAnimation>();
@@ -57,6 +59,11 @@ public class Sword_Riposte : MonoBehaviour, ISkill
                 // MATIKAN ANIMASI STANCE
                 if (anim != null)
                     anim.SetRiposteReady(false);
+
+                // Jika stance berakhir tanpa dash follow-up,
+                // pastikan player tidak dianggap menyerang lagi
+                if (player != null && !isDashing)
+                    player.isAttacking = false;
             }
         }
 
@@ -83,6 +90,13 @@ public class Sword_Riposte : MonoBehaviour, ISkill
             return;
         }
 
+        // Tambahan: jangan boleh *cast* kalau sedang melakukan serangan besar lain
+        if (player != null && player.isAttacking)
+        {
+            Debug.Log("[Riposte] Gagal: player.isAttacking = true");
+            return;
+        }
+
         mySlotIndex = slotIndex;
         TryActivateRiposte();
     }
@@ -106,8 +120,12 @@ public class Sword_Riposte : MonoBehaviour, ISkill
         }
 
         character.ActivateRiposte();
-        isActive = true;
+        isActive    = true;
         stanceTimer = stanceDuration;
+
+        // Selama stance aktif, anggap player sedang "attacking"
+        if (player != null)
+            player.isAttacking = true;
 
         Debug.Log("[Riposte] BERHASIL: stance aktif, timer = " + stanceTimer);
 
@@ -133,16 +151,16 @@ public class Sword_Riposte : MonoBehaviour, ISkill
         if (character == null)
             return;
 
-        if (!isActive) return;
-        if (isDashing) return;
+        if (!isActive)  return;
+        if (isDashing)  return;
 
         Vector3 dir = (character.isFacingRight ? Vector3.right : Vector3.left);
 
-        dashStart = character.transform.position;
+        dashStart  = character.transform.position;
         dashTarget = dashStart + dir * dashDistance;
 
         isDashing = true;
-        isActive = false;
+        isActive  = false;
 
         // MATIKAN ANIMASI STANCE & MAINKAN COUNTER
         if (anim != null)
@@ -150,6 +168,10 @@ public class Sword_Riposte : MonoBehaviour, ISkill
             anim.SetRiposteReady(false);
             anim.TriggerRiposteCounter();
         }
+
+        // Pastikan selama dash follow-up juga dianggap sedang menyerang
+        if (player != null)
+            player.isAttacking = true;
 
         // ❌ Jangan CAST Defensive lagi!
         // Riposte D-value sudah dihitung sekali saat Parry()
@@ -176,6 +198,10 @@ public class Sword_Riposte : MonoBehaviour, ISkill
             if (character != null)
                 character.canRiposte = true;
 
+            // Dash selesai → serangan selesai
+            if (player != null)
+                player.isAttacking = false;
+
             // if (skillBase != null)
             //     skillBase.ReleaseLock();
         }
@@ -187,7 +213,7 @@ public class Sword_Riposte : MonoBehaviour, ISkill
     private void PerformFollowUpDamage()
     {
         Vector2 start = dashStart;
-        Vector2 end = dashTarget;
+        Vector2 end   = dashTarget;
 
         RaycastHit2D[] hits = Physics2D.CircleCastAll(
             start,
@@ -227,7 +253,11 @@ public class Sword_Riposte : MonoBehaviour, ISkill
         if (anim != null)
             anim.SetRiposteReady(false);
 
-        isActive = false;
+        // Pastikan flag global serangan dimatikan
+        if (player != null)
+            player.isAttacking = false;
+
+        isActive  = false;
         isDashing = false;
     }
 

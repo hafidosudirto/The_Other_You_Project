@@ -3,32 +3,41 @@ using System.Collections;
 
 public class Sword_SlashCombo : MonoBehaviour, ISkill
 {
-    [Header("Slash Settings")]
-    public float attackRadius = 1.5f;
-    public float attackAngle  = 90f;
+    [Header("Slash1 Settings")]
+    public float attackRadius1 = 1.5f;
+    public float attackAngle1  = 90f;
+    public Vector2 hitOffset1  = new Vector2(0.5f, 0f);
 
-    [Tooltip("Delay sebelum hit Slash1 kena musuh")]
-    public float delaySlash1  = 0.1f;
+    [Header("Slash2 Settings")]
+    public float attackRadius2 = 1.5f;
+    public float attackAngle2  = 90f;
+    public Vector2 hitOffset2  = new Vector2(0.5f, 0f);
 
-    [Tooltip("Delay sebelum hit Slash2 kena musuh")]
-    public float delaySlash2  = 0.15f;
+    [Header("Timing Settings (detik)")]
+    [Tooltip("Waktu dari awal animasi Slash1 sampai hitbox Slash1 aktif.")]
+    public float delaySlash1  = 0.18f;
 
-    [Tooltip("Lama waktu untuk input combo setelah Slash1 mulai mengenai")]
-    public float chainWindow  = 0.45f;
+    [Tooltip("Waktu dari awal animasi Slash2 sampai hitbox Slash2 aktif.")]
+    public float delaySlash2  = 0.22f;
 
-    [Header("Hitbox / Gizmo Offset")]
-    public Vector2 hitOffset = new Vector2(0.5f, 0f);
+    [Tooltip("Lama jendela input Slash2 SETELAH Slash1 mengenai (durasi combo window).")]
+    public float chainWindow  = 0.35f;
 
     [Header("Gizmos")]
-    [Tooltip("Lama gizmo arc tampil setelah hit (detik)")]
-    public float gizmoShowTime = 0.08f;
+    [Tooltip("Lama gizmo arc tampil setelah hit (detik).")]
+    public float gizmoShowTime = 0.06f;
     public Color chain1Color   = Color.yellow;
-    public Color chain2Color   = Color.red;
+    public Color chain2Color   = Color.white;
     public int arcSegments     = 20;
 
     [Header("Combo Cooldown")]
-    [Tooltip("Jeda setelah satu combo selesai sebelum bisa cast lagi")]
-    public float comboCooldown = 0.2f;
+    [Tooltip("Jeda setelah satu combo selesai sebelum bisa cast lagi (0 = boleh langsung ulang).")]
+    public float comboCooldown = 0f;
+
+    [Tooltip("Jeda minimal setelah Slash1 mengenai sebelum input Slash2 dianggap valid.\n"
+           + "Kalau terlalu kecil, spam sangat cepat bisa langsung menghabisi combo.\n"
+           + "Kalau terlalu besar, Slash2 terasa telat.")]
+    public float minTimeBeforeChain = 0.09f;
 
     private CharacterBase   character;
     private SkillBase       skillBase;
@@ -36,9 +45,10 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
     private MoveKeyboard    mover;
     private Player          player;
 
-    private bool isBusy         = false;
-    private bool chainRequested = false;
-    private bool isSlash2Phase  = false;
+    private bool isBusy            = false; // sedang menjalankan kombo
+    private bool chainRequested    = false; // Slash2 diminta dari dalam combo window
+    private bool isSlash2Phase     = false; // sedang di fase Slash2
+    private bool bufferedChainInput = false; // input Slash2 yang ditekan TERLALU CEPAT (sebelum window dibuka)
 
     // Untuk gizmo window
     private bool showHitArc = false;
@@ -46,6 +56,15 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
     // Slot skill ini dipasang di skillBase slot ke berapa
     private int   mySlotIndex   = 0;
     private float lastComboTime = -999f;
+
+    private void OnValidate()
+    {
+        // Pastikan gizmo Slash1 selalu selesai sebelum input chain boleh masuk
+        if (gizmoShowTime >= minTimeBeforeChain)
+        {
+            gizmoShowTime = Mathf.Max(0f, minTimeBeforeChain - 0.01f);
+        }
+    }
 
     void Awake()
     {
@@ -61,12 +80,23 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
     //=====================================================================
     public void TriggerSkill(int slotIndex)
     {
-        // Sedang menjalankan combo → tolak
+        // JIKA combo sedang berjalan, anggap input ini sebagai permintaan Slash2
+        // (selama kita masih di fase Slash1 dan slot yang dipencet sama).
         if (isBusy)
+        {
+            if (!isSlash2Phase && slotIndex == mySlotIndex)
+            {
+                bufferedChainInput = true;
+            }
+            return;
+        }
+
+        // Cooldown belum selesai
+        if (Time.time < lastComboTime + comboCooldown)
             return;
 
-        // Cooldown selesai?
-        if (Time.time < lastComboTime + comboCooldown)
+        // Player sedang melakukan skill besar lain (Charged, Whirlwind, Riposte, dll.) → tolak
+        if (player != null && player.isAttacking)
             return;
 
         if (!character || !character.CanAct())
@@ -81,20 +111,23 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
     //=====================================================================
     private IEnumerator ComboRoutine()
     {
-        isBusy         = true;
-        isSlash2Phase  = false;
-        chainRequested = false;
+        isBusy             = true;
+        isSlash2Phase      = false;
+        chainRequested     = false;
+        bufferedChainInput = false;
 
         if (player != null)
             player.isAttacking = true;
 
         //------------------ SLASH 1 ------------------
-        // Lock movement selama fase Slash1 + sedikit margin
         float slash1LockDuration = delaySlash1 + chainWindow * 0.7f;
 
+        // Lock movement via mover (jika ada)
         if (mover != null)
             mover.TriggerSlash1(slash1LockDuration);
-        else if (anim != null)
+
+        // Selalu picu animasi Slash1
+        if (anim != null)
             anim.SetSlash1(true);
 
         if (skillBase != null)
@@ -104,9 +137,13 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
         yield return new WaitForSeconds(delaySlash1);
         PerformSlash();
 
-        //------------------ TUNGGU INPUT COMBO ------------------
+        // Tunggu minimal waktu sebelum boleh input Slash2
+        yield return new WaitForSeconds(minTimeBeforeChain);
+
+        // Window input combo (dengan auto-buffer)
         yield return StartCoroutine(WaitChainInput_AutoBuffer());
 
+        // Matikan flag Slash1 (Animator akan lanjut ke Idle atau Slash2)
         if (anim != null)
             anim.SetSlash1(false);
 
@@ -119,8 +156,9 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
             if (anim != null)
                 anim.ResetSlashFlags();
 
-            isBusy        = false;
-            isSlash2Phase = false;
+            isBusy            = false;
+            isSlash2Phase     = false;
+            bufferedChainInput = false;
 
             if (player != null)
                 player.isAttacking = false;
@@ -132,12 +170,12 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
         //------------------ SLASH 2 ------------------
         isSlash2Phase = true;
 
-        // Lock movement selama Slash2 (lebih pendek, tapi tetap aman)
         float slash2LockDuration = delaySlash2 + 0.3f;
 
         if (mover != null)
             mover.TriggerSlash2(slash2LockDuration);
-        else if (anim != null)
+
+        if (anim != null)
             anim.SetSlash2(true);
 
         if (skillBase != null)
@@ -149,12 +187,12 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
         // Sedikit waktu agar animasi Slash2 terlihat utuh
         yield return new WaitForSeconds(0.05f);
 
-        // Reset flag Slash1 & Slash2 supaya Animator bersih
         if (anim != null)
             anim.ResetSlashFlags();
 
-        isBusy        = false;
-        isSlash2Phase = false;
+        isBusy            = false;
+        isSlash2Phase     = false;
+        bufferedChainInput = false;
 
         if (player != null)
             player.isAttacking = false;
@@ -186,12 +224,21 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
 
         KeyCode comboKey = GetMyKey();
 
+        // JIKA input Slash2 sudah dibuffer (tombol dipencet terlalu cepat),
+        // kita langsung anggap pemain ingin kombo → tak perlu tunggu window lagi.
+        if (bufferedChainInput)
+        {
+            chainRequested     = true;
+            bufferedChainInput = false;
+            yield break;
+        }
+
         while (timer < chainWindow)
         {
             if (comboKey != KeyCode.None && Input.GetKeyDown(comboKey))
             {
                 chainRequested = true;
-                // tidak perlu langsung break, cukup tandai
+                yield break;
             }
 
             timer += Time.deltaTime;
@@ -206,30 +253,34 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
     {
         if (!character) return;
 
-        Vector3 offset = new Vector3(hitOffset.x, hitOffset.y, 0f);
+        // Pilih shape berdasarkan fase (Slash1 / Slash2)
+        float   radius   = isSlash2Phase ? attackRadius2 : attackRadius1;
+        float   angle    = isSlash2Phase ? attackAngle2  : attackAngle1;
+        Vector2 offset2D = isSlash2Phase ? hitOffset2    : hitOffset1;
+
+        Vector3 offset = new Vector3(offset2D.x, offset2D.y, 0f);
         if (!character.isFacingRight)
             offset.x = -offset.x;
 
         Vector3 origin = character.transform.position + offset;
         Vector3 dir    = character.isFacingRight ? Vector3.right : Vector3.left;
 
-        Collider2D[] hits = Physics2D.OverlapCircleAll(origin, attackRadius);
+        Collider2D[] hits = Physics2D.OverlapCircleAll(origin, radius);
 
         foreach (var h in hits)
         {
             var target = h.GetComponent<CharacterBase>();
             if (!target || target == character) continue;
 
-            Vector2 toTarget = (target.transform.position - origin).normalized;
-            float angleBetween = Vector2.Angle(dir, toTarget);
+            Vector2 toTarget     = (target.transform.position - origin).normalized;
+            float   angleBetween = Vector2.Angle(dir, toTarget);
 
-            if (angleBetween <= attackAngle * 0.5f)
+            if (angleBetween <= angle * 0.5f)
             {
                 target.TakeDamage(character.attack);
             }
         }
 
-        // Setelah proses hit selesai, tampilkan gizmo arc sebentar
         if (gameObject.activeInHierarchy)
             StartCoroutine(ShowHitArcWindow());
     }
@@ -246,10 +297,11 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
     //=====================================================================
     void OnDisable()
     {
-        isBusy         = false;
-        chainRequested = false;
-        isSlash2Phase  = false;
-        showHitArc     = false;
+        isBusy             = false;
+        chainRequested     = false;
+        isSlash2Phase      = false;
+        bufferedChainInput = false;
+        showHitArc         = false;
 
         if (anim != null)
             anim.ResetSlashFlags();
@@ -261,11 +313,9 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
 #if UNITY_EDITOR
     private void OnDrawGizmos()
     {
-        // Jangan gambar apa pun di Edit Mode
         if (!Application.isPlaying)
             return;
 
-        // Hanya gambar ketika combo sedang berjalan dan window hit aktif
         if (!isBusy || !showHitArc)
             return;
 
@@ -277,22 +327,26 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill
 
         Gizmos.color = isSlash2Phase ? chain2Color : chain1Color;
 
-        Vector3 offset = new Vector3(hitOffset.x, hitOffset.y, 0f);
+        float   radius   = isSlash2Phase ? attackRadius2 : attackRadius1;
+        float   angle    = isSlash2Phase ? attackAngle2  : attackAngle1;
+        Vector2 offset2D = isSlash2Phase ? hitOffset2    : hitOffset1;
+
+        Vector3 offset = new Vector3(offset2D.x, offset2D.y, 0f);
         if (!character.isFacingRight)
             offset.x = -offset.x;
 
         Vector3 origin = character.transform.position + offset;
         Vector3 dir    = character.isFacingRight ? Vector3.right : Vector3.left;
 
-        float startAngle = -attackAngle * 0.5f;
-        float step       = attackAngle / Mathf.Max(1, arcSegments);
+        float startAngle = -angle * 0.5f;
+        float step       = angle / Mathf.Max(1, arcSegments);
 
-        Vector3 prev = origin + Quaternion.Euler(0, 0, startAngle) * dir * attackRadius;
+        Vector3 prev = origin + Quaternion.Euler(0, 0, startAngle) * dir * radius;
 
         for (int i = 1; i <= arcSegments; i++)
         {
-            float ang  = startAngle + step * i;
-            Vector3 next = origin + Quaternion.Euler(0, 0, ang) * dir * attackRadius;
+            float   ang  = startAngle + step * i;
+            Vector3 next = origin + Quaternion.Euler(0, 0, ang) * dir * radius;
             Gizmos.DrawLine(prev, next);
             prev = next;
         }

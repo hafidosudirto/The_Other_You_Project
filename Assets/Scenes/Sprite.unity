@@ -287,34 +287,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: af376fe9fa38e774d8fead7ba6cde6fe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!1 &558891820 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 7955049090739457126, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+--- !u!114 &558891831 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 497706870744875888, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
   m_PrefabInstance: {fileID: 1546382796}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &558891824
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 558891820}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 91089e1298318c84891c3f612e2f34cb, type: 3}
+  m_Script: {fileID: 11500000, guid: df58cd6e606f4c9409b76bc43cd1dd97, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxChargeTime: 2
-  minDamageMultiplier: 1
-  maxDamageMultiplier: 3
-  attackRadius: 1.6
-  attackAngle: 100
-  knockbackForce: 8
-  stunDuration: 0.4
-  gizmoColor: {r: 1, g: 0.6, b: 0, a: 1}
-  gizmoRadius: 1.4
-  gizmoAngle: 100
-  gizmoSegments: 20
 --- !u!114 &655989498 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 6476649333990031288, guid: c644caea46e765c4e857b573cb8deaa5, type: 3}
@@ -538,6 +521,30 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player_W1_Sprite
       objectReference: {fileID: 0}
+    - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: chainWindow
+      value: 0.35
+      objectReference: {fileID: 0}
+    - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: delaySlash1
+      value: 0.18
+      objectReference: {fileID: 0}
+    - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: delaySlash2
+      value: 0.22
+      objectReference: {fileID: 0}
+    - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: comboCooldown
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: gizmoShowTime
+      value: 0.06
+      objectReference: {fileID: 0}
+    - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: minTimeBeforeChain
+      value: 0.09
+      objectReference: {fileID: 0}
     - target: {fileID: 4160140468893309881, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: anim
       value: 
@@ -630,13 +637,14 @@ PrefabInstance:
       propertyPath: m_Sprite
       value: 
       objectReference: {fileID: 1988705241, guid: a36a84d2f648c6642b092ba42a61336a, type: 3}
+    - target: {fileID: 8806357304377255571, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: slots.Array.data[3].skillBehaviour
+      value: 
+      objectReference: {fileID: 558891831}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 7955049090739457126, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 558891824}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
 --- !u!1 &1965485384
 GameObject:

@@ -12,7 +12,7 @@ public class PlayerAnimation : MonoBehaviour
     private static readonly int HashMoveSpeed        = Animator.StringToHash("MoveSpeed");
     private static readonly int HashDash             = Animator.StringToHash("Dash");
 
-    // Slash1 & Slash2 sekarang dipakai sebagai BOOLEAN di Animator
+    // Slash1 & Slash2 sekarang dipakai sebagai TRIGGER di Animator
     private static readonly int HashSlash1           = Animator.StringToHash("Slash1");
     private static readonly int HashSlash2           = Animator.StringToHash("Slash2");
     private static readonly int HashWhirlwind        = Animator.StringToHash("Whirlwind");
@@ -68,18 +68,36 @@ public class PlayerAnimation : MonoBehaviour
     }
 
     // =========================
-    // SWORD: SLASH COMBO (BOOL)
+    // SWORD: SLASH COMBO (TRIGGER)
     // =========================
-    // Slash1 & Slash2 di Animator harus TIPE BOOL
+    // Slash1 & Slash2 di Animator HARUS bertipe TRIGGER
 
     public void SetSlash1(bool value)
     {
-        animator.SetBool(HashSlash1, value);
+        if (value)
+        {
+            // Pastikan trigger bersih dulu lalu picu
+            animator.ResetTrigger(HashSlash1);
+            animator.SetTrigger(HashSlash1);
+        }
+        else
+        {
+            // Bersihkan jika masih tersisa
+            animator.ResetTrigger(HashSlash1);
+        }
     }
 
     public void SetSlash2(bool value)
     {
-        animator.SetBool(HashSlash2, value);
+        if (value)
+        {
+            animator.ResetTrigger(HashSlash2);
+            animator.SetTrigger(HashSlash2);
+        }
+        else
+        {
+            animator.ResetTrigger(HashSlash2);
+        }
     }
 
     // Wrapper kalau masih ada kode lama yang memanggil "PlaySlash1/2"
@@ -95,8 +113,9 @@ public class PlayerAnimation : MonoBehaviour
 
     public void ResetSlashFlags()
     {
-        animator.SetBool(HashSlash1, false);
-        animator.SetBool(HashSlash2, false);
+        // Aman dipanggil kapan pun untuk mengosongkan kedua trigger
+        animator.ResetTrigger(HashSlash1);
+        animator.ResetTrigger(HashSlash2);
     }
 
     public void PlayWhirlwind()

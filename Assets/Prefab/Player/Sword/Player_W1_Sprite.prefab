@@ -271,6 +271,7 @@ MonoBehaviour:
   chain2Color: {r: 0.21960786, g: 0.21960786, b: 0.21960786, a: 1}
   arcSegments: 20
   comboCooldown: 0.2
+  minTimeBeforeChain: 0.15
 --- !u!114 &3802485017805506531
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -326,8 +327,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: df58cd6e606f4c9409b76bc43cd1dd97, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  anim: {fileID: 0}
-  stanceDuration: 0.6
+  anim: {fileID: 5782364024149785303}
+  stanceDuration: 1.5
   cooldownTime: 1
   dashDistance: 2.5
   dashSpeed: 10
