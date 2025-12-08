@@ -140,6 +140,8 @@ MonoBehaviour:
   riposteWindow: 0.6
   staggerResistance: 1
   weaponType: 1
+  lockMovement: 0
+  isAttacking: 0
 --- !u!114 &5387256162423111338
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -152,9 +154,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e96bb59bffd71154584b3a9d9c80c35a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dashForce: 20
+  dashSpeed: 10
   dashDuration: 0.2
   dashCooldown: 1
+  anim: {fileID: 0}
+  player: {fileID: 0}
+  dashKey: 304
 --- !u!114 &4160140468893309881
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -167,6 +172,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a048b2f1a36b034f8ce15a3a7abf13c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  moveSpeed: 4
+  anim: {fileID: 0}
+  player: {fileID: 0}
 --- !u!1 &7955049090739457126
 GameObject:
   m_ObjectHideFlags: 0
@@ -178,6 +186,9 @@ GameObject:
   - component: {fileID: 1295630744342105822}
   - component: {fileID: 8806357304377255571}
   - component: {fileID: 2714046786445390265}
+  - component: {fileID: 3802485017805506531}
+  - component: {fileID: 5032635997263216504}
+  - component: {fileID: 497706870744875888}
   m_Layer: 6
   m_Name: SkillRoot_Sword
   m_TagString: Untagged
@@ -212,7 +223,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49c744834ea1a574f9738a865aa8acc2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 3019785914136632114}
   slots:
   - slotName: Slash Combo
     skillBehaviour: {fileID: 2714046786445390265}
@@ -220,17 +230,17 @@ MonoBehaviour:
     weaponType: 1
     dValue: 0.5
   - slotName: Charged Strike
-    skillBehaviour: {fileID: 0}
+    skillBehaviour: {fileID: 3802485017805506531}
     actionType: 0
     weaponType: 1
     dValue: 1
   - slotName: Whirldwind
-    skillBehaviour: {fileID: 0}
+    skillBehaviour: {fileID: 5032635997263216504}
     actionType: 0
     weaponType: 1
     dValue: 1
   - slotName: Riposte
-    skillBehaviour: {fileID: 0}
+    skillBehaviour: {fileID: 497706870744875888}
     actionType: 1
     weaponType: 1
     dValue: 1
@@ -238,7 +248,6 @@ MonoBehaviour:
   slot2Key: 50
   slot3Key: 51
   slot4Key: 52
-  skillLocked: 0
 --- !u!114 &2714046786445390265
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -257,10 +266,76 @@ MonoBehaviour:
   delaySlash2: 0.15
   chainWindow: 0.6
   hitOffset: {x: 0.5, y: 0}
+  gizmoShowTime: 0.08
   chain1Color: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   chain2Color: {r: 0.21960786, g: 0.21960786, b: 0.21960786, a: 1}
   arcSegments: 20
-  isBusy: 0
+  comboCooldown: 0.2
+  minTimeBeforeChain: 0.15
+--- !u!114 &3802485017805506531
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7955049090739457126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91089e1298318c84891c3f612e2f34cb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxChargeTime: 2
+  minDamageMultiplier: 1
+  maxDamageMultiplier: 3
+  attackRadius: 1.6
+  attackAngle: 100
+  knockbackForce: 8
+  stunDuration: 0.4
+  gizmoColor: {r: 1, g: 0.6, b: 0, a: 1}
+  gizmoRadius: 1.4
+  gizmoAngle: 100
+  gizmoSegments: 20
+--- !u!114 &5032635997263216504
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7955049090739457126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eb8df104bfd5d2a469dcfbb849ad4094, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  radius: 2
+  duration: 1.5
+  damageMultiplier: 1.2
+  hitInterval: 0.3
+  speedMultiplierWhileActive: 0.4
+  knockForce: 2.5
+  staggerDuration: 0.35
+  staggerCooldown: 0.7
+--- !u!114 &497706870744875888
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7955049090739457126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: df58cd6e606f4c9409b76bc43cd1dd97, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  anim: {fileID: 5782364024149785303}
+  stanceDuration: 1.5
+  cooldownTime: 1
+  dashDistance: 2.5
+  dashSpeed: 10
+  hitRadius: 0.8
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 8
 --- !u!1 &8000750785686306608
 GameObject:
   m_ObjectHideFlags: 0
@@ -289,8 +364,8 @@ Transform:
   m_GameObject: {fileID: 8000750785686306608}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 0.1, y: -0, z: 0}
+  m_LocalScale: {x: 5.879, y: 5.879, z: 5.879}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1295630744342105822}
@@ -337,7 +412,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 2067353313, guid: eb2700c541d8a5341a1cb3ef4cd4edd1, type: 3}
+  m_Sprite: {fileID: 1988705241, guid: a36a84d2f648c6642b092ba42a61336a, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0

@@ -27,7 +27,7 @@
 
         [Header("Debug / Owner")]
         [Tooltip("Siapa pemilik panah ini (player / enemy)")]
-        [SerializeField] private CharacterBase owner;
+        [SerializeField] public CharacterBase owner;
 
         private Rigidbody2D rb;
 
