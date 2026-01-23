@@ -1,31 +1,245 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections;
 
 public class Enemy_Sword_Riposte : MonoBehaviour
 {
-    public float stanceDuration = 0.5f;
-    public LayerMask hitMask;
+    [Header("Stance")]
+    public float stanceDuration = 0.45f;
+
+    [Header("Counter Dash (samakan konsep dengan player)")]
+    public float dashDistance = 2.5f;
+    public float dashSpeed = 10f;
+    public float hitRadius = 0.8f;
+
+    [Tooltip("Layer target yang akan terkena counter (biasanya Player).")]
+    public LayerMask targetLayer;
+
+    [Header("Auto Counter Trigger (opsional)")]
+    [Tooltip("Jika true, selama stance: bila player cukup dekat, counter otomatis dipicu.")]
+    public bool autoTriggerCounterIfPlayerClose = true;
+
+    [Tooltip("Radius deteksi untuk memicu counter otomatis selama stance.")]
+    public float autoTriggerRadius = 1.6f;
+
+    [Header("Damage Multiplier")]
+    public float counterDamageMultiplier = 1.4f;
+
+    [Header("Anti-spam")]
+    public float cooldown = 0.9f;
+
+    [Header("Gizmos (opsional)")]
+    public float gizmoShowTime = 0.06f;
+    public Color gizmoColor = Color.magenta;
 
     private EnemyAI ai;
     private EnemyCombatController combat;
+    private CharacterBase selfStats;
+
+    private bool busy = false;
+    private float nextReadyTime = 0f;
+
+    // stance & dash state
+    private bool isStanceActive = false;
+    private bool isDashing = false;
+    private float stanceTimer = 0f;
+
+    private Vector3 dashStart;
+    private Vector3 dashTarget;
+
+    // Gizmo snapshot untuk lintasan dash
+    private bool showDashLine = false;
+    private Vector3 lastDashStart;
+    private Vector3 lastDashTarget;
 
     private void Awake()
     {
         ai = GetComponentInParent<EnemyAI>();
         combat = GetComponentInParent<EnemyCombatController>();
+        selfStats = GetComponentInParent<CharacterBase>();
     }
 
+    // =========================================================
+    // API kompatibilitas untuk sistem baru (Defense Tree)
+    // =========================================================
+    public bool IsActive => busy;
+
+    public bool TryStartRiposte()
+    {
+        if (busy) return false;
+        if (Time.time < nextReadyTime) return false;
+
+        StartCoroutine(RiposteRoutine());
+        return true;
+    }
+
+    // API lama (jangan dihapus agar skrip lain tetap jalan)
     public void Trigger()
     {
-        StartCoroutine(RiposteRoutine());
+        TryStartRiposte();
+    }
+
+    public void TriggerFollowUpDash()
+    {
+        if (!isStanceActive) return;
+        if (isDashing) return;
+
+        if (ai == null) return;
+
+        // Tentukan arah counter: menuju player pada sumbu X (side-scroller umum)
+        Vector3 dir = Vector3.right;
+
+        if (ai.playerTransform != null)
+        {
+            float sx = Mathf.Sign(ai.playerTransform.position.x - ai.transform.position.x);
+            if (sx == 0f) sx = ai.ForwardSign; // fallback ke arah hadap enemy bila sejajar
+            dir = new Vector3(sx, 0f, 0f);
+        }
+        else
+        {
+            dir = ai.ForwardDir; // fallback
+        }
+
+        dashStart = ai.transform.position;
+        dashTarget = dashStart + dir.normalized * dashDistance;
+
+        isDashing = true;
+        isStanceActive = false;
+
+        // Matikan stance & mainkan animasi counter seperti player
+        ai?.Animation?.SetRiposteReady(false);
+        ai?.Animation?.TriggerRiposteCounter();
     }
 
     private IEnumerator RiposteRoutine()
     {
-        combat.InvokeSkillStart();
+        busy = true;
+        nextReadyTime = Time.time + cooldown;
 
-        yield return new WaitForSeconds(stanceDuration);
+        combat?.InvokeSkillStart();
 
-        combat.InvokeSkillEnd();
+        // Mulai stance
+        isStanceActive = true;
+        isDashing = false;
+        stanceTimer = stanceDuration;
+
+        ai?.Animation?.SetRiposteReady(true);
+
+        // Selama stance: bisa menunggu event parry atau auto-trigger
+        while (stanceTimer > 0f && !isDashing)
+        {
+            stanceTimer -= Time.deltaTime;
+
+            if (autoTriggerCounterIfPlayerClose && ai != null && ai.playerTransform != null)
+            {
+                float dist = Vector2.Distance(ai.transform.position, ai.playerTransform.position);
+                if (dist <= autoTriggerRadius)
+                {
+                    // Anggap kondisi parry terpenuhi → counter dipicu
+                    TriggerFollowUpDash();
+                    break;
+                }
+            }
+
+            yield return null;
+        }
+
+        // Jika stance habis tanpa counter
+        if (!isDashing)
+        {
+            ai?.Animation?.SetRiposteReady(false);
+            isStanceActive = false;
+
+            combat?.InvokeSkillEnd();
+            busy = false;
+            yield break;
+        }
+
+        // Jika counter dash dipicu
+        yield return DashForwardAndDamage();
+
+        combat?.InvokeSkillEnd();
+        busy = false;
     }
+
+    private IEnumerator DashForwardAndDamage()
+    {
+        if (ai == null)
+        {
+            isDashing = false;
+            yield break;
+        }
+
+        // Gizmo snapshot
+        lastDashStart = dashStart;
+        lastDashTarget = dashTarget;
+
+        // Gerak dash sampai mendekati target
+        while (Vector3.Distance(ai.transform.position, dashTarget) > 0.05f)
+        {
+            ai.transform.position = Vector3.MoveTowards(
+                ai.transform.position,
+                dashTarget,
+                dashSpeed * Time.deltaTime
+            );
+            yield return null;
+        }
+
+        isDashing = false;
+
+        // Damage sepanjang lintasan dash (model seperti player)
+        PerformFollowUpDamage(dashStart, dashTarget);
+
+        // Gizmo window
+        if (gameObject.activeInHierarchy)
+            StartCoroutine(ShowDashLineWindow());
+    }
+
+    private void PerformFollowUpDamage(Vector3 start, Vector3 end)
+    {
+        Vector2 s = start;
+        Vector2 e = end;
+
+        Vector2 dir = (e - s);
+        float dist = dir.magnitude;
+        if (dist <= 0.0001f) return;
+
+        dir /= dist;
+
+        // CircleCastAll sepanjang lintasan dash (seperti konsep player)
+        RaycastHit2D[] hits = Physics2D.CircleCastAll(
+            s,
+            hitRadius,
+            dir,
+            dist,
+            targetLayer
+        );
+
+        foreach (var h in hits)
+        {
+            CharacterBase cb = h.collider.GetComponentInParent<CharacterBase>();
+            if (cb == null || cb == selfStats) continue;
+
+            float baseAtk = (combat != null) ? combat.AttackPower : (selfStats != null ? selfStats.attack : 10f);
+            cb.TakeDamage(baseAtk * counterDamageMultiplier, ai != null ? ai.gameObject : gameObject);
+        }
+    }
+
+    private IEnumerator ShowDashLineWindow()
+    {
+        showDashLine = true;
+        yield return new WaitForSeconds(gizmoShowTime);
+        showDashLine = false;
+    }
+
+#if UNITY_EDITOR
+    private void OnDrawGizmos()
+    {
+        if (!Application.isPlaying) return;
+        if (!showDashLine) return;
+
+        Gizmos.color = gizmoColor;
+        Gizmos.DrawLine(lastDashStart, lastDashTarget);
+        Gizmos.DrawWireSphere(lastDashTarget, hitRadius);
+    }
+#endif
 }

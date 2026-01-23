@@ -4,34 +4,39 @@ using UnityEngine;
 
 public class EnemyMovementFSM : MonoBehaviour
 {
-    public enum MoveState
-    {
-        Idle,
-        Chase,
-        Retreat
-    }
+    private EnemyAI ai;
 
-    private MoveState currentState;
+    public enum MoveState { Idle, Aligning, Chase }
+
+    [Header("Debug Info")]
+    [SerializeField] private MoveState currentState;
 
     [Header("References")]
     [SerializeField] private Transform player;
     [SerializeField] private Rigidbody2D rb;
 
     [Header("Movement Settings")]
-    public float moveSpeed = 3f;
-    public float accel = 10f;
+    public float moveSpeed = 4f;
+    public float accel = 40f; 
 
-    [Header("Sword Safe Zone")]
-    public float idealSwordDistance = 1.8f;
-    public float tolerance = 0.25f;
+    [Header("LF2 Style Logic")]
+    public float stopDistanceX = 5.0f;
+    public float verticalTolerance = 0.2f;
 
-    private float MinSafe => idealSwordDistance - tolerance;
-    private float MaxSafe => idealSwordDistance + tolerance;
+    [Header("Dynamic Skill Range")]
+    public float desiredRange = 1.5f;   // default, nanti diubah BT
+    public float rangeTolerance = 0.25f;
+
+    private void Awake()
+    {
+        ai = GetComponent<EnemyAI>();
+        rb = GetComponent<Rigidbody2D>();
+    }
 
     private void Start()
     {
         if (player == null)
-            player = GameObject.FindGameObjectWithTag("Player").transform;
+            player = GameObject.FindGameObjectWithTag("Player")?.transform;
 
         if (rb == null)
             rb = GetComponent<Rigidbody2D>();
@@ -43,73 +48,72 @@ public class EnemyMovementFSM : MonoBehaviour
     {
         UpdateState();
         RunState();
+        UpdateAnimation();
     }
 
-    // ======================================================================
-    //  FSM STATE DECISION (ANTI-JITTER FINAL)
-    // ======================================================================
+    private void UpdateAnimation()
+    {
+        if (ai != null && ai.Animation != null && rb != null)
+        {
+            // Ambil kecepatan saat ini (0 jika diam, ~moveSpeed jika jalan)
+            float currentSpeed = rb.velocity.magnitude;
+
+            // Normalisasi nilai agar cocok dengan Blend Tree (misal 0 sampai 1)
+            // Jika Anda pakai Blend Tree sederhana, kirim currentSpeed langsung juga bisa
+            float normalizedSpeed = currentSpeed / moveSpeed;
+
+            // Kirim ke script EnemyAnimation
+            ai.Animation.SetMoveSpeed(normalizedSpeed);
+        }
+    }
+
+    public void SetDesiredRange(float range)
+    {
+        desiredRange = range;
+    }
+
 
     private void UpdateState()
     {
-        float distance = Vector2.Distance(transform.position, player.position);
-        var playerTrend = DataTracker.Instance.CurrentDistanceState;
+        if (player == null) return;
 
-        // ==========================================================
-        // 1. PLAYER TREND PRIORITY (anti jitter utama)
-        // ==========================================================
-        if (playerTrend == PlayerDistanceState.Chase)
+        Vector2 toPlayer = player.position - transform.position;
+        float absDistX = Mathf.Abs(toPlayer.x);
+        float absDistY = Mathf.Abs(toPlayer.y);
+
+        // 1. Vertical alignment
+        if (absDistY > verticalTolerance)
         {
-            // Player mendekat → enemy harus retreat
-            SwitchState(MoveState.Retreat);
+            SwitchState(MoveState.Aligning);
             return;
         }
 
-        if (playerTrend == PlayerDistanceState.Retreat)
+        // 2. Horizontal movement based on DESIRED RANGE (skillRange)
+        if (absDistX > desiredRange + rangeTolerance)
         {
-            // Player menjauh → enemy harus chase
+            // terlalu jauh → chase
             SwitchState(MoveState.Chase);
             return;
         }
 
-        // ==========================================================
-        // 2. PLAYER IDLE → gunakan safezone
-        // ==========================================================
-        if (playerTrend == PlayerDistanceState.Idle)
-        {
-            // Jarak aman → tetap diam
-            if (distance >= MinSafe && distance <= MaxSafe)
-            {
-                SwitchState(MoveState.Idle);
-                return;
-            }
-
-            // Terlalu dekat → mundur
-            if (distance < MinSafe)
-            {
-                SwitchState(MoveState.Retreat);
-                return;
-            }
-
-            // Terlalu jauh → kejar
-            if (distance > MaxSafe)
-            {
-                SwitchState(MoveState.Chase);
-                return;
-            }
-        }
+        // 3. Jika sudah dalam window skill range → Idle
+        SwitchState(MoveState.Idle);
     }
 
-    // ======================================================================
-    //   FSM STATE EXECUTION
-    // ======================================================================
 
     private void RunState()
     {
         switch (currentState)
         {
-            case MoveState.Idle: DoIdle(); break;
-            case MoveState.Chase: DoChase(); break;
-            case MoveState.Retreat: DoRetreat(); break;
+            case MoveState.Idle:
+                rb.velocity = Vector2.Lerp(rb.velocity, Vector2.zero, Time.deltaTime * accel);
+                break;
+            case MoveState.Aligning:
+                DoAlignManeuver();
+                break;
+            case MoveState.Chase:
+                DoChase();
+                break;
         }
     }
 
@@ -119,13 +123,17 @@ public class EnemyMovementFSM : MonoBehaviour
         currentState = newState;
     }
 
-    // ======================================================================
-    //  STATE LOGIC
-    // ======================================================================
-
-    private void DoIdle()
+    public void StopImmediately()
     {
-        rb.velocity = Vector2.Lerp(rb.velocity, Vector2.zero, Time.deltaTime * accel);
+        if (rb != null) rb.velocity = Vector2.zero;
+        SwitchState(MoveState.Idle);
+    }
+
+    private void DoAlignManeuver()
+    {
+        float dirY = Mathf.Sign(player.position.y - transform.position.y);
+        Vector2 targetVel = new Vector2(0, dirY * moveSpeed);
+        rb.velocity = Vector2.Lerp(rb.velocity, targetVel, Time.deltaTime * accel);
     }
 
     private void DoChase()
@@ -133,15 +141,10 @@ public class EnemyMovementFSM : MonoBehaviour
         Vector2 dir = (player.position - transform.position).normalized;
         Vector2 targetVel = dir * moveSpeed;
 
-        rb.velocity = Vector2.Lerp(rb.velocity, targetVel, Time.deltaTime * accel);
-    }
-
-    private void DoRetreat()
-    {
-        Vector2 dir = (transform.position - player.position).normalized;
-        Vector2 targetVel = dir * moveSpeed;
-
-        rb.velocity = Vector2.Lerp(rb.velocity, targetVel, Time.deltaTime * accel);
+        // Instant turn logic
+        if (Vector2.Dot(rb.velocity.normalized, dir) < 0)
+            rb.velocity = targetVel;
+        else
+            rb.velocity = Vector2.Lerp(rb.velocity, targetVel, Time.deltaTime * accel);
     }
 }
-

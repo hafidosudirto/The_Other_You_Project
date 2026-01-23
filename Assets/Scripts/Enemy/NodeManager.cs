@@ -1,5 +1,5 @@
-﻿using UnityEngine;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 public class EnemyAI : MonoBehaviour
 {
@@ -8,22 +8,26 @@ public class EnemyAI : MonoBehaviour
 
     public EnemyCombatController Combat { get; private set; }
     public EnemyMovementFSM Movement { get; private set; }
-    public EnemyAnimation Animation { get; private set; }  
+    public EnemyAnimation Animation { get; private set; }
 
-    // ---- Facing helper ----
-    public bool IsFacingRight
-    {
-        get => transform.localScale.x > 0f;
-        set
-        {
-            Vector3 scale = transform.localScale;
-            scale.x = Mathf.Abs(scale.x) * (value ? 1f : -1f);
-            transform.localScale = scale;
-        }
-    }
+    [Header("Visual Facing")]
+    [SerializeField] private Transform spriteVisual;
+    [SerializeField] private SpriteRenderer spriteRenderer;
+    [SerializeField] private bool invertFlipX = false;
+    [SerializeField] private float maxMoveSpeed = 3f;
+    private Rigidbody2D rb2d;
+
+    private bool desiredFacingRight = true;
+    public bool IsFacingRight => desiredFacingRight;
+    private Vector3 prevPos;
+
+    public int ForwardSign => desiredFacingRight ? 1 : -1;
+    public Vector2 ForwardDir => new Vector2(ForwardSign, 0f);
+    public bool VisualFacingRight => desiredFacingRight;
 
     [Header("Ranges")]
     public float attackRange = 1.8f;
+    [SerializeField] private Vector2 attackRangeOffset = new Vector2(1f, 0f);
 
     [Header("Action Lock")]
     public bool isPerformingAction = false;
@@ -43,20 +47,67 @@ public class EnemyAI : MonoBehaviour
     {
         Combat = GetComponent<EnemyCombatController>();
         Movement = GetComponent<EnemyMovementFSM>();
-        Animation = GetComponent<EnemyAnimation>();    // FIX 3: load animation reference
+        Animation = GetComponentInChildren<EnemyAnimation>(true);
+
+        if (spriteRenderer == null)
+        {
+            spriteRenderer = GetComponentInChildren<SpriteRenderer>(true);
+        }
+
+        if (spriteVisual == null && spriteRenderer != null)
+        {
+            spriteVisual = spriteRenderer.transform;
+        }
+
+        rb2d = GetComponent<Rigidbody2D>();
+        if (rb2d == null) rb2d = GetComponentInChildren<Rigidbody2D>(true);
+    }
+
+    private void UpdateLocomotionAnim()
+    {
+        if (Animation == null) return;
+        if (isPerformingAction)
+        {
+            Animation.SetMoveSpeed(0f);
+            return;
+        }
+
+        float speed = 0f;
+        if (rb2d != null) speed = Mathf.Abs(rb2d.velocity.x);
+        else
+        {
+            Vector3 delta = transform.position - prevPos;
+            speed = delta.magnitude / Mathf.Max(Time.deltaTime, 0.0001f);
+        }
+
+        float speed01 = Mathf.Clamp01(speed / Mathf.Max(0.01f, maxMoveSpeed));
+        Animation.SetMoveSpeed(speed01);
+        prevPos = transform.position;
     }
 
     private void Start()
     {
         if (playerTransform == null)
+        {
             playerTransform = GameObject.FindGameObjectWithTag("Player")?.transform;
+        }
 
         // Sambungkan ActionLock dari combat
-        Combat.OnSkillStart += OnActionStart;
-        Combat.OnSkillEnd += OnActionEnd;
+        if (Combat != null)
+        {
+            Combat.OnSkillStart += OnActionStart;
+            Combat.OnSkillEnd += OnActionEnd;
+        }
 
-        BuildOffensiveTree();
-        BuildDefensiveTree();
+        BuildAttackTree();
+
+        // Set initial facing
+        prevPos = transform.position;
+        if (playerTransform != null)
+        {
+            UpdateDesiredFacing();
+            ApplyFacing();
+        }
     }
 
     // ============================================================
@@ -64,21 +115,62 @@ public class EnemyAI : MonoBehaviour
     // ============================================================
     public void Update()
     {
-        if (!isPerformingAction)
-            Movement.Update();        
+        // 1. Cari Player Terus Menerus jika hilang
+        if (playerTransform == null)
+        {
+            var p = GameObject.FindGameObjectWithTag("Player");
+            if (p) playerTransform = p.transform;
+            else return;
+        }
 
+        // 2. UPDATE FACING - SELALU update facing ke arah player
+        UpdateDesiredFacing();
+
+        // 3. Jalankan Logika Movement (Hanya jika tidak sedang attack)
+        if (!isPerformingAction && Movement != null)
+        {
+            Movement.Update();
+            UpdateLocomotionAnim();
+        }
+
+        // 4. Jalankan Tree
         EvaluateAttackTree();
-        AutoFacePlayer();
     }
 
-    // ============================================================
-    // AUTO FACE PLAYER
-    // ============================================================
-    private void AutoFacePlayer()
+    private void LateUpdate()
+    {
+        // Apply facing visual setiap frame
+        ApplyFacing();
+    }
+
+    private void UpdateDesiredFacing()
     {
         if (!playerTransform) return;
 
-        IsFacingRight = playerTransform.position.x > transform.position.x;
+        // Gunakan posisi world yang lebih akurat
+        Vector3 enemyPos = transform.position;
+        Vector3 playerPos = playerTransform.position;
+
+        float dx = playerPos.x - enemyPos.x;
+
+        // Tentukan facing berdasarkan posisi player
+        desiredFacingRight = dx >= 0f;
+    }
+
+    private void ApplyFacing()
+    {
+        if (spriteRenderer == null) return;
+
+        if (invertFlipX)
+        {
+            // Sprite default menghadap KIRI
+            spriteRenderer.flipX = desiredFacingRight;
+        }
+        else
+        {
+            // Sprite default menghadap KANAN
+            spriteRenderer.flipX = !desiredFacingRight;
+        }
     }
 
     // ============================================================
@@ -87,13 +179,13 @@ public class EnemyAI : MonoBehaviour
     public void OnActionStart()
     {
         isPerformingAction = true;
-        Movement.enabled = false;
+        if (Movement) Movement.enabled = false;
     }
 
     public void OnActionEnd()
     {
         isPerformingAction = false;
-        Movement.enabled = true;
+        if (Movement) Movement.enabled = true;
     }
 
     // ============================================================
@@ -102,7 +194,17 @@ public class EnemyAI : MonoBehaviour
     public bool IsInAttackRange()
     {
         if (!playerTransform) return false;
-        return Vector2.Distance(transform.position, playerTransform.position) <= attackRange;
+
+        Vector2 attackPos = GetAttackRangeCenter();
+        return Vector2.Distance(attackPos, playerTransform.position) <= attackRange;
+    }
+
+    private Vector2 GetAttackRangeCenter()
+    {
+        Vector2 basePos = transform.position;
+        Vector2 offset = attackRangeOffset;
+        offset.x *= ForwardSign;
+        return basePos + offset;
     }
 
     public float AttackPower
@@ -115,31 +217,16 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
-    // ============================================================
-    // BUILD OFFENSIVE TREE
-    // ============================================================
-    private void BuildOffensiveTree()
+    private void BuildAttackTree()
     {
-        offensiveTree = new RandomSelector(new List<Node>
-        {
+        var nodes = new List<Node> {
             new SwordSlashComboNode(this),
             new SwordWhirlwindNode(this),
             new SwordChargedStrikeNode(this),
-            new SwordRiposteNode(this)
-        });
-    }
+            new SwordRiposteNode(this) };
 
-    // ============================================================
-    // BUILD DEFENSIVE TREE (random)
-    // ============================================================
-    private void BuildDefensiveTree()
-    {
-        defensiveTree = new RandomSelector(new List<Node>
-        {
-            new DashOutNode(this),
-            new SwordRiposteNode(this),
-            new SwordSlashComboNode(this)
-        });
+        var weights = new List<float> { 1f, 1f, 1f, 1f };
+        offensiveTree = new WeightedRandomSelector(nodes, weights);
     }
 
     // ============================================================
@@ -149,7 +236,6 @@ public class EnemyAI : MonoBehaviour
     {
         if (isPerformingAction) return;
         if (playerTransform == null) return;
-
         if (!IsInAttackRange()) return;
 
         var dda = DDAController.Instance;
@@ -161,12 +247,13 @@ public class EnemyAI : MonoBehaviour
         {
             case PlayerPlaystyle.OffensiveDominant:
                 balancedChosen = false;
-                offensiveTree.Evaluate();
+                offensiveTree?.Evaluate();
                 break;
 
             case PlayerPlaystyle.DefensiveDominant:
                 balancedChosen = false;
-                defensiveTree.Evaluate();
+                if (defensiveTree != null) defensiveTree.Evaluate();
+                else offensiveTree?.Evaluate();
                 break;
 
             case PlayerPlaystyle.Balanced:
@@ -178,9 +265,14 @@ public class EnemyAI : MonoBehaviour
                 }
 
                 if (balancedOffensive)
-                    offensiveTree.Evaluate();
+                {
+                    offensiveTree?.Evaluate();
+                }
                 else
-                    defensiveTree.Evaluate();
+                {
+                    if (defensiveTree != null) defensiveTree.Evaluate();
+                    else offensiveTree?.Evaluate();
+                }
                 break;
         }
     }
@@ -191,6 +283,15 @@ public class EnemyAI : MonoBehaviour
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, attackRange);
+        Vector2 attackCenter = GetAttackRangeCenter();
+        Gizmos.DrawWireSphere(attackCenter, attackRange);
+
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawLine(transform.position, attackCenter);
+
+        Gizmos.color = Color.cyan;
+        Vector3 arrowEnd = (Vector2)transform.position + ForwardDir * 0.5f;
+        Gizmos.DrawLine(transform.position, arrowEnd);
+        Gizmos.DrawSphere(arrowEnd, 0.1f);
     }
 }
