@@ -4,6 +4,7 @@ using System.Collections;
 public class Enemy_Sword_Riposte : MonoBehaviour
 {
     [Header("Stance")]
+    [Tooltip("Durasi window riposte (stance). Jika player tidak menyerang di window ini, tidak ada counter.")]
     public float stanceDuration = 0.45f;
 
     [Header("Counter Dash (samakan konsep dengan player)")]
@@ -13,13 +14,6 @@ public class Enemy_Sword_Riposte : MonoBehaviour
 
     [Tooltip("Layer target yang akan terkena counter (biasanya Player).")]
     public LayerMask targetLayer;
-
-    [Header("Auto Counter Trigger (opsional)")]
-    [Tooltip("Jika true, selama stance: bila player cukup dekat, counter otomatis dipicu.")]
-    public bool autoTriggerCounterIfPlayerClose = true;
-
-    [Tooltip("Radius deteksi untuk memicu counter otomatis selama stance.")]
-    public float autoTriggerRadius = 1.6f;
 
     [Header("Damage Multiplier")]
     public float counterDamageMultiplier = 1.4f;
@@ -51,6 +45,14 @@ public class Enemy_Sword_Riposte : MonoBehaviour
     private Vector3 lastDashStart;
     private Vector3 lastDashTarget;
 
+    // Gate: counter hanya boleh terjadi jika ada serangan player selama stance.
+    private bool playerAttackDetectedDuringStance = false;
+
+    // =========================
+    // OPSI B: dibaca oleh CharacterBase.TakeDamage
+    // =========================
+    public bool IsStanceActive => isStanceActive;
+
     private void Awake()
     {
         ai = GetComponentInParent<EnemyAI>();
@@ -58,9 +60,7 @@ public class Enemy_Sword_Riposte : MonoBehaviour
         selfStats = GetComponentInParent<CharacterBase>();
     }
 
-    // =========================================================
-    // API kompatibilitas untuk sistem baru (Defense Tree)
-    // =========================================================
+    // API kompatibilitas
     public bool IsActive => busy;
 
     public bool TryStartRiposte()
@@ -78,25 +78,36 @@ public class Enemy_Sword_Riposte : MonoBehaviour
         TryStartRiposte();
     }
 
+    // =========================
+    // INTEGRATION POINT
+    // (akan dipanggil oleh CharacterBase.TakeDamage pada Opsi B)
+    // =========================
+    public void NotifyPlayerAttackAttempt(GameObject attacker = null)
+    {
+        if (!isStanceActive) return;
+        playerAttackDetectedDuringStance = true;
+    }
+
+    // Counter trigger (hanya jika playerAttackDetectedDuringStance == true)
     public void TriggerFollowUpDash()
     {
         if (!isStanceActive) return;
         if (isDashing) return;
-
         if (ai == null) return;
 
-        // Tentukan arah counter: menuju player pada sumbu X (side-scroller umum)
+        if (!playerAttackDetectedDuringStance) return;
+
         Vector3 dir = Vector3.right;
 
         if (ai.playerTransform != null)
         {
             float sx = Mathf.Sign(ai.playerTransform.position.x - ai.transform.position.x);
-            if (sx == 0f) sx = ai.ForwardSign; // fallback ke arah hadap enemy bila sejajar
+            if (sx == 0f) sx = ai.ForwardSign;
             dir = new Vector3(sx, 0f, 0f);
         }
         else
         {
-            dir = ai.ForwardDir; // fallback
+            dir = ai.ForwardDir;
         }
 
         dashStart = ai.transform.position;
@@ -105,7 +116,6 @@ public class Enemy_Sword_Riposte : MonoBehaviour
         isDashing = true;
         isStanceActive = false;
 
-        // Matikan stance & mainkan animasi counter seperti player
         ai?.Animation?.SetRiposteReady(false);
         ai?.Animation?.TriggerRiposteCounter();
     }
@@ -117,45 +127,48 @@ public class Enemy_Sword_Riposte : MonoBehaviour
 
         combat?.InvokeSkillStart();
 
-        // Mulai stance
+        // ===== Mulai stance =====
         isStanceActive = true;
         isDashing = false;
         stanceTimer = stanceDuration;
 
+        // RESET gate setiap stance baru
+        playerAttackDetectedDuringStance = false;
+
         ai?.Animation?.SetRiposteReady(true);
 
-        // Selama stance: bisa menunggu event parry atau auto-trigger
         while (stanceTimer > 0f && !isDashing)
         {
             stanceTimer -= Time.deltaTime;
 
-            if (autoTriggerCounterIfPlayerClose && ai != null && ai.playerTransform != null)
+            // jika ada serangan player (ditandai oleh CharacterBase.TakeDamage), counter boleh terjadi
+            if (playerAttackDetectedDuringStance)
             {
-                float dist = Vector2.Distance(ai.transform.position, ai.playerTransform.position);
-                if (dist <= autoTriggerRadius)
-                {
-                    // Anggap kondisi parry terpenuhi → counter dipicu
-                    TriggerFollowUpDash();
-                    break;
-                }
+                TriggerFollowUpDash();
+                break;
             }
 
             yield return null;
         }
 
-        // Jika stance habis tanpa counter
+        // stance habis tanpa counter
         if (!isDashing)
         {
             ai?.Animation?.SetRiposteReady(false);
             isStanceActive = false;
+            playerAttackDetectedDuringStance = false;
 
             combat?.InvokeSkillEnd();
             busy = false;
             yield break;
         }
 
-        // Jika counter dash dipicu
+        // counter dash
         yield return DashForwardAndDamage();
+
+        // ===== cleanup state agar tidak ada flag tertinggal =====
+        isStanceActive = false;
+        playerAttackDetectedDuringStance = false;
 
         combat?.InvokeSkillEnd();
         busy = false;
@@ -169,11 +182,9 @@ public class Enemy_Sword_Riposte : MonoBehaviour
             yield break;
         }
 
-        // Gizmo snapshot
         lastDashStart = dashStart;
         lastDashTarget = dashTarget;
 
-        // Gerak dash sampai mendekati target
         while (Vector3.Distance(ai.transform.position, dashTarget) > 0.05f)
         {
             ai.transform.position = Vector3.MoveTowards(
@@ -186,10 +197,8 @@ public class Enemy_Sword_Riposte : MonoBehaviour
 
         isDashing = false;
 
-        // Damage sepanjang lintasan dash (model seperti player)
         PerformFollowUpDamage(dashStart, dashTarget);
 
-        // Gizmo window
         if (gameObject.activeInHierarchy)
             StartCoroutine(ShowDashLineWindow());
     }
@@ -205,7 +214,6 @@ public class Enemy_Sword_Riposte : MonoBehaviour
 
         dir /= dist;
 
-        // CircleCastAll sepanjang lintasan dash (seperti konsep player)
         RaycastHit2D[] hits = Physics2D.CircleCastAll(
             s,
             hitRadius,
@@ -214,8 +222,9 @@ public class Enemy_Sword_Riposte : MonoBehaviour
             targetLayer
         );
 
-        foreach (var h in hits)
+        for (int i = 0; i < hits.Length; i++)
         {
+            var h = hits[i];
             CharacterBase cb = h.collider.GetComponentInParent<CharacterBase>();
             if (cb == null || cb == selfStats) continue;
 
