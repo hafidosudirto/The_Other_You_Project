@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 using System.Collections;
 
 public class CharacterBase : MonoBehaviour
@@ -10,6 +11,37 @@ public class CharacterBase : MonoBehaviour
     public float attack = 10f;
     public float defense = 5f;
     public float moveSpeed = 5f;
+
+    [Header("Energy (Character-Level)")]
+    [SerializeField, Min(0f)] private float maxEnergy = 100f;
+
+    [SerializeField, Min(0f)] private float currentEnergy = 100f;
+
+    [Header("Energy Regen (Time-Based)")]
+    [SerializeField, Min(0f)] private float regenPerSecond = 8f;
+
+    [Tooltip("Jika true, regen memakai *unscaled time* (tetap jalan saat pause/timeScale=0).")]
+    [SerializeField] private bool useUnscaledTime = false;
+
+    /// <summary>
+    /// Dipanggil saat energi berubah. UI dapat *subscribe* ke event ini.
+    /// </summary>
+    public event Action OnEnergyChanged;
+
+    public float MaxEnergy => maxEnergy;
+    public float CurrentEnergy => currentEnergy;
+    public bool HasEnergy(float cost)
+    {
+        return cost <= 0f || CurrentEnergy + 1e-6f >= cost;
+    }
+    public float EnergyNormalized
+    {
+        get
+        {
+            if (maxEnergy <= 0f) return 0f;
+            return Mathf.Clamp01(currentEnergy / maxEnergy);
+        }
+    }
 
     [Header("Status Flags")]
     public bool isFacingRight = true;
@@ -36,6 +68,59 @@ public class CharacterBase : MonoBehaviour
         }
 
         currentHP = maxHP;
+
+        // Clamp energi saat awal runtime
+        maxEnergy = Mathf.Max(0f, maxEnergy);
+        currentEnergy = Mathf.Clamp(currentEnergy, 0f, maxEnergy);
+        OnEnergyChanged?.Invoke();
+    }
+
+    protected virtual void Update()
+    {
+        TickEnergyRegen();
+    }
+
+    private void TickEnergyRegen()
+    {
+        if (regenPerSecond <= 0f) return;
+
+        float dt = useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
+        if (dt <= 0f) return;
+
+        AddEnergy(regenPerSecond * dt);
+    }
+
+    // =============================================================
+    // ENERGY API
+    // =============================================================
+    public void SetEnergy(float value)
+    {
+        float prev = currentEnergy;
+        currentEnergy = Mathf.Clamp(value, 0f, maxEnergy);
+        if (!Mathf.Approximately(prev, currentEnergy))
+            OnEnergyChanged?.Invoke();
+    }
+
+    public void AddEnergy(float amount)
+    {
+        if (amount <= 0f) return;
+
+        float prev = currentEnergy;
+        currentEnergy = Mathf.Clamp(currentEnergy + amount, 0f, maxEnergy);
+        if (!Mathf.Approximately(prev, currentEnergy))
+            OnEnergyChanged?.Invoke();
+    }
+
+    public bool TrySpendEnergy(float cost)
+    {
+        if (cost <= 0f) return true;
+
+        if (currentEnergy + 1e-6f < cost)
+            return false;
+
+        currentEnergy = Mathf.Clamp(currentEnergy - cost, 0f, maxEnergy);
+        OnEnergyChanged?.Invoke();
+        return true;
     }
 
     // -------------------------------------------------------------
@@ -139,7 +224,7 @@ public class CharacterBase : MonoBehaviour
         if (force <= 0f || currentHP <= 0f)
             return;
 
-        float knockDuration = 0.15f; 
+        float knockDuration = 0.15f;
         ApplyStagger(direction, force, knockDuration);
     }
 
