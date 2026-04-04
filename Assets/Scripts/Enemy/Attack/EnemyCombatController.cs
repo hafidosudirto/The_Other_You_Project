@@ -3,12 +3,12 @@ using System;
 
 public class EnemyCombatController : MonoBehaviour
 {
-    // Event untuk Action-Lock (EnemyAI / MovementFSM dengar ini)
+    // Event untuk Action-Lock
     public event Action OnSkillStart;
     public event Action OnSkillEnd;
 
     /// <summary>
-    /// Global "busy" flag untuk mencegah BT node menembakkan skill lain saat skill berjalan.
+    /// Global busy flag untuk mencegah BT menembakkan skill lain saat skill berjalan.
     /// </summary>
     public bool IsBusy { get; private set; }
 
@@ -41,14 +41,12 @@ public class EnemyCombatController : MonoBehaviour
             riposte = GetComponentInChildren<Enemy_Sword_Riposte>();
     }
 
-    // Dipanggil skill saat dimulai
     public void InvokeSkillStart()
     {
         IsBusy = true;
         OnSkillStart?.Invoke();
     }
 
-    // Dipanggil skill saat selesai
     public void InvokeSkillEnd()
     {
         IsBusy = false;
@@ -56,7 +54,7 @@ public class EnemyCombatController : MonoBehaviour
     }
 
     // =========================================================
-    // Tambahan API untuk Defense Tree (agar Enemy_DefenseTree tidak error)
+    // API untuk Defense Tree
     // =========================================================
 
     [Header("Defense Tree Wiring")]
@@ -71,13 +69,9 @@ public class EnemyCombatController : MonoBehaviour
     private int _lastReactedAttackId = 0;
     private float _nextAllowedReactionTime = 0f;
 
-    // Dipakai Enemy_DefenseTree
     public bool IsNotBusy => !IsBusy;
-
-    // Dipakai Enemy_DefenseTree
     public bool IsPlayerAttacking => playerAttackSensor != null && playerAttackSensor.IsAttacking;
 
-    // Dipakai Enemy_DefenseTree: mencegah defense berulang untuk serangan player yang sama
     public bool HasNewPlayerAttack
     {
         get
@@ -90,7 +84,6 @@ public class EnemyCombatController : MonoBehaviour
 
     private void Start()
     {
-        // *Best-effort wiring* (tetap disarankan isi manual di Inspector)
         if (playerAttackSensor == null)
             playerAttackSensor = FindObjectOfType<PlayerAttackSensor>();
 
@@ -121,7 +114,6 @@ public class EnemyCombatController : MonoBehaviour
         _nextAllowedReactionTime = Time.time + reactionCooldown;
     }
 
-    // 50% cabang lengah: tidak melakukan skill, tetapi menghabiskan kesempatan respon
     public bool StartLengah()
     {
         if (!CanReactNow()) return false;
@@ -138,7 +130,6 @@ public class EnemyCombatController : MonoBehaviour
         InvokeSkillEnd();
     }
 
-    // 25% cabang dash: jika tidak bisa dash (cooldown/null), jatuh ke lengah tetapi tetap "menghabiskan" respon
     public bool StartDash()
     {
         if (!CanReactNow()) return false;
@@ -172,7 +163,6 @@ public class EnemyCombatController : MonoBehaviour
         InvokeSkillEnd();
     }
 
-    // 25% cabang riposte: memakai API baru TryStartRiposte (akan kita tambahkan di Enemy_Sword_Riposte)
     public bool StartRiposte()
     {
         if (!CanReactNow()) return false;
@@ -194,5 +184,4 @@ public class EnemyCombatController : MonoBehaviour
 
         return true;
     }
-
 }

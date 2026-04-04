@@ -29,15 +29,10 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
     private Vector3 dashTarget;
     private int mySlotIndex;
 
-    // ============================================================
-    // ENERGY (dibayar di SkillBase saat OnPress)
-    // ============================================================
     [Header("Energy")]
     [SerializeField, Min(0f)] private float energyCost = 10f;
 
     public float EnergyCost => energyCost;
-
-    // Skill normal: energi dipotong di SkillBase ketika slot ditekan (OnPress)
     public bool PayEnergyInSkillBase => true;
 
     private void Awake()
@@ -64,32 +59,26 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
 
     private void ForceStopRiposte(bool resetCooldownUsable = true)
     {
-        // Bersihkan state internal
         isActive = false;
         isDashing = false;
         stanceTimer = 0f;
 
-        // Matikan stance di CharacterBase bila masih nyala
         if (character != null)
         {
             character.isRiposteStance = false;
-
             if (resetCooldownUsable)
                 character.canRiposte = true;
         }
 
-        // Matikan animasi stance
         if (anim != null)
             anim.SetRiposteReady(false);
 
-        // Matikan flag serang global
         if (player != null)
             player.isAttacking = false;
     }
 
     private void Update()
     {
-        // Hard stop: bila energi habis total saat stance/dash berjalan
         if ((isActive || isDashing) && !HasAnyEnergyLeft())
         {
             ForceStopRiposte(true);
@@ -107,15 +96,12 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
                 if (character != null)
                     character.EndRiposteStance();
 
-                // reset riposte ability
                 if (character != null)
                     character.canRiposte = true;
 
                 if (anim != null)
                     anim.SetRiposteReady(false);
 
-                // Jika stance berakhir tanpa dash follow-up,
-                // pastikan player tidak dianggap menyerang lagi
                 if (player != null && !isDashing)
                     player.isAttacking = false;
             }
@@ -125,23 +111,17 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
             DashForward();
     }
 
-    // ---------------------------------------
-    // SKILLBASE ENTRY
-    // ---------------------------------------
     public void TriggerSkill(int slotIndex)
     {
-        // Sudah aktif/dash/cooldown → tolak
         if (isActive || isDashing || isOnCooldown)
             return;
 
         if (character == null || !character.CanAct())
             return;
 
-        // Jangan boleh cast saat sedang melakukan serangan besar lain
         if (player != null && player.isAttacking)
             return;
 
-        // FAIL-SAFE: jika TriggerSkill terpanggil dari jalur lain tanpa gating SkillBase
         if (!HasEnoughEnergyToStart())
         {
             DebugHub.Warning($"ENERGY KURANG: Riposte butuh {energyCost}.");
@@ -160,7 +140,6 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
         if (!character.canRiposte || isOnCooldown)
             return;
 
-        // Jika energi habis mendadak sebelum aktivasi stance
         if (!HasAnyEnergyLeft())
         {
             ForceStopRiposte(true);
@@ -171,20 +150,18 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
         isActive = true;
         stanceTimer = stanceDuration;
 
-        // Selama stance aktif, anggap player sedang "attacking"
         if (player != null)
             player.isAttacking = true;
 
         if (anim != null)
             anim.SetRiposteReady(true);
 
+        if (DataTracker.Instance != null)
+            DataTracker.Instance.RecordSwordRiposte();
+
         StartCoroutine(StartCooldown());
     }
 
-    // ---------------------------------------
-    // TRIGGER FOLLOW-UP DASH AFTER PARRY
-    // Called by CharacterBase.Parry()
-    // ---------------------------------------
     public void TriggerFollowUpDash()
     {
         if (character == null)
@@ -193,14 +170,13 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
         if (!isActive) return;
         if (isDashing) return;
 
-        // Jika energi habis sebelum follow-up, batalkan
         if (!HasAnyEnergyLeft())
         {
             ForceStopRiposte(true);
             return;
         }
 
-        Vector3 dir = (character.isFacingRight ? Vector3.right : Vector3.left);
+        Vector3 dir = character.isFacingRight ? Vector3.right : Vector3.left;
 
         dashStart = character.transform.position;
         dashTarget = dashStart + dir * dashDistance;
@@ -208,23 +184,16 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
         isDashing = true;
         isActive = false;
 
-        // Matikan stance & mainkan counter
         if (anim != null)
         {
             anim.SetRiposteReady(false);
             anim.TriggerRiposteCounter();
         }
 
-        // Pastikan selama dash follow-up juga dianggap sedang menyerang
         if (player != null)
             player.isAttacking = true;
-
-        // Tidak melakukan RecordAction lagi: sudah dihitung di Parry()
     }
 
-    // ---------------------------------------
-    // DASH MOVEMENT
-    // ---------------------------------------
     private void DashForward()
     {
         if (character == null)
@@ -243,8 +212,6 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
         {
             isDashing = false;
 
-            // Jika energi habis tepat di akhir dash, tetap boleh apply damage?
-            // Untuk aturan keras, kita batalkan damage bila energi habis.
             if (HasAnyEnergyLeft())
                 PerformFollowUpDamage();
 
@@ -256,9 +223,6 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
         }
     }
 
-    // ---------------------------------------
-    // DAMAGE ON DASH END
-    // ---------------------------------------
     private void PerformFollowUpDamage()
     {
         Vector2 start = dashStart;
@@ -287,17 +251,11 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
         isOnCooldown = false;
     }
 
-    // ---------------------------------------
-    // FAIL-SAFE
-    // ---------------------------------------
     private void OnDisable()
     {
         ForceStopRiposte(true);
     }
 
-    // ---------------------------------------
-    // SIMPLE GIZMO
-    // ---------------------------------------
 #if UNITY_EDITOR
     private void OnDrawGizmos()
     {

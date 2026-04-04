@@ -45,33 +45,26 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
     private MoveKeyboard mover;
     private Player player;
 
-    private bool isBusy = false;              // sedang menjalankan kombo
-    private bool chainRequested = false;      // Slash2 diminta dari dalam combo window
-    private bool isSlash2Phase = false;       // sedang di fase Slash2
-    private bool bufferedChainInput = false;  // input Slash2 yang ditekan terlalu cepat
+    private bool isBusy = false;
+    private bool chainRequested = false;
+    private bool isSlash2Phase = false;
+    private bool bufferedChainInput = false;
 
     private bool showHitArc = false;
 
     private int mySlotIndex = 0;
     private float lastComboTime = -999f;
 
-    // ============================================================
-    // ENERGY (dibayar di SkillBase saat OnPress)
-    // ============================================================
     [Header("Energy")]
     [SerializeField, Min(0f)] private float energyCost = 10f;
 
     public float EnergyCost => energyCost;
-
-    // Skill normal: energi dipotong di SkillBase ketika slot ditekan (OnPress)
     public bool PayEnergyInSkillBase => true;
 
     private void OnValidate()
     {
         if (gizmoShowTime >= minTimeBeforeChain)
-        {
             gizmoShowTime = Mathf.Max(0f, minTimeBeforeChain - 0.01f);
-        }
 
         energyCost = Mathf.Max(0f, energyCost);
     }
@@ -85,15 +78,12 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         player = GetComponentInParent<Player>();
     }
 
-    // Fail-safe: bila ada jalur lain yang memanggil TriggerSkill tanpa lewat SkillBase,
-    // kita tetap blok jika energi tidak cukup untuk biaya kombo.
     private bool HasEnoughEnergyToStart()
     {
         if (character == null) return false;
         return character.CurrentEnergy + 1e-6f >= energyCost;
     }
 
-    // Hard stop: bila energi benar-benar habis di tengah kombo
     private bool HasAnyEnergyLeft()
     {
         if (character == null) return false;
@@ -117,33 +107,24 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
             player.isAttacking = false;
     }
 
-    //=====================================================================
-    // DIPANGGIL DARI SkillBase SAAT TOMBOL SLOT DITEKAN
-    //=====================================================================
     public void TriggerSkill(int slotIndex)
     {
-        // Jika kombo sedang berjalan, input dianggap permintaan Slash2
         if (isBusy)
         {
             if (!isSlash2Phase && slotIndex == mySlotIndex)
                 bufferedChainInput = true;
-
             return;
         }
 
-        // Cooldown belum selesai
         if (Time.time < lastComboTime + comboCooldown)
             return;
 
-        // Player sedang melakukan skill besar lain → tolak
         if (player != null && player.isAttacking)
             return;
 
         if (character == null || !character.CanAct())
             return;
 
-        // FAIL-SAFE: jika TriggerSkill terpanggil tanpa lewat gate energi SkillBase,
-        // tetap blok di sini.
         if (!HasEnoughEnergyToStart())
         {
             DebugHub.Warning($"ENERGY KURANG: Slash Combo butuh {energyCost}.");
@@ -151,17 +132,12 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         }
 
         mySlotIndex = slotIndex;
-
-        // Mulai kombo
         StartCoroutine(ComboRoutine());
 
         if (DataTracker.Instance != null)
-            DataTracker.Instance.RecordAction(PlayerActionType.Offensive, WeaponType.Sword);
+            DataTracker.Instance.RecordSwordSlashCombo();
     }
 
-    //=====================================================================
-    // LOGIKA KOMBO: SLASH1 -> (OPSIONAL) SLASH2
-    //=====================================================================
     private IEnumerator ComboRoutine()
     {
         isBusy = true;
@@ -169,7 +145,6 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         chainRequested = false;
         bufferedChainInput = false;
 
-        // Hard stop bila energi sudah habis (seharusnya tidak terjadi jika gating benar)
         if (!HasAnyEnergyLeft())
         {
             ForceStopCombo();
@@ -179,7 +154,6 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         if (player != null)
             player.isAttacking = true;
 
-        //------------------ SLASH 1 ------------------
         float slash1LockDuration = delaySlash1 + chainWindow * 0.7f;
 
         if (mover != null)
@@ -191,7 +165,6 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         if (skillBase != null)
             DebugHub.Skill("[SlashCombo] Slash1 CAST");
 
-        // Jika energi habis mendadak sebelum hit timing, stop
         if (!HasAnyEnergyLeft())
         {
             ForceStopCombo();
@@ -209,14 +182,11 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         PerformSlash();
 
         yield return new WaitForSeconds(minTimeBeforeChain);
-
-        // Window input combo
         yield return StartCoroutine(WaitChainInput_AutoBuffer());
 
         if (anim != null)
             anim.SetSlash1(false);
 
-        // Tidak chain → selesai
         if (!chainRequested)
         {
             yield return new WaitForSeconds(0.05f);
@@ -235,7 +205,6 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
             yield break;
         }
 
-        // Jika chain diminta tapi energi sudah habis, stop (hard stop)
         if (!HasAnyEnergyLeft())
         {
             ForceStopCombo();
@@ -243,7 +212,6 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
             yield break;
         }
 
-        //------------------ SLASH 2 ------------------
         isSlash2Phase = true;
 
         float slash2LockDuration = delaySlash2 + 0.3f;
@@ -283,9 +251,6 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         lastComboTime = Time.time;
     }
 
-    //=====================================================================
-    // AUTO-BUFFER COMBO
-    //=====================================================================
     private KeyCode GetMyKey()
     {
         if (skillBase == null) return KeyCode.None;
@@ -316,7 +281,6 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
 
         while (timer < chainWindow)
         {
-            // Hard stop jika energi mendadak habis di window
             if (!HasAnyEnergyLeft())
                 yield break;
 
@@ -331,9 +295,6 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         }
     }
 
-    //=====================================================================
-    // HITBOX
-    //=====================================================================
     private void PerformSlash()
     {
         if (character == null) return;
@@ -360,9 +321,7 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
             float angleBetween = Vector2.Angle(dir, toTarget);
 
             if (angleBetween <= angle * 0.5f)
-            {
                 target.TakeDamage(character.attack);
-            }
         }
 
         if (gameObject.activeInHierarchy)
@@ -376,9 +335,6 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         showHitArc = false;
     }
 
-    //=====================================================================
-    // FAIL-SAFE
-    //=====================================================================
     private void OnDisable()
     {
         ForceStopCombo();

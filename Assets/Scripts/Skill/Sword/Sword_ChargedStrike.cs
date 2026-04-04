@@ -3,20 +3,12 @@ using System.Collections;
 
 public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
 {
-    // ============================================================
-    //  ENERGY (SPECIAL CASE: PAY ON RELEASE)
-    // ============================================================
     [Header("Energy (ChargedStrike pays on Release)")]
     [SerializeField, Min(0f)] private float energyCost = 25f;
 
     public float EnergyCost => energyCost;
-
-    // ChargedStrike: dipotong di dalam skill saat tombol dilepas (bukan oleh SkillBase saat tombol ditekan).
     public bool PayEnergyInSkillBase => false;
 
-    // ============================================================
-    //  SETTINGS
-    // ============================================================
     [Header("Charge Settings")]
     public float maxChargeTime = 2.0f;
     public float minDamageMultiplier = 1f;
@@ -41,13 +33,8 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
     public float gizmoRadius = 1.4f;
     public float gizmoAngle = 100f;
     public int gizmoSegments = 20;
-
-    [Tooltip("Berapa lama gizmo tampil setelah strike damage dieksekusi (detik).")]
     public float strikeGizmoShowTime = 0.08f;
 
-    // ============================================================
-    //  INTERNAL
-    // ============================================================
     private Player player;
     private PlayerAnimation anim;
     private MoveKeyboard mover;
@@ -58,14 +45,12 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
     private bool isCharging = false;
     private float chargeTimer = 0f;
 
-    // Gizmo hanya untuk momen strike damage
     private bool showGizmo = false;
     private Coroutine gizmoRoutine;
 
     private int mySlotIndex = 0;
     private Coroutine runningRoutine;
 
-    // ============================================================
     void Awake()
     {
         player = GetComponentInParent<Player>();
@@ -73,18 +58,13 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
         mover = GetComponentInParent<MoveKeyboard>();
         skillBase = GetComponentInParent<SkillBase>();
 
-        // Coba ambil Animator dari parent. Jika PlayerAnimation punya referensi animator, pakai itu.
         unityAnimator = GetComponentInParent<Animator>();
         if (unityAnimator == null && anim != null && anim.animator != null)
             unityAnimator = anim.animator;
     }
 
-    // ============================================================
-    //  SKILL TRIGGER
-    // ============================================================
     public void TriggerSkill(int slotIndex)
     {
-        // FAIL-SAFE: jika energi sudah 0 sebelum charge
         if (skillBase != null && EnergyCost > 0f)
         {
             var character = GetComponentInParent<CharacterBase>();
@@ -125,9 +105,6 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
         }
     }
 
-    // ============================================================
-    //  CHARGE ROUTINE
-    // ============================================================
     private IEnumerator ChargeRoutine()
     {
         isCharging = true;
@@ -143,15 +120,12 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
             yield break;
         }
 
-        // Lock movement while charging (nilai besar; nanti di-strike diganti durasi klip)
         if (mover != null)
             mover.LockExternal(999f);
 
-        // Play charging animation
         if (anim != null)
             anim.SetCharging(true);
 
-        // Pastikan animator sempat update
         yield return null;
 
         while (Input.GetKey(holdKey))
@@ -161,24 +135,21 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
             yield return null;
         }
 
-        // RELEASE
         isCharging = false;
 
-        // Stop charging -> start strike anim
         if (anim != null)
             anim.SetCharging(false);
 
-        // ============================================================
-        //  ENERGY SPEND ON RELEASE (FINAL DECISION)
-        // ============================================================
-
         if (!TrySpendEnergyOnRelease())
         {
-            // Energi tidak cukup -> batalkan strike, reset state, dan lepaskan lock
             CancelAfterInsufficientEnergy();
             runningRoutine = null;
             yield break;
         }
+
+        // Hanya dihitung sebagai penggunaan riil jika release berhasil dan energi terpotong.
+        if (DataTracker.Instance != null)
+            DataTracker.Instance.RecordSwordChargedStrike();
 
         float chargePercent = (maxChargeTime > 0f) ? (chargeTimer / maxChargeTime) : 1f;
         float multiplier = Mathf.Lerp(minDamageMultiplier, maxDamageMultiplier, chargePercent);
@@ -197,7 +168,7 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
         if (skillBase == null)
         {
             DebugHub.Warning("[Sword_ChargedStrike] SkillBase tidak ditemukan. Batalkan strike.");
-            return false; // ✅ FAIL-CLOSED
+            return false;
         }
 
         bool ok = skillBase.TrySpendEnergy(cost);
@@ -213,7 +184,7 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
     private void CancelAfterInsufficientEnergy()
     {
         if (mover != null)
-            mover.UnlockExternal(); // lebih aman daripada LockExternal(0f)
+            mover.UnlockExternal();
 
         if (player != null)
             player.isAttacking = false;
@@ -225,12 +196,8 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
         chargeTimer = 0f;
     }
 
-    // ============================================================
-    //  STRIKE ROUTINE (SYNC TO ANIM CLIP LENGTH)
-    // ============================================================
     private IEnumerator StrikeRoutine(float multiplier)
     {
-        // Tunggu agar transisi dari charging -> strike benar-benar masuk state strike
         yield return null;
         yield return null;
 
@@ -244,22 +211,18 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
         float startT = clipLen * startP;
         float endT = clipLen * endP;
 
-        // Lock movement selama strike clip
         if (mover != null)
             mover.LockExternal(clipLen);
 
         if (startT > 0f)
             yield return new WaitForSeconds(startT);
 
-        // Pada momen ini damage dieksekusi (dan gizmo akan menyala dari dalam PerformChargedStrike)
         PerformChargedStrike(multiplier);
 
-        // Tahan sampai akhir window (opsional)
         float activeDur = Mathf.Max(0f, endT - startT);
         if (activeDur > 0f)
             yield return new WaitForSeconds(activeDur);
 
-        // Tahan sampai animasi selesai agar isAttacking tidak turun terlalu cepat
         float tail = Mathf.Max(0f, clipLen - endT);
         if (tail > 0f)
             yield return new WaitForSeconds(tail);
@@ -280,14 +243,10 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
         return strikeClipFallbackLength;
     }
 
-    // ============================================================
-    //  STRIKE DAMAGE (GIZMO DI-AKTIFKAN DI SINI)
-    // ============================================================
     private void PerformChargedStrike(float multiplier)
     {
         if (!player) return;
 
-        // === INI YANG ANDA MINTA: gizmo dinyalakan saat strike damage dieksekusi ===
         ShowStrikeGizmoBriefly();
 
         Vector3 origin = player.transform.position;
@@ -306,8 +265,6 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
             if (angle <= attackAngle * 0.5f)
             {
                 float damage = player.attack * multiplier;
-
-                // Damage only — tidak menaikkan DDA offensive
                 target.TakeDamage(damage, null);
 
                 Vector2 knockDir = (target.transform.position - origin).normalized;
@@ -333,9 +290,6 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
         gizmoRoutine = null;
     }
 
-    // ============================================================
-    //  SAFETY RESET
-    // ============================================================
     private void OnDisable()
     {
         StopAllCoroutines();
@@ -349,7 +303,6 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
     {
         isCharging = false;
         chargeTimer = 0f;
-
         showGizmo = false;
 
         if (anim != null)
@@ -359,9 +312,6 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
             player.isAttacking = false;
     }
 
-    // ============================================================
-    //  GIZMO DRAW
-    // ============================================================
 #if UNITY_EDITOR
     private void OnDrawGizmos()
     {
@@ -373,8 +323,6 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
 
         Gizmos.color = gizmoColor;
 
-        // Anda bisa memilih pakai gizmoRadius/gizmoAngle atau pakai attackRadius/attackAngle.
-        // Agar konsisten dengan damage, saya pakai attackRadius/attackAngle.
         float radius = attackRadius;
         float angleTotal = attackAngle;
 
@@ -387,7 +335,6 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
         {
             float ang = startAngle + step * i;
             Vector3 next = origin + Quaternion.Euler(0, 0, ang) * dir * radius;
-
             Gizmos.DrawLine(prev, next);
             prev = next;
         }

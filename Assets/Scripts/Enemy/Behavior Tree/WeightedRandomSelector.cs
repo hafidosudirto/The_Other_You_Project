@@ -5,8 +5,6 @@ public class WeightedRandomSelector : Node
 {
     private readonly List<Node> nodes;
     private readonly List<float> weights;
-
-    // -1 = tidak ada yang sedang running
     private int runningIndex = -1;
 
     public WeightedRandomSelector(List<Node> nodes, List<float> weights)
@@ -15,30 +13,40 @@ public class WeightedRandomSelector : Node
         this.weights = weights ?? new List<float>();
     }
 
+    public void SetWeights(IReadOnlyList<float> newWeights)
+    {
+        if (newWeights == null || newWeights.Count != nodes.Count)
+            return;
+
+        weights.Clear();
+        for (int i = 0; i < newWeights.Count; i++)
+            weights.Add(Mathf.Max(0f, newWeights[i]));
+    }
+
+    public IReadOnlyList<float> GetWeights() => weights;
+
     public override NodeState Evaluate()
     {
         if (nodes.Count == 0) return NodeState.Failure;
         if (weights.Count != nodes.Count) return NodeState.Failure;
 
-        // Jika ada yang sedang Running, lanjutkan node itu sampai selesai.
         if (runningIndex >= 0 && runningIndex < nodes.Count)
         {
-            var r = nodes[runningIndex].Evaluate();
-            if (r == NodeState.Running) return NodeState.Running;
+            var result = nodes[runningIndex].Evaluate();
+            if (result == NodeState.Running)
+                return NodeState.Running;
 
-            // selesai -> reset agar bisa pilih lagi
             runningIndex = -1;
-            return r;
+            return result;
         }
 
-        // Pilih node baru secara weighted (di sini bobot sama -> 25% per skill)
         int picked = PickWeightedIndex();
-        var result = nodes[picked].Evaluate();
+        var pickedResult = nodes[picked].Evaluate();
 
-        if (result == NodeState.Running)
+        if (pickedResult == NodeState.Running)
             runningIndex = picked;
 
-        return result;
+        return pickedResult;
     }
 
     private int PickWeightedIndex()
@@ -47,13 +55,17 @@ public class WeightedRandomSelector : Node
         for (int i = 0; i < weights.Count; i++)
             total += Mathf.Max(0f, weights[i]);
 
+        if (total <= 0f)
+            return 0;
+
         float roll = Random.Range(0f, total);
         float acc = 0f;
 
         for (int i = 0; i < weights.Count; i++)
         {
             acc += Mathf.Max(0f, weights[i]);
-            if (roll <= acc) return i;
+            if (roll <= acc)
+                return i;
         }
 
         return weights.Count - 1;

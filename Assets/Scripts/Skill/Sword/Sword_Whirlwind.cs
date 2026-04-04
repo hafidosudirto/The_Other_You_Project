@@ -32,15 +32,10 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
 
     private Dictionary<CharacterBase, float> staggerTimers = new Dictionary<CharacterBase, float>();
 
-    // ============================================================
-    // ENERGY (dibayar di SkillBase saat OnPress)
-    // ============================================================
     [Header("Energy")]
     [SerializeField, Min(0f)] private float energyCost = 10f;
 
     public float EnergyCost => energyCost;
-
-    // Skill normal: energi dipotong di SkillBase ketika slot ditekan (OnPress)
     public bool PayEnergyInSkillBase => true;
 
     private void Awake()
@@ -66,10 +61,8 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
 
     private void ForceStopWhirlwind()
     {
-        // Hentikan coroutine pada skill ini (tidak memakai StopAllCoroutines agar tidak mematikan coroutine lain)
         StopAllCoroutines();
 
-        // Pulihkan state player + movement
         if (player != null)
         {
             player.moveSpeed = originalSpeed;
@@ -79,35 +72,29 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
         if (mover != null)
             mover.UnlockExternal();
 
-        // Catatan: animasi di-reset bila Anda punya fungsi khusus.
-        // Jika tidak ada, setidaknya tidak memanggil PlayWhirlwind lagi.
-        // (Bila Anda punya ResetWhirlwind/ResetSlashFlags, silakan panggil di sini.)
-        // if (anim != null) anim.ResetSlashFlags();
-
         isActive = false;
         staggerTimers.Clear();
     }
 
     public void TriggerSkill(int slotIndex)
     {
-        // Sudah sedang Whirlwind → tolak
         if (isActive)
             return;
 
-        // Tidak ada player atau tidak boleh bertindak → tolak
         if (player == null || !player.CanAct())
             return;
 
-        // Selama sedang melakukan serangan besar lain → tolak
         if (player.isAttacking)
             return;
 
-        // FAIL-SAFE: kalau ada jalur lain memanggil TriggerSkill tanpa melewati SkillBase gating
         if (!HasEnoughEnergyToStart())
         {
             DebugHub.Warning($"ENERGY KURANG: Whirlwind butuh {energyCost}.");
             return;
         }
+
+        if (DataTracker.Instance != null)
+            DataTracker.Instance.RecordSwordWhirlwind();
 
         StartCoroutine(WhirlwindRoutine());
     }
@@ -118,14 +105,12 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
         tDuration = duration;
         tHit = 0f;
 
-        // Hard stop jika energi sudah habis saat baru mulai (kasus edge)
         if (!HasAnyEnergyLeft())
         {
             ForceStopWhirlwind();
             yield break;
         }
 
-        // Simpan kecepatan awal & set flag menyerang
         if (player != null)
         {
             originalSpeed = player.moveSpeed;
@@ -133,11 +118,9 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
             player.isAttacking = true;
         }
 
-        // Lock input gerak agar tidak bisa jalan/dash via MoveKeyboard
         if (mover != null)
             mover.LockExternal(duration, true);
 
-        // Mainkan animasi
         if (anim != null)
             anim.PlayWhirlwind();
 
@@ -145,7 +128,6 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
 
         while (tDuration > 0f)
         {
-            // Jika energi habis di tengah, berhenti total (aturan keras)
             if (!HasAnyEnergyLeft())
             {
                 ForceStopWhirlwind();
@@ -165,7 +147,6 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
             yield return null;
         }
 
-        // Pulihkan kecepatan & flag menyerang, unlock movement
         if (player != null)
         {
             player.moveSpeed = originalSpeed;
@@ -220,7 +201,6 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
 
     private void OnDisable()
     {
-        // Pastikan state dipulihkan jika object dimatikan saat Whirlwind aktif
         if (player != null)
         {
             player.moveSpeed = originalSpeed;

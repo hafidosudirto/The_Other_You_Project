@@ -207,6 +207,10 @@ MonoBehaviour:
   attack: 10
   defense: 5
   moveSpeed: 5
+  maxEnergy: 100
+  currentEnergy: 100
+  regenPerSecond: 8
+  useUnscaledTime: 0
   isFacingRight: 1
   isStaggered: 0
   isRiposteStance: 0
@@ -226,6 +230,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerTransform: {fileID: 0}
+  adaptiveProfile: {fileID: 0}
   spriteVisual: {fileID: 7686073481702737145}
   spriteRenderer: {fileID: 8597872111708491915}
   invertFlipX: 0
@@ -302,6 +307,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   combatStyle: 0
   weaponResponse: 0
+  normalizedSwordWeights:
+  - 25
+  - 25
+  - 25
+  - 25
 --- !u!114 &3098827453847523507
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -363,9 +373,6 @@ MonoBehaviour:
   animator: {fileID: 0}
   player: {fileID: 0}
   dashTrigger: Dash
-  disableWhileDashing:
-  - {fileID: 6893955486669756002}
-  logDash: 1
 --- !u!1 &7955049090739457126
 GameObject:
   m_ObjectHideFlags: 0
@@ -476,8 +483,6 @@ MonoBehaviour:
   targetLayer:
     serializedVersion: 2
     m_Bits: 0
-  autoTriggerCounterIfPlayerClose: 1
-  autoTriggerRadius: 1.6
   counterDamageMultiplier: 1.4
   cooldown: 0.9
   gizmoShowTime: 0.06

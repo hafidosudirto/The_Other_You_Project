@@ -1,4 +1,4 @@
-ï»¿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -19,6 +19,16 @@ public class DDAController : MonoBehaviour
     public PlayerPlaystyle currentPlayerPlaystyle { get; private set; } = PlayerPlaystyle.Balanced;
     public WeaponType currentPlayerDominantWeapon { get; private set; } = WeaponType.None;
 
+    // ===============================
+    // [BARU] PROFILE VERSION — untuk cache invalidation di EnemyAI
+    // ===============================
+    public int ProfileVersion { get; private set; } = 0;
+
+    // ===============================
+    // [BARU] SWORD SKILL WEIGHTS — hasil normalisasi dari usage count
+    // ===============================
+    private float[] swordSkillWeights = new float[] { 25f, 25f, 25f, 25f };
+
     // Counter untuk analisis weapon
     private int swordCount;
     private int bowCount;
@@ -36,12 +46,19 @@ public class DDAController : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
-    // DIPANGGIL OLEH DataTracker per stage
-    public void UpdatePlayerPlaystyle(int offensive, int defensive, WeaponType lastWeaponUsed)
+    // ===============================
+    // [BARU] UpdatePlayerProfile — dipanggil DataTracker.FinalizeStageData()
+    // Menggantikan UpdatePlayerPlaystyle() yang signature-nya berbeda
+    // ===============================
+    public void UpdatePlayerProfile(
+        int offensive,
+        int defensive,
+        int swordUsage,
+        int bowUsage,
+        int gauntletUsage,
+        int[] swordSkillCounts)
     {
-        // ===============================
-        // 1. ANALISIS PLAYSTYLE
-        // ===============================
+        // 1. Analisis playstyle
         if (offensive > defensive)
             currentPlayerPlaystyle = PlayerPlaystyle.OffensiveDominant;
         else if (defensive > offensive)
@@ -49,64 +66,82 @@ public class DDAController : MonoBehaviour
         else
             currentPlayerPlaystyle = PlayerPlaystyle.Balanced;
 
-        // ===============================
-        // 2. UPDATE COUNTER WEAPON
-        // ===============================
-        if (lastWeaponUsed != WeaponType.None)
-        {
-            switch (lastWeaponUsed)
-            {
-                case WeaponType.Sword:
-                    swordCount++;
-                    break;
+        // 2. Update weapon counter kumulatif
+        swordCount += swordUsage;
+        bowCount += bowUsage;
+        gauntletCount += gauntletUsage;
 
-                case WeaponType.Bow:
-                    bowCount++;
-                    break;
-
-                case WeaponType.Gauntlet:
-                    gauntletCount++;
-                    break;
-            }
-        }
-
-        // ===============================
-        // 3. ANALISIS SENJATA DOMINAN
-        // ===============================
+        // 3. Analisis senjata dominan
         currentPlayerDominantWeapon = AnalyzeDominantWeapon();
 
-        Debug.Log($"[DDA] Playstyle: {currentPlayerPlaystyle}, Weapon Dominant: {currentPlayerDominantWeapon}");
+        // 4. Normalisasi sword skill weights
+        NormalizeSwordSkillWeights(swordSkillCounts);
+
+        // 5. Increment version agar EnemyAI tahu perlu refresh
+        ProfileVersion++;
+
+        Debug.Log(
+            $"[DDA] Playstyle={currentPlayerPlaystyle}, Weapon={currentPlayerDominantWeapon}, " +
+            $"Version={ProfileVersion}, SwordWeights=[{swordSkillWeights[0]:F1}, " +
+            $"{swordSkillWeights[1]:F1}, {swordSkillWeights[2]:F1}, {swordSkillWeights[3]:F1}]"
+        );
     }
 
     // ===============================
-    // SUB-FUNGSI: Tentukan Weapon Dominant
+    // [BARU] GetCurrentSwordSkillWeightsCopy — dipanggil EnemyAdaptiveProfile
+    // ===============================
+    public float[] GetCurrentSwordSkillWeightsCopy()
+    {
+        return (float[])swordSkillWeights.Clone();
+    }
+
+    // ===============================
+    // SUB: Normalisasi sword skill jadi total = 100
+    // ===============================
+    private void NormalizeSwordSkillWeights(int[] counts)
+    {
+        if (counts == null || counts.Length != 4)
+        {
+            swordSkillWeights = new float[] { 25f, 25f, 25f, 25f };
+            return;
+        }
+
+        int total = 0;
+        for (int i = 0; i < 4; i++) total += counts[i];
+
+        if (total == 0)
+        {
+            swordSkillWeights = new float[] { 25f, 25f, 25f, 25f };
+            return;
+        }
+
+        for (int i = 0; i < 4; i++)
+            swordSkillWeights[i] = (counts[i] / (float)total) * 100f;
+    }
+
+    // ===============================
+    // SUB: Tentukan Weapon Dominant
     // ===============================
     private WeaponType AnalyzeDominantWeapon()
     {
-        // Ambil angka paling besar
         int max = Mathf.Max(swordCount, Mathf.Max(bowCount, gauntletCount));
 
-        // Jika semua nol â†’ Tidak ada dominan
-        if (max == 0)
-            return WeaponType.None;
+        if (max == 0) return WeaponType.None;
 
-        // Jika lebih dari satu sama besarnya â†’ None (tidak dominan)
         int tieCount = 0;
         if (swordCount == max) tieCount++;
         if (bowCount == max) tieCount++;
         if (gauntletCount == max) tieCount++;
 
-        if (tieCount > 1)
-            return WeaponType.None;
+        if (tieCount > 1) return WeaponType.None;
 
-        // Kembalikan weapon yang paling sering
         if (swordCount == max) return WeaponType.Sword;
         if (bowCount == max) return WeaponType.Bow;
         return WeaponType.Gauntlet;
     }
 
     // ===============================
-    // Reset saat stage selesai (opsional)
+    // Reset weapon analysis (opsional, per-stage)
     // ===============================
     public void ResetWeaponAnalysis()
     {
@@ -115,4 +150,3 @@ public class DDAController : MonoBehaviour
         gauntletCount = 0;
     }
 }
-

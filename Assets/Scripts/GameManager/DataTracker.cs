@@ -17,27 +17,36 @@ public enum WeaponType
 public enum PlayerDistanceState
 {
     Idle,
-    Chase,    
-    Retreat    
+    Chase,
+    Retreat
+}
+
+public enum SwordSkillSlot
+{
+    SlashCombo = 0,
+    Whirlwind = 1,
+    ChargedStrike = 2,
+    Riposte = 3,
 }
 
 public class DataTracker : MonoBehaviour
 {
     public static DataTracker Instance { get; private set; }
 
-    // ===============================
-    // ACTION + WEAPON TRACKING
-    // ===============================
-    private int OffensiveCount;
-    private int DefensiveCount;
+    private int offensiveCount;
+    private int defensiveCount;
 
-    // Senjata terakhir yang dipakai player
+    private int swordUsageCount;
+    private int bowUsageCount;
+    private int gauntletUsageCount;
+
+    private readonly int[] swordSkillCounts = new int[4];
+
     private WeaponType lastUsedWeapon = WeaponType.None;
 
     [Header("Distance Tracking")]
     [SerializeField] private Transform playerTransform;
     [SerializeField] private Transform enemyTransform;
-
     [SerializeField] private float distanceCheckInterval = 0.1f;
     [SerializeField] private float idleMovementThreshold = 0.03f;
 
@@ -85,9 +94,6 @@ public class DataTracker : MonoBehaviour
         }
     }
 
-    // ================================================================
-    // MOVEMENT / DISTANCE STATE TRACKER
-    // ================================================================
     private void TrackPlayerMovement()
     {
         if (playerTransform == null || enemyTransform == null)
@@ -100,41 +106,76 @@ public class DataTracker : MonoBehaviour
         float currentDistance = Vector2.Distance(currentPlayerPos, enemyTransform.position);
 
         if (playerMovement < idleMovementThreshold)
-        {
             CurrentDistanceState = PlayerDistanceState.Idle;
-        }
         else
-        {
             CurrentDistanceState = (currentDistance < lastDistance)
                 ? PlayerDistanceState.Chase
                 : PlayerDistanceState.Retreat;
-        }
 
         lastPlayerPos = currentPlayerPos;
         lastDistance = currentDistance;
     }
 
     // ================================================================
-    // ACTION TRACKING (NO BATCH)
+    // GENERIC ACTION TRACKING (BACKWARD COMPATIBLE)
     // ================================================================
     public void RecordAction(PlayerActionType actionType, WeaponType weaponType)
     {
-        // simpan weapon yang dipakai pemain
         if (weaponType != WeaponType.None)
             lastUsedWeapon = weaponType;
 
-        // catat playstyle
-        if (actionType == PlayerActionType.Offensive)
-            OffensiveCount++;
-        else
-            DefensiveCount++;
+        AddPlaystyleCount(actionType);
+        AddWeaponUsage(weaponType);
 
-        DebugHub.DDA($"Action Recorded → O={OffensiveCount}, D={DefensiveCount}, Weapon={lastUsedWeapon}");
+        DebugHub.DDA($"Action Recorded -> O={offensiveCount}, D={defensiveCount}, Weapon={lastUsedWeapon}");
     }
 
     // ================================================================
-    // STAGE FINALIZATION (Dipanggil ketika enemy mati)
+    // REAL SWORD SKILL TRACKING (UNTUK NORMALISASI RIIL)
     // ================================================================
+    public void RecordSwordSkill(SwordSkillSlot slot, PlayerActionType actionType)
+    {
+        AddPlaystyleCount(actionType);
+
+        lastUsedWeapon = WeaponType.Sword;
+        swordUsageCount++;
+        swordSkillCounts[(int)slot]++;
+
+        DebugHub.DDA(
+            $"Sword Skill Recorded -> {slot} | O={offensiveCount}, D={defensiveCount}, " +
+            $"SwordUse={swordUsageCount}, SkillCounts=[{swordSkillCounts[0]}, {swordSkillCounts[1]}, {swordSkillCounts[2]}, {swordSkillCounts[3]}]"
+        );
+    }
+
+    public void RecordSwordSlashCombo() => RecordSwordSkill(SwordSkillSlot.SlashCombo, PlayerActionType.Offensive);
+    public void RecordSwordWhirlwind() => RecordSwordSkill(SwordSkillSlot.Whirlwind, PlayerActionType.Offensive);
+    public void RecordSwordChargedStrike() => RecordSwordSkill(SwordSkillSlot.ChargedStrike, PlayerActionType.Offensive);
+    public void RecordSwordRiposte() => RecordSwordSkill(SwordSkillSlot.Riposte, PlayerActionType.Defensive);
+
+    private void AddPlaystyleCount(PlayerActionType actionType)
+    {
+        if (actionType == PlayerActionType.Offensive)
+            offensiveCount++;
+        else
+            defensiveCount++;
+    }
+
+    private void AddWeaponUsage(WeaponType weaponType)
+    {
+        switch (weaponType)
+        {
+            case WeaponType.Sword:
+                swordUsageCount++;
+                break;
+            case WeaponType.Bow:
+                bowUsageCount++;
+                break;
+            case WeaponType.Gauntlet:
+                gauntletUsageCount++;
+                break;
+        }
+    }
+
     public void FinalizeStageData()
     {
         if (DDAController.Instance == null)
@@ -143,21 +184,36 @@ public class DataTracker : MonoBehaviour
             return;
         }
 
-        DDAController.Instance.UpdatePlayerPlaystyle(
-            OffensiveCount,
-            DefensiveCount,
-            lastUsedWeapon
+        DDAController.Instance.UpdatePlayerProfile(
+            offensiveCount,
+            defensiveCount,
+            swordUsageCount,
+            bowUsageCount,
+            gauntletUsageCount,
+            swordSkillCounts
         );
 
-        DebugHub.DDA($"Stage Final Data Sent → Offensive={OffensiveCount}, Defensive={DefensiveCount}, Weapon={lastUsedWeapon}");
+        DebugHub.DDA(
+            $"Stage Final Data Sent -> O={offensiveCount}, D={defensiveCount}, " +
+            $"WeaponUse[S={swordUsageCount}, B={bowUsageCount}, G={gauntletUsageCount}], " +
+            $"SwordSkillCounts=[{swordSkillCounts[0]}, {swordSkillCounts[1]}, {swordSkillCounts[2]}, {swordSkillCounts[3]}]"
+        );
 
         ResetStageData();
     }
 
     private void ResetStageData()
     {
-        OffensiveCount = 0;
-        DefensiveCount = 0;
+        offensiveCount = 0;
+        defensiveCount = 0;
+
+        swordUsageCount = 0;
+        bowUsageCount = 0;
+        gauntletUsageCount = 0;
+
+        for (int i = 0; i < swordSkillCounts.Length; i++)
+            swordSkillCounts[i] = 0;
+
         lastUsedWeapon = WeaponType.None;
     }
 }

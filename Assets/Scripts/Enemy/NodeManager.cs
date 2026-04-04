@@ -10,6 +10,9 @@ public class EnemyAI : MonoBehaviour
     public EnemyMovementFSM Movement { get; private set; }
     public EnemyAnimation Animation { get; private set; }
 
+    [Header("Adaptive")]
+    [SerializeField] private EnemyAdaptiveProfile adaptiveProfile;
+
     [Header("Visual Facing")]
     [SerializeField] private Transform spriteVisual;
     [SerializeField] private SpriteRenderer spriteRenderer;
@@ -32,40 +35,82 @@ public class EnemyAI : MonoBehaviour
     [Header("Action Lock")]
     public bool isPerformingAction = false;
 
-    // Behavior Trees
-    private Node offensiveTree;
-    private Node defensiveTree;
+    private WeightedRandomSelector offensiveTree;
+    private int cachedProfileVersion = -1;
 
-    // Balanced playstyle
-    private bool balancedChosen = false;
-    private bool balancedOffensive = true;
-
-    // ============================================================
-    // INIT
-    // ============================================================
     private void Awake()
     {
         Combat = GetComponent<EnemyCombatController>();
         Movement = GetComponent<EnemyMovementFSM>();
         Animation = GetComponentInChildren<EnemyAnimation>(true);
 
+        if (adaptiveProfile == null)
+            adaptiveProfile = GetComponent<EnemyAdaptiveProfile>();
+
         if (spriteRenderer == null)
-        {
             spriteRenderer = GetComponentInChildren<SpriteRenderer>(true);
-        }
 
         if (spriteVisual == null && spriteRenderer != null)
-        {
             spriteVisual = spriteRenderer.transform;
-        }
 
         rb2d = GetComponent<Rigidbody2D>();
-        if (rb2d == null) rb2d = GetComponentInChildren<Rigidbody2D>(true);
+        if (rb2d == null)
+            rb2d = GetComponentInChildren<Rigidbody2D>(true);
+    }
+
+    private void Start()
+    {
+        if (playerTransform == null)
+            playerTransform = GameObject.FindGameObjectWithTag("Player")?.transform;
+
+        if (Combat != null)
+        {
+            Combat.OnSkillStart += OnActionStart;
+            Combat.OnSkillEnd += OnActionEnd;
+        }
+
+        BuildAttackTree();
+        RefreshAdaptiveWeights(true);
+
+        prevPos = transform.position;
+
+        if (playerTransform != null)
+        {
+            UpdateDesiredFacing();
+            ApplyFacing();
+        }
+    }
+
+    public void Update()
+    {
+        if (playerTransform == null)
+        {
+            var p = GameObject.FindGameObjectWithTag("Player");
+            if (p) playerTransform = p.transform;
+            else return;
+        }
+
+        UpdateDesiredFacing();
+        RefreshAdaptiveWeights();
+
+        if (!isPerformingAction && Movement != null)
+        {
+            Movement.Update();
+            UpdateLocomotionAnim();
+        }
+
+        EvaluateAttackTree();
+    }
+
+    private void LateUpdate()
+    {
+        ApplyFacing();
     }
 
     private void UpdateLocomotionAnim()
     {
         if (Animation == null) return;
+
         if (isPerformingAction)
         {
             Animation.SetMoveSpeed(0f);
@@ -73,7 +118,8 @@ public class EnemyAI : MonoBehaviour
         }
 
         float speed = 0f;
-        if (rb2d != null) speed = Mathf.Abs(rb2d.velocity.x);
+        if (rb2d != null)
+            speed = Mathf.Abs(rb2d.velocity.x);
         else
         {
             Vector3 delta = transform.position - prevPos;
@@ -85,75 +131,11 @@ public class EnemyAI : MonoBehaviour
         prevPos = transform.position;
     }
 
-    private void Start()
-    {
-        if (playerTransform == null)
-        {
-            playerTransform = GameObject.FindGameObjectWithTag("Player")?.transform;
-        }
-
-        // Sambungkan ActionLock dari combat
-        if (Combat != null)
-        {
-            Combat.OnSkillStart += OnActionStart;
-            Combat.OnSkillEnd += OnActionEnd;
-        }
-
-        BuildAttackTree();
-
-        // Set initial facing
-        prevPos = transform.position;
-        if (playerTransform != null)
-        {
-            UpdateDesiredFacing();
-            ApplyFacing();
-        }
-    }
-
-    // ============================================================
-    // UPDATE LOOP
-    // ============================================================
-    public void Update()
-    {
-        // 1. Cari Player Terus Menerus jika hilang
-        if (playerTransform == null)
-        {
-            var p = GameObject.FindGameObjectWithTag("Player");
-            if (p) playerTransform = p.transform;
-            else return;
-        }
-
-        // 2. UPDATE FACING - SELALU update facing ke arah player
-        UpdateDesiredFacing();
-
-        // 3. Jalankan Logika Movement (Hanya jika tidak sedang attack)
-        if (!isPerformingAction && Movement != null)
-        {
-            Movement.Update();
-            UpdateLocomotionAnim();
-        }
-
-        // 4. Jalankan Tree
-        EvaluateAttackTree();
-    }
-
-    private void LateUpdate()
-    {
-        // Apply facing visual setiap frame
-        ApplyFacing();
-    }
-
     private void UpdateDesiredFacing()
     {
         if (!playerTransform) return;
 
-        // Gunakan posisi world yang lebih akurat
-        Vector3 enemyPos = transform.position;
-        Vector3 playerPos = playerTransform.position;
-
-        float dx = playerPos.x - enemyPos.x;
-
-        // Tentukan facing berdasarkan posisi player
+        float dx = playerTransform.position.x - transform.position.x;
         desiredFacingRight = dx >= 0f;
     }
 
@@ -162,35 +144,23 @@ public class EnemyAI : MonoBehaviour
         if (spriteRenderer == null) return;
 
         if (invertFlipX)
-        {
-            // Sprite default menghadap KIRI
             spriteRenderer.flipX = desiredFacingRight;
-        }
         else
-        {
-            // Sprite default menghadap KANAN
             spriteRenderer.flipX = !desiredFacingRight;
-        }
     }
 
-    // ============================================================
-    // ACTION LOCK
-    // ============================================================
     public void OnActionStart()
     {
         isPerformingAction = true;
-        if (Movement) Movement.enabled = false;
+        if (Movement != null) Movement.enabled = false;
     }
 
     public void OnActionEnd()
     {
         isPerformingAction = false;
-        if (Movement) Movement.enabled = true;
+        if (Movement != null) Movement.enabled = true;
     }
 
-    // ============================================================
-    // RANGE CHECK
-    // ============================================================
     public bool IsInAttackRange()
     {
         if (!playerTransform) return false;
@@ -219,67 +189,47 @@ public class EnemyAI : MonoBehaviour
 
     private void BuildAttackTree()
     {
-        var nodes = new List<Node> {
+        var nodes = new List<Node>
+        {
             new SwordSlashComboNode(this),
             new SwordWhirlwindNode(this),
             new SwordChargedStrikeNode(this),
-            new SwordRiposteNode(this) };
+            new SwordRiposteNode(this)
+        };
 
-        var weights = new List<float> { 1f, 1f, 1f, 1f };
+        var weights = new List<float> { 25f, 25f, 25f, 25f };
         offensiveTree = new WeightedRandomSelector(nodes, weights);
     }
 
-    // ============================================================
-    // EVALUATE BEHAVIOR TREE
-    // ============================================================
+    private void RefreshAdaptiveWeights(bool force = false)
+    {
+        var dda = DDAController.Instance;
+        if (adaptiveProfile == null || offensiveTree == null)
+            return;
+
+        if (dda == null)
+        {
+            offensiveTree.SetWeights(new float[] { 25f, 25f, 25f, 25f });
+            return;
+        }
+
+        if (!force && cachedProfileVersion == dda.ProfileVersion)
+            return;
+
+        cachedProfileVersion = dda.ProfileVersion;
+        adaptiveProfile.RefreshFromDDA();
+        offensiveTree.SetWeights(adaptiveProfile.GetSwordSkillWeights());
+    }
+
     private void EvaluateAttackTree()
     {
         if (isPerformingAction) return;
         if (playerTransform == null) return;
         if (!IsInAttackRange()) return;
 
-        var dda = DDAController.Instance;
-        if (dda == null) return;
-
-        var style = dda.currentPlayerPlaystyle;
-
-        switch (style)
-        {
-            case PlayerPlaystyle.OffensiveDominant:
-                balancedChosen = false;
-                offensiveTree?.Evaluate();
-                break;
-
-            case PlayerPlaystyle.DefensiveDominant:
-                balancedChosen = false;
-                if (defensiveTree != null) defensiveTree.Evaluate();
-                else offensiveTree?.Evaluate();
-                break;
-
-            case PlayerPlaystyle.Balanced:
-            default:
-                if (!balancedChosen)
-                {
-                    balancedChosen = true;
-                    balancedOffensive = Random.value > 0.5f;
-                }
-
-                if (balancedOffensive)
-                {
-                    offensiveTree?.Evaluate();
-                }
-                else
-                {
-                    if (defensiveTree != null) defensiveTree.Evaluate();
-                    else offensiveTree?.Evaluate();
-                }
-                break;
-        }
+        offensiveTree?.Evaluate();
     }
 
-    // ============================================================
-    // GIZMOS
-    // ============================================================
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
