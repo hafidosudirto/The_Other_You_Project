@@ -193,11 +193,11 @@ public class EnemyAI : MonoBehaviour
         {
             new SwordSlashComboNode(this),
             new SwordWhirlwindNode(this),
-            new SwordChargedStrikeNode(this),
-            new SwordRiposteNode(this)
+            new SwordChargedStrikeNode(this)
+            // new SwordRiposteNode(this)
         };
 
-        var weights = new List<float> { 25f, 25f, 25f, 25f };
+        var weights = new List<float> { 34f, 33f, 33f };
         offensiveTree = new WeightedRandomSelector(nodes, weights);
     }
 
@@ -209,7 +209,7 @@ public class EnemyAI : MonoBehaviour
 
         if (dda == null)
         {
-            offensiveTree.SetWeights(new float[] { 25f, 25f, 25f, 25f });
+            offensiveTree.SetWeights(new float[] { 34f, 33f, 33f });
             return;
         }
 
@@ -218,11 +218,54 @@ public class EnemyAI : MonoBehaviour
 
         cachedProfileVersion = dda.ProfileVersion;
         adaptiveProfile.RefreshFromDDA();
-        offensiveTree.SetWeights(adaptiveProfile.GetSwordSkillWeights());
+
+        // Ambil bobot sword dari DDA, tetapi hanya untuk 3 skill ofensif.
+        IReadOnlyList<float> allWeights = adaptiveProfile.GetSwordSkillWeights();
+
+        if (allWeights == null || allWeights.Count < 3)
+        {
+            offensiveTree.SetWeights(new float[] { 34f, 33f, 33f });
+            return;
+        }
+
+        float slash = Mathf.Max(0f, allWeights[0]);
+        float whirlwind = Mathf.Max(0f, allWeights[1]);
+        float charged = Mathf.Max(0f, allWeights[2]);
+
+        float total = slash + whirlwind + charged;
+        if (total <= 0f)
+        {
+            offensiveTree.SetWeights(new float[] { 34f, 33f, 33f });
+            return;
+        }
+
+        offensiveTree.SetWeights(new float[]
+        {
+            (slash / total) * 100f,
+            (whirlwind / total) * 100f,
+            (charged / total) * 100f
+        });
+    }
+
+    private bool ShouldEnterReactiveOnlyMode()
+    {
+        var dda = DDAController.Instance;
+        if (dda == null)
+            return false;
+
+        // Mode ini aktif ketika player sebelumnya dominan defensif
+        // dan profil defense menunjukkan riposte sangat dominan.
+        return dda.currentPlayerPlaystyle == PlayerPlaystyle.DefensiveDominant
+            && dda.GetCurrentDefenseRiposteWeight() >= 99f;
     }
 
     private void EvaluateAttackTree()
     {
+        // KUNCI UTAMA:
+        // Jika mode reaktif penuh aktif, enemy tidak menyerang proaktif.
+        if (ShouldEnterReactiveOnlyMode())
+            return;
+
         if (isPerformingAction) return;
         if (playerTransform == null) return;
         if (!IsInAttackRange()) return;

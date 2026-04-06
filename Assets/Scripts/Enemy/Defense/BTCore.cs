@@ -13,9 +13,16 @@ public abstract class BTNode
 public sealed class ConditionNode : BTNode
 {
     private readonly Func<bool> _predicate;
-    public ConditionNode(Func<bool> predicate) => _predicate = predicate;
 
-    public override NodeStatus Tick() => _predicate() ? NodeStatus.Success : NodeStatus.Failure;
+    public ConditionNode(Func<bool> predicate)
+    {
+        _predicate = predicate;
+    }
+
+    public override NodeStatus Tick()
+    {
+        return _predicate() ? NodeStatus.Success : NodeStatus.Failure;
+    }
 }
 
 public sealed class SequenceNode : BTNode
@@ -32,9 +39,17 @@ public sealed class SequenceNode : BTNode
     {
         while (_index < _children.Count)
         {
-            var s = _children[_index].Tick();
-            if (s == NodeStatus.Running) return NodeStatus.Running;
-            if (s == NodeStatus.Failure) { Reset(); return NodeStatus.Failure; }
+            NodeStatus status = _children[_index].Tick();
+
+            if (status == NodeStatus.Running)
+                return NodeStatus.Running;
+
+            if (status == NodeStatus.Failure)
+            {
+                Reset();
+                return NodeStatus.Failure;
+            }
+
             _index++;
         }
 
@@ -45,57 +60,113 @@ public sealed class SequenceNode : BTNode
     public override void Reset()
     {
         _index = 0;
-        foreach (var c in _children) c.Reset();
+        foreach (BTNode child in _children)
+            child.Reset();
     }
 }
 
-public sealed class WeightedRandomSelectorNode : BTNode
+public sealed class DynamicWeightedRandomSelectorNode : BTNode
 {
     public readonly struct Entry
     {
         public readonly BTNode Node;
-        public readonly int Weight;
-        public Entry(BTNode node, int weight) { Node = node; Weight = Mathf.Max(0, weight); }
+        public readonly Func<int> WeightProvider;
+
+        public Entry(BTNode node, Func<int> weightProvider)
+        {
+            Node = node;
+            WeightProvider = weightProvider;
+        }
     }
 
     private readonly List<Entry> _entries;
-    private int _chosen = -1;
+    private int _runningIndex = -1;
 
-    public WeightedRandomSelectorNode(params Entry[] entries)
+    public DynamicWeightedRandomSelectorNode(params Entry[] entries)
     {
         _entries = new List<Entry>(entries);
     }
 
     public override NodeStatus Tick()
     {
-        if (_chosen < 0) _chosen = ChooseIndex();
+        if (_runningIndex >= 0)
+        {
+            NodeStatus runningStatus = _entries[_runningIndex].Node.Tick();
+            if (runningStatus != NodeStatus.Running)
+                _runningIndex = -1;
+            return runningStatus;
+        }
 
-        var status = _entries[_chosen].Node.Tick();
-        if (status != NodeStatus.Running) _chosen = -1;
-        return status;
+        List<int> availableIndices = BuildAvailableIndexList();
+        while (availableIndices.Count > 0)
+        {
+            int chosenIndex = ChooseIndex(availableIndices);
+            NodeStatus status = _entries[chosenIndex].Node.Tick();
+
+            if (status == NodeStatus.Running)
+            {
+                _runningIndex = chosenIndex;
+                return NodeStatus.Running;
+            }
+
+            if (status == NodeStatus.Success)
+                return NodeStatus.Success;
+
+            availableIndices.Remove(chosenIndex);
+        }
+
+        return NodeStatus.Failure;
     }
 
     public override void Reset()
     {
-        _chosen = -1;
-        foreach (var e in _entries) e.Node.Reset();
+        _runningIndex = -1;
+        foreach (Entry entry in _entries)
+            entry.Node.Reset();
     }
 
-    private int ChooseIndex()
+    private List<int> BuildAvailableIndexList()
     {
-        int total = 0;
-        for (int i = 0; i < _entries.Count; i++) total += _entries[i].Weight;
-        if (total <= 0) return 0;
+        List<int> indices = new List<int>();
 
-        // Random.value inklusif [0..1]. :contentReference[oaicite:5]{index=5}
-        float r = UnityEngine.Random.value * total;
-
-        float acc = 0f;
         for (int i = 0; i < _entries.Count; i++)
         {
-            acc += _entries[i].Weight;
-            if (r <= acc) return i;
+            int weight = SafeWeight(_entries[i].WeightProvider);
+            if (weight > 0)
+                indices.Add(i);
         }
-        return _entries.Count - 1;
+
+        return indices;
+    }
+
+    private int ChooseIndex(List<int> availableIndices)
+    {
+        int totalWeight = 0;
+        for (int i = 0; i < availableIndices.Count; i++)
+            totalWeight += SafeWeight(_entries[availableIndices[i]].WeightProvider);
+
+        if (totalWeight <= 0)
+            return availableIndices[0];
+
+        int roll = UnityEngine.Random.Range(0, totalWeight);
+        int cumulative = 0;
+
+        for (int i = 0; i < availableIndices.Count; i++)
+        {
+            int index = availableIndices[i];
+            cumulative += SafeWeight(_entries[index].WeightProvider);
+            if (roll < cumulative)
+                return index;
+        }
+
+        return availableIndices[availableIndices.Count - 1];
+    }
+
+    private int SafeWeight(Func<int> provider)
+    {
+        if (provider == null)
+            return 0;
+
+        return Mathf.Max(0, provider.Invoke());
     }
 }

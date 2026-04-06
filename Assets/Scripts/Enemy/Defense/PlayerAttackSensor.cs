@@ -2,24 +2,56 @@ using UnityEngine;
 
 public sealed class PlayerAttackSensor : MonoBehaviour
 {
+    public enum ActionType
+    {
+        None = 0,
+        SlashCombo = 1,
+        ChargedStrike = 2,
+        Whirlwind = 3,
+        Dash = 4,
+        Riposte = 5
+    }
+
     [Header("Referensi Animator")]
     [SerializeField] private Animator playerAnimator;
-
-    [Header("Parameter Bool Player")]
-    [SerializeField] private string chargingBoolParameter = "isCharging";
 
     [Header("Konfigurasi Layer")]
     [SerializeField] private int layerIndex = 0;
     [SerializeField] private string layerNameForIsName = "Base Layer";
 
-    [Header("Nama State Serangan")]
-    [SerializeField] private string[] attackStateNames = new[] { "Slash1", "Slash2", "Whirlwind" };
+    [Header("Parameter Animator Opsional")]
+    [SerializeField] private string chargingBoolParameter = "isCharging";
 
-    public bool IsAttacking { get; private set; }
-    public int AttackId { get; private set; } = 0;
+    [Header("State Serangan Berdasarkan Animator")]
+    [SerializeField] private string[] slashComboStateNames = new[] { "Slash_Combo1", "Slash_Combo2" };
+    [SerializeField] private string[] chargedStartStateNames = new[] { "Charged_Start" };
+    [SerializeField] private string[] chargedStrikeStateNames = new[] { "Charged_Strike" };
+    [SerializeField] private string[] whirlwindStateNames = new[] { "Whirlwind" };
 
-    private bool _wasAttacking;
-    private int _lastAttackStateHash;
+    [Header("State Defense Berdasarkan Animator")]
+    [SerializeField] private string[] dashStateNames = new[] { "Dash" };
+    [SerializeField] private string[] riposteStateNames = new[] { "Riposte_Ready", "Riposte_Parry", "Riposte_Counter" };
+
+    public ActionType CurrentActionType { get; private set; } = ActionType.None;
+    public ActionType LastStartedActionType { get; private set; } = ActionType.None;
+
+    public bool IsCharging { get; private set; }
+    public bool IsAttacking => IsOffensiveAction(CurrentActionType);
+    public bool IsDashing => CurrentActionType == ActionType.Dash;
+    public bool IsRiposting => CurrentActionType == ActionType.Riposte;
+    public bool IsCurrentActionRipostable => IsOffensiveAction(CurrentActionType);
+
+    public int ActionTriggerId { get; private set; }
+    public int OffensiveTriggerId { get; private set; }
+
+    public int SlashComboCount { get; private set; }
+    public int ChargedStrikeCount { get; private set; }
+    public int WhirlwindCount { get; private set; }
+    public int DashCount { get; private set; }
+    public int RiposteCount { get; private set; }
+
+    private ActionType _previousActionType = ActionType.None;
+    private int _lastOffensiveStateHash;
 
     private void Awake()
     {
@@ -29,59 +61,127 @@ public sealed class PlayerAttackSensor : MonoBehaviour
 
     private void Update()
     {
-        if (playerAnimator == null) return;
+        if (playerAnimator == null)
+            return;
 
-        // isCharging adalah bool parameter pada Animator. :contentReference[oaicite:19]{index=19}
-        bool isCharging = playerAnimator.GetBool(chargingBoolParameter);
+        AnimatorStateInfo currentState = playerAnimator.GetCurrentAnimatorStateInfo(layerIndex);
 
-        // Ambil state aktif Animator pada layer tertentu. :contentReference[oaicite:20]{index=20}
-        var st = playerAnimator.GetCurrentAnimatorStateInfo(layerIndex);
+        bool chargingFromBool = HasBoolParameter(playerAnimator, chargingBoolParameter)
+            && playerAnimator.GetBool(chargingBoolParameter);
+        bool chargingFromState = IsInAnyState(currentState, chargedStartStateNames);
+        IsCharging = chargingFromBool || chargingFromState;
 
-        bool inAttackState = IsInAttackState(st);
+        CurrentActionType = DetectCurrentAction(currentState);
 
-        IsAttacking = isCharging || inAttackState;
-
-        // AttackId naik saat memasuki window menyerang (false -> true),
-        // dan juga naik ketika berpindah antar state serangan (Slash1 -> Slash2),
-        // supaya enemy dapat bereaksi per ayunan jika animasi Anda memang demikian.
-        if (IsAttacking)
+        bool actionStarted = CurrentActionType != ActionType.None && CurrentActionType != _previousActionType;
+        if (actionStarted)
         {
-            if (!_wasAttacking)
-            {
-                AttackId++;
-            }
-            else if (inAttackState)
-            {
-                int h = st.fullPathHash;
-                if (_lastAttackStateHash != 0 && h != _lastAttackStateHash)
-                    AttackId++;
-                _lastAttackStateHash = h;
-            }
-        }
-        else
-        {
-            _lastAttackStateHash = 0;
+            ActionTriggerId++;
+            LastStartedActionType = CurrentActionType;
+            RegisterActionCount(CurrentActionType);
         }
 
-        _wasAttacking = IsAttacking;
+        UpdateOffensiveTrigger(currentState);
+        _previousActionType = CurrentActionType;
     }
 
-    private bool IsInAttackState(AnimatorStateInfo st)
+    private ActionType DetectCurrentAction(AnimatorStateInfo stateInfo)
     {
-        if (attackStateNames == null) return false;
+        if (IsInAnyState(stateInfo, slashComboStateNames))
+            return ActionType.SlashCombo;
 
-        for (int i = 0; i < attackStateNames.Length; i++)
+        if (IsInAnyState(stateInfo, chargedStrikeStateNames))
+            return ActionType.ChargedStrike;
+
+        if (IsInAnyState(stateInfo, whirlwindStateNames))
+            return ActionType.Whirlwind;
+
+        if (IsInAnyState(stateInfo, dashStateNames))
+            return ActionType.Dash;
+
+        if (IsInAnyState(stateInfo, riposteStateNames))
+            return ActionType.Riposte;
+
+        return ActionType.None;
+    }
+
+    private void UpdateOffensiveTrigger(AnimatorStateInfo stateInfo)
+    {
+        if (!IsOffensiveAction(CurrentActionType))
         {
-            string s = attackStateNames[i];
-            if (string.IsNullOrWhiteSpace(s)) continue;
+            _lastOffensiveStateHash = 0;
+            return;
+        }
 
-            // IsName mengecek kecocokan nama state aktif; format yang disarankan adalah "Layer.Name"
-            if (st.IsName(s)) return true;
+        int currentHash = stateInfo.fullPathHash;
+        if (_lastOffensiveStateHash == 0 || _lastOffensiveStateHash != currentHash)
+            OffensiveTriggerId++;
 
-            string full = $"{layerNameForIsName}.{s}";
-            if (st.IsName(full)) return true;
+        _lastOffensiveStateHash = currentHash;
+    }
+
+    private void RegisterActionCount(ActionType actionType)
+    {
+        switch (actionType)
+        {
+            case ActionType.SlashCombo:
+                SlashComboCount++;
+                break;
+            case ActionType.ChargedStrike:
+                ChargedStrikeCount++;
+                break;
+            case ActionType.Whirlwind:
+                WhirlwindCount++;
+                break;
+            case ActionType.Dash:
+                DashCount++;
+                break;
+            case ActionType.Riposte:
+                RiposteCount++;
+                break;
+        }
+    }
+
+    private bool IsInAnyState(AnimatorStateInfo stateInfo, string[] stateNames)
+    {
+        if (stateNames == null)
+            return false;
+
+        for (int i = 0; i < stateNames.Length; i++)
+        {
+            string stateName = stateNames[i];
+            if (string.IsNullOrWhiteSpace(stateName))
+                continue;
+
+            if (stateInfo.IsName(stateName))
+                return true;
+
+            string fullName = $"{layerNameForIsName}.{stateName}";
+            if (stateInfo.IsName(fullName))
+                return true;
         }
 
         return false;
+    }
+
+    private bool HasBoolParameter(Animator animator, string parameterName)
+    {
+        if (animator == null || string.IsNullOrWhiteSpace(parameterName))
+            return false;
+
+        foreach (AnimatorControllerParameter parameter in animator.parameters)
+        {
+            if (parameter.type == AnimatorControllerParameterType.Bool && parameter.name == parameterName)
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool IsOffensiveAction(ActionType actionType)
+    {
+        return actionType == ActionType.SlashCombo
+            || actionType == ActionType.ChargedStrike
+            || actionType == ActionType.Whirlwind;
     }
 }

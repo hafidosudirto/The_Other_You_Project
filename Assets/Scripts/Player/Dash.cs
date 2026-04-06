@@ -6,8 +6,10 @@ public class Dash : MonoBehaviour, ISkill
     [Header("Dash Settings")]
     [Tooltip("Semakin besar, jarak dash makin jauh. Jarak kira-kira ≈ dashSpeed * dashDuration.")]
     public float dashSpeed = 10f;
-    [Tooltip("Semakin kecil, dash makin singkat dan terasa lebih 'snap' (0.1–0.2 cocok untuk action).")]
+
+    [Tooltip("Semakin kecil, dash makin singkat dan terasa lebih snap (0.1–0.2 cocok untuk action).")]
     public float dashDuration = 0.15f;
+
     [Tooltip("Jeda sebelum boleh dash lagi.")]
     public float dashCooldown = 0.2f;
 
@@ -78,9 +80,10 @@ public class Dash : MonoBehaviour, ISkill
                 return;
         }
 
-        // Saat ini semua gameplay masih Sword-only, jadi Dash dicatat sebagai defensive Sword.
+        // Dash harus dicatat spesifik sebagai dashCount,
+        // bukan sekadar defensive action umum.
         if (DataTracker.Instance != null)
-            DataTracker.Instance.RecordAction(PlayerActionType.Defensive, WeaponType.Sword);
+            DataTracker.Instance.RecordDefenseDash(WeaponType.Sword);
 
         StartCoroutine(DashRoutine());
     }

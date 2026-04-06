@@ -6,7 +6,7 @@ public sealed class Enemy_Dash : MonoBehaviour
     [Header("Dash Settings")]
     public float dashSpeed = 10f;
     public float dashDuration = 0.15f;
-    public float dashCooldown = 0.20f;
+    public float dashCooldown = 0.50f;
 
     [Header("References")]
     [SerializeField] private Rigidbody2D rb;

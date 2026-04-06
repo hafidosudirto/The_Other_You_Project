@@ -46,13 +46,13 @@ GameObject:
   - component: {fileID: 5653449165881094903}
   - component: {fileID: 1603249717165998674}
   - component: {fileID: 4429848067518251004}
-  - component: {fileID: 1801023696875819697}
   - component: {fileID: 6893955486669756002}
   - component: {fileID: 5434613646505759902}
   - component: {fileID: 4065872477044497161}
   - component: {fileID: 3098827453847523507}
   - component: {fileID: 1238565138610006823}
   - component: {fileID: 8169837083311072351}
+  - component: {fileID: 8598530904683464336}
   m_Layer: 3
   m_Name: Enemy_W1_Sprite
   m_TagString: Enemy
@@ -238,28 +238,6 @@ MonoBehaviour:
   attackRange: 1.8
   attackRangeOffset: {x: 1.5, y: 0}
   isPerformingAction: 0
---- !u!114 &1801023696875819697
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1718376399928103269}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8adcbc455213a7d4d8bd32ee79ddf3bc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  stats: {fileID: 1603249717165998674}
-  slashCombo: {fileID: 1557463422569850212}
-  whirlwind: {fileID: 3443164050013538122}
-  chargedStrike: {fileID: 8238309777232854303}
-  riposte: {fileID: 4999943360712908657}
-  playerAttackSensor: {fileID: 0}
-  dash: {fileID: 8169837083311072351}
-  playerTransform: {fileID: 0}
-  lengahDuration: 0.2
-  reactionCooldown: 0.05
 --- !u!114 &6893955486669756002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -353,7 +331,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bcd6ea542ac92a34a88d6811389c8571, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  combat: {fileID: 1801023696875819697}
+  combat: {fileID: 8598530904683464336}
 --- !u!114 &8169837083311072351
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -373,6 +351,36 @@ MonoBehaviour:
   animator: {fileID: 0}
   player: {fileID: 0}
   dashTrigger: Dash
+--- !u!114 &8598530904683464336
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1718376399928103269}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8adcbc455213a7d4d8bd32ee79ddf3bc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ai: {fileID: 4429848067518251004}
+  enemyDash: {fileID: 8169837083311072351}
+  playerSensor: {fileID: 0}
+  skillRootSword: {fileID: 1295630744342105822}
+  _slashCombo: {fileID: 1557463422569850212}
+  _chargedStrike: {fileID: 8238309777232854303}
+  _whirlwind: {fileID: 3443164050013538122}
+  _riposte: {fileID: 4999943360712908657}
+  stats:
+    attack: 10
+  attackPowerOverride: 10
+  riposteCooldown: 0.75
+  lengahBusyDuration: 0.28
+  balancedLengahWeight: 45
+  offensiveLengahWeight: 20
+  defensiveLengahWeight: 0
+  defaultDashWeight: 50
+  defaultRiposteWeight: 50
 --- !u!1 &7955049090739457126
 GameObject:
   m_ObjectHideFlags: 0

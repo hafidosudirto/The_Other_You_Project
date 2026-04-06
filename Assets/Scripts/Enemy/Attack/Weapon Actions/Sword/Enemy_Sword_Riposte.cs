@@ -21,6 +21,10 @@ public class Enemy_Sword_Riposte : MonoBehaviour
     [Header("Anti-spam")]
     public float cooldown = 0.9f;
 
+    [Header("Range Gate")]
+    [Tooltip("Tambahan toleransi jarak agar riposte tidak terlalu mudah gagal di tepi range.")]
+    public float extraRangeTolerance = 0.25f;
+
     [Header("Gizmos (opsional)")]
     public float gizmoShowTime = 0.06f;
     public Color gizmoColor = Color.magenta;
@@ -48,10 +52,8 @@ public class Enemy_Sword_Riposte : MonoBehaviour
     // Gate: counter hanya boleh terjadi jika ada serangan player selama stance.
     private bool playerAttackDetectedDuringStance = false;
 
-    // =========================
-    // OPSI B: dibaca oleh CharacterBase.TakeDamage
-    // =========================
     public bool IsStanceActive => isStanceActive;
+    public bool IsActive => busy;
 
     private void Awake()
     {
@@ -60,41 +62,52 @@ public class Enemy_Sword_Riposte : MonoBehaviour
         selfStats = GetComponentInParent<CharacterBase>();
     }
 
-    // API kompatibilitas
-    public bool IsActive => busy;
+    public bool CanTrigger(float distanceToPlayer)
+    {
+        if (busy) return false;
+        if (Time.time < nextReadyTime) return false;
+
+        if (ai == null || ai.playerTransform == null)
+            return true;
+
+        float allowedRange = Mathf.Max(0.1f, ai.attackRange + extraRangeTolerance);
+        return distanceToPlayer <= allowedRange;
+    }
 
     public bool TryStartRiposte()
     {
         if (busy) return false;
         if (Time.time < nextReadyTime) return false;
 
+        float distanceToPlayer = 0f;
+        if (ai != null && ai.playerTransform != null)
+            distanceToPlayer = Vector2.Distance(ai.transform.position, ai.playerTransform.position);
+
+        if (!CanTrigger(distanceToPlayer))
+            return false;
+
         StartCoroutine(RiposteRoutine());
         return true;
     }
 
-    // API lama (jangan dihapus agar skrip lain tetap jalan)
+    // API lama
     public void Trigger()
     {
         TryStartRiposte();
     }
 
-    // =========================
-    // INTEGRATION POINT
-    // (akan dipanggil oleh CharacterBase.TakeDamage pada Opsi B)
-    // =========================
+    // Dipanggil dari CharacterBase.TakeDamage ketika enemy sedang stance dan player menyerang
     public void NotifyPlayerAttackAttempt(GameObject attacker = null)
     {
         if (!isStanceActive) return;
         playerAttackDetectedDuringStance = true;
     }
 
-    // Counter trigger (hanya jika playerAttackDetectedDuringStance == true)
     public void TriggerFollowUpDash()
     {
         if (!isStanceActive) return;
         if (isDashing) return;
         if (ai == null) return;
-
         if (!playerAttackDetectedDuringStance) return;
 
         Vector3 dir = Vector3.right;
@@ -127,12 +140,9 @@ public class Enemy_Sword_Riposte : MonoBehaviour
 
         combat?.InvokeSkillStart();
 
-        // ===== Mulai stance =====
         isStanceActive = true;
         isDashing = false;
         stanceTimer = stanceDuration;
-
-        // RESET gate setiap stance baru
         playerAttackDetectedDuringStance = false;
 
         ai?.Animation?.SetRiposteReady(true);
@@ -141,7 +151,6 @@ public class Enemy_Sword_Riposte : MonoBehaviour
         {
             stanceTimer -= Time.deltaTime;
 
-            // jika ada serangan player (ditandai oleh CharacterBase.TakeDamage), counter boleh terjadi
             if (playerAttackDetectedDuringStance)
             {
                 TriggerFollowUpDash();
@@ -166,7 +175,6 @@ public class Enemy_Sword_Riposte : MonoBehaviour
         // counter dash
         yield return DashForwardAndDamage();
 
-        // ===== cleanup state agar tidak ada flag tertinggal =====
         isStanceActive = false;
         playerAttackDetectedDuringStance = false;
 

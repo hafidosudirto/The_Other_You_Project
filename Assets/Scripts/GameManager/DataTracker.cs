@@ -42,6 +42,10 @@ public class DataTracker : MonoBehaviour
 
     private readonly int[] swordSkillCounts = new int[4];
 
+    // DEFENSE BREAKDOWN
+    private int dashCount;
+    private int riposteCount;
+
     private WeaponType lastUsedWeapon = WeaponType.None;
 
     [Header("Distance Tracking")]
@@ -117,7 +121,10 @@ public class DataTracker : MonoBehaviour
     }
 
     // ================================================================
-    // GENERIC ACTION TRACKING (BACKWARD COMPATIBLE)
+    // GENERIC ACTION TRACKING
+    // CATATAN:
+    // WeaponType.Sword jangan dicatat lewat sini kalau itu skill sword spesifik,
+    // agar tidak double count dengan RecordSwordSkill(...).
     // ================================================================
     public void RecordAction(PlayerActionType actionType, WeaponType weaponType)
     {
@@ -131,26 +138,64 @@ public class DataTracker : MonoBehaviour
     }
 
     // ================================================================
-    // REAL SWORD SKILL TRACKING (UNTUK NORMALISASI RIIL)
+    // KHUSUS DASH
+    // Ini yang akan dibaca DDA sebagai dashCount
     // ================================================================
-    public void RecordSwordSkill(SwordSkillSlot slot, PlayerActionType actionType)
+    public void RecordDefenseDash(WeaponType weaponType = WeaponType.None)
     {
-        AddPlaystyleCount(actionType);
+        if (weaponType != WeaponType.None)
+            lastUsedWeapon = weaponType;
 
-        lastUsedWeapon = WeaponType.Sword;
-        swordUsageCount++;
-        swordSkillCounts[(int)slot]++;
+        defensiveCount++;
+        dashCount++;
+        AddWeaponUsage(weaponType);
 
         DebugHub.DDA(
-            $"Sword Skill Recorded -> {slot} | O={offensiveCount}, D={defensiveCount}, " +
-            $"SwordUse={swordUsageCount}, SkillCounts=[{swordSkillCounts[0]}, {swordSkillCounts[1]}, {swordSkillCounts[2]}, {swordSkillCounts[3]}]"
+            $"Defense Dash Recorded -> O={offensiveCount}, D={defensiveCount}, " +
+            $"Dash={dashCount}, Riposte={riposteCount}, Weapon={lastUsedWeapon}"
         );
     }
 
-    public void RecordSwordSlashCombo() => RecordSwordSkill(SwordSkillSlot.SlashCombo, PlayerActionType.Offensive);
-    public void RecordSwordWhirlwind() => RecordSwordSkill(SwordSkillSlot.Whirlwind, PlayerActionType.Offensive);
-    public void RecordSwordChargedStrike() => RecordSwordSkill(SwordSkillSlot.ChargedStrike, PlayerActionType.Offensive);
-    public void RecordSwordRiposte() => RecordSwordSkill(SwordSkillSlot.Riposte, PlayerActionType.Defensive);
+    // ================================================================
+    // REAL SWORD SKILL TRACKING
+    // ================================================================
+    public void RecordSwordSkill(SwordSkillSlot slot, PlayerActionType actionType)
+    {
+        lastUsedWeapon = WeaponType.Sword;
+
+        AddPlaystyleCount(actionType);
+        swordUsageCount++;
+        swordSkillCounts[(int)slot]++;
+
+        if (slot == SwordSkillSlot.Riposte)
+            riposteCount++;
+
+        DebugHub.DDA(
+            $"Sword Skill Recorded -> {slot} | O={offensiveCount}, D={defensiveCount}, " +
+            $"Dash={dashCount}, Riposte={riposteCount}, SwordUse={swordUsageCount}, " +
+            $"SkillCounts=[{swordSkillCounts[0]}, {swordSkillCounts[1]}, {swordSkillCounts[2]}, {swordSkillCounts[3]}]"
+        );
+    }
+
+    public void RecordSwordSlashCombo()
+    {
+        RecordSwordSkill(SwordSkillSlot.SlashCombo, PlayerActionType.Offensive);
+    }
+
+    public void RecordSwordWhirlwind()
+    {
+        RecordSwordSkill(SwordSkillSlot.Whirlwind, PlayerActionType.Offensive);
+    }
+
+    public void RecordSwordChargedStrike()
+    {
+        RecordSwordSkill(SwordSkillSlot.ChargedStrike, PlayerActionType.Offensive);
+    }
+
+    public void RecordSwordRiposte()
+    {
+        RecordSwordSkill(SwordSkillSlot.Riposte, PlayerActionType.Defensive);
+    }
 
     private void AddPlaystyleCount(PlayerActionType actionType)
     {
@@ -190,7 +235,9 @@ public class DataTracker : MonoBehaviour
             swordUsageCount,
             bowUsageCount,
             gauntletUsageCount,
-            swordSkillCounts
+            swordSkillCounts,
+            dashCount,
+            riposteCount
         );
 
         DebugHub.DDA(
@@ -210,6 +257,9 @@ public class DataTracker : MonoBehaviour
         swordUsageCount = 0;
         bowUsageCount = 0;
         gauntletUsageCount = 0;
+
+        dashCount = 0;
+        riposteCount = 0;
 
         for (int i = 0; i < swordSkillCounts.Length; i++)
             swordSkillCounts[i] = 0;

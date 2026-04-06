@@ -20,20 +20,19 @@ public class CharacterBase : MonoBehaviour
     [Header("Energy Regen (Time-Based)")]
     [SerializeField, Min(0f)] private float regenPerSecond = 8f;
 
-    [Tooltip("Jika true, regen memakai *unscaled time* (tetap jalan saat pause/timeScale=0).")]
+    [Tooltip("Jika true, regen memakai unscaled time.")]
     [SerializeField] private bool useUnscaledTime = false;
 
-    /// <summary>
-    /// Dipanggil saat energi berubah. UI dapat *subscribe* ke event ini.
-    /// </summary>
     public event Action OnEnergyChanged;
 
     public float MaxEnergy => maxEnergy;
     public float CurrentEnergy => currentEnergy;
+
     public bool HasEnergy(float cost)
     {
         return cost <= 0f || CurrentEnergy + 1e-6f >= cost;
     }
+
     public float EnergyNormalized
     {
         get
@@ -47,7 +46,7 @@ public class CharacterBase : MonoBehaviour
     public bool isFacingRight = true;
     public bool isStaggered = false;
 
-    // Riposte state
+    // Riposte state lama / player
     public bool isRiposteStance = false;
     public bool canRiposte = true;
     public float riposteWindow = 0.6f;
@@ -69,7 +68,6 @@ public class CharacterBase : MonoBehaviour
 
         currentHP = maxHP;
 
-        // Clamp energi saat awal runtime
         maxEnergy = Mathf.Max(0f, maxEnergy);
         currentEnergy = Mathf.Clamp(currentEnergy, 0f, maxEnergy);
         OnEnergyChanged?.Invoke();
@@ -90,9 +88,6 @@ public class CharacterBase : MonoBehaviour
         AddEnergy(regenPerSecond * dt);
     }
 
-    // =============================================================
-    // ENERGY API
-    // =============================================================
     public void SetEnergy(float value)
     {
         float prev = currentEnergy;
@@ -123,9 +118,6 @@ public class CharacterBase : MonoBehaviour
         return true;
     }
 
-    // -------------------------------------------------------------
-    // Flip
-    // -------------------------------------------------------------
     public void Flip()
     {
         isFacingRight = !isFacingRight;
@@ -134,23 +126,31 @@ public class CharacterBase : MonoBehaviour
         transform.localScale = scale;
     }
 
-    // -------------------------------------------------------------
-    // Can Act?
-    // -------------------------------------------------------------
     public bool CanAct()
     {
         return !isStaggered && currentHP > 0;
     }
 
-    // -------------------------------------------------------------
-    // Damage
-    // -------------------------------------------------------------
     public virtual void TakeDamage(float dmg, GameObject attacker = null)
     {
         if (currentHP <= 0)
             return;
 
-        // Riposte parry
+        // =====================================================
+        // PRIORITAS 1: Enemy riposte stance baru
+        // Jika target sedang stance Enemy_Sword_Riposte,
+        // serangan player diparry dan dipakai untuk memicu counter.
+        // =====================================================
+        Enemy_Sword_Riposte enemyRiposte = GetComponentInChildren<Enemy_Sword_Riposte>(true);
+        if (enemyRiposte != null && enemyRiposte.IsStanceActive)
+        {
+            enemyRiposte.NotifyPlayerAttackAttempt(attacker);
+            return;
+        }
+
+        // =====================================================
+        // PRIORITAS 2: Riposte stance lama / player
+        // =====================================================
         if (isRiposteStance)
         {
             Parry(attacker);
@@ -166,25 +166,19 @@ public class CharacterBase : MonoBehaviour
         }
     }
 
-    // -------------------------------------------------------------
-    // Parry (Riposte)
-    // -------------------------------------------------------------
     private void Parry(GameObject attacker)
     {
-        // Defensive +1
         if (DataTracker.Instance != null)
         {
             DataTracker.Instance.RecordAction(PlayerActionType.Defensive, WeaponType.Sword);
         }
 
-        // Follow-up dash
-        Sword_Riposte riposte = GetComponentInChildren<Sword_Riposte>();
+        Sword_Riposte riposte = GetComponentInChildren<Sword_Riposte>(true);
         if (riposte != null)
             riposte.TriggerFollowUpDash();
 
         isRiposteStance = false;
 
-        // Stagger musuh yang kena parry
         if (attacker != null)
         {
             CharacterBase enemy = attacker.GetComponent<CharacterBase>();
@@ -216,9 +210,6 @@ public class CharacterBase : MonoBehaviour
         canRiposte = true;
     }
 
-    // -------------------------------------------------------------
-    // SIMPLE Knockback + SIMPLE Stun
-    // -------------------------------------------------------------
     public void ApplyKnockback(Vector2 direction, float force)
     {
         if (force <= 0f || currentHP <= 0f)
@@ -249,9 +240,6 @@ public class CharacterBase : MonoBehaviour
         stunRoutine = null;
     }
 
-    // -------------------------------------------------------------
-    // Stagger (for sword hits, riposte, knockback base)
-    // -------------------------------------------------------------
     public void ApplyStagger(Vector2 direction, float force, float duration)
     {
         if (currentHP <= 0)
@@ -291,9 +279,6 @@ public class CharacterBase : MonoBehaviour
         }
     }
 
-    // -------------------------------------------------------------
-    // Death
-    // -------------------------------------------------------------
     public virtual void Die()
     {
         Debug.Log($"{name} MATI");
