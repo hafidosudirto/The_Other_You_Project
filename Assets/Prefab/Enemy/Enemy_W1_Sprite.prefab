@@ -53,6 +53,7 @@ GameObject:
   - component: {fileID: 1238565138610006823}
   - component: {fileID: 8169837083311072351}
   - component: {fileID: 8598530904683464336}
+  - component: {fileID: 5241568554977935692}
   m_Layer: 3
   m_Name: Enemy_W1_Sprite
   m_TagString: Enemy
@@ -380,6 +381,19 @@ MonoBehaviour:
   balancedLengahWeight: 45
   offensiveLengahWeight: 20
   defensiveLengahWeight: 0
+--- !u!114 &5241568554977935692
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1718376399928103269}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db6822afdfec6c343885e9735a326ea6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scoreValue: 10
 --- !u!1 &7264237687256263521
 GameObject:
   m_ObjectHideFlags: 0
