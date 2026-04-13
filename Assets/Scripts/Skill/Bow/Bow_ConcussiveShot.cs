@@ -7,14 +7,13 @@ using UnityEditor;
 public class Bow_ConcussiveShot : MonoBehaviour, ISkill
 {
     [Header("Toggle Skill Mode")]
-    [Tooltip("OFF = langsung hit area (kayak sword). ON = panah visual → hit area.")]
-    public bool useArrowVisual = false;
+    [Tooltip("OFF = langsung hit area. ON = panah visual -> hit area.")]
+    public bool useArrowVisual = true;
 
     [Header("References")]
     public Transform firePoint;
-    [Tooltip("Isi dengan prefab Visual_Arrow.")]
-    public GameObject arrowPrefab;          // Visual_Arrow
-    public GameObject hitAreaPrefab;        // HitArea_Concussive
+    public GameObject arrowPrefab;
+    public GameObject hitAreaPrefab;
     public Player player;
     public PlayerAnimation anim;
 
@@ -22,21 +21,26 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
     public float damage = 10f;
     public float knockback = 6f;
     public float stun = 0.35f;
-    [Tooltip("Radius ledakan (dipakai untuk HitArea_Concussive.Setup).")]
     public float explosionRadius = 1.4f;
 
     [Header("Smooth Mini-Jump")]
     public float jumpHeight = 2f;
     public float jumpUpTime = 0.5f;
-    public float hoverTime = 0.3f;
+    public float hoverTime = 0.2f;
     public float jumpDownTime = 0.3f;
 
     [Header("Delays")]
-    public float delayBeforeShoot = 0.15f;
-    public float delayBeforeFall = 0.1f;
+    [Tooltip("Jeda minimum sebelum release boleh dieksekusi.")]
+    public float delayBeforeShoot = 0.05f;
+
+    [Tooltip("Berapa lama sesudah panah keluar karakter masih tertahan sebelum turun.")]
+    public float delayBeforeFall = 0.05f;
+
+    [Header("Safety")]
+    [Tooltip("Kalau event animasi tidak terpanggil, skill tidak akan freeze selamanya.")]
+    public float releaseEventTimeout = 1.0f;
 
     [Header("Hit Area Offset (Mode A fallback)")]
-    [Tooltip("Dipakai kalau raycast ke ground tidak kena apa-apa.")]
     public Vector2 hitAreaOffset = new Vector2(1.2f, -0.2f);
 
     [Header("Ground Mask")]
@@ -49,11 +53,12 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
 
     private Coroutine jumpRoutine;
     private Coroutine camRoutine;
-    private bool isCasting; // anti-spam
 
-    // ============================================================
-    //  TRIGGER SKILL
-    // ============================================================
+    private bool isCasting;
+    private bool releaseEventReceived;
+    private bool releaseExecuted;
+    private Transform jumpTarget;
+
     public void TriggerSkill(int slot)
     {
         if (player == null || firePoint == null)
@@ -74,13 +79,21 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
             return;
         }
 
-        if (isCasting) return;
+        if (isCasting || player.lockMovement)
+            return;
+
         isCasting = true;
+        releaseEventReceived = false;
+        releaseExecuted = false;
+        jumpTarget = player.transform;
+
+        player.lockMovement = true;
+        StopOwnerMovement();
 
         if (jumpRoutine != null)
             StopCoroutine(jumpRoutine);
 
-        jumpRoutine = StartCoroutine(JumpShotRoutine(player.transform));
+        jumpRoutine = StartCoroutine(JumpShotRoutine(jumpTarget));
 
         if (enableCameraBump)
         {
@@ -91,20 +104,15 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
         }
 
         if (anim != null)
-            anim.PlayQuickShot();
+            anim.PlayConcussiveShot();
     }
 
-    // ============================================================
-    //  JUMP → HOVER → (MODE A / MODE B) → FALL
-    // ============================================================
     private IEnumerator JumpShotRoutine(Transform target)
     {
-        player.lockMovement = true;
-
         float peak = jumpHeight;
         float lastOffset = 0f;
 
-        // -------- RISE --------
+        // Naik
         float t = 0f;
         while (t < jumpUpTime)
         {
@@ -116,37 +124,38 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
             float delta = newOffset - lastOffset;
             target.Translate(0f, delta, 0f);
             lastOffset = newOffset;
+
             yield return null;
         }
 
-        // -------- HOVER --------
+        // Hover
         if (hoverTime > 0f)
             yield return new WaitForSeconds(hoverTime);
 
-        // -------- DELAY BEFORE FIRE --------
+        // Sedikit buffer minimum sebelum release boleh diproses
         if (delayBeforeShoot > 0f)
             yield return new WaitForSeconds(delayBeforeShoot);
 
-        // ========================================================
-        // MODE A — NO ARROW → HIT AREA DROP TO GROUND
-        // ========================================================
-        if (!useArrowVisual)
+        // Tunggu event animasi, tapi jangan sampai freeze selamanya
+        float timer = 0f;
+        while (!releaseEventReceived && timer < releaseEventTimeout)
         {
-            SpawnHitAreaDirect_GroundRaycast();
-        }
-        // ========================================================
-        // MODE B — FIRE VISUAL ARROW
-        // ========================================================
-        else
-        {
-            FireVisualArrow();
+            timer += Time.deltaTime;
+            yield return null;
         }
 
-        // -------- DELAY BEFORE FALL --------
+        if (!releaseEventReceived)
+        {
+            Debug.LogWarning("[Concussive] Animation Event tidak terpanggil. Fallback release dijalankan.");
+            releaseEventReceived = true;
+        }
+
+        ExecuteRelease();
+
         if (delayBeforeFall > 0f)
             yield return new WaitForSeconds(delayBeforeFall);
 
-        // -------- FALL --------
+        // Turun
         t = 0f;
         while (t < jumpDownTime)
         {
@@ -161,15 +170,36 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
 
             yield return null;
         }
-        player.lockMovement = false;
+
+        if (player != null)
+            player.lockMovement = false;
 
         isCasting = false;
         jumpRoutine = null;
     }
 
-    // ============================================================
-    // MODE A — AUTO GROUND HIT AREA (NO ARROW)
-    // ============================================================
+    // Dipanggil dari Animation Event
+    public void ReleaseFromAnimationEvent()
+    {
+        if (!isCasting)
+            return;
+
+        releaseEventReceived = true;
+    }
+
+    private void ExecuteRelease()
+    {
+        if (releaseExecuted)
+            return;
+
+        releaseExecuted = true;
+
+        if (!useArrowVisual)
+            SpawnHitAreaDirect_GroundRaycast();
+        else
+            FireVisualArrow();
+    }
+
     private void SpawnHitAreaDirect_GroundRaycast()
     {
         float dir = player.isFacingRight ? 1f : -1f;
@@ -182,20 +212,15 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
         if (hit.collider != null)
             spawnPos = hit.point;
         else
-            spawnPos = firePoint.position + new Vector3(hitAreaOffset.x * dir, hitAreaOffset.y);
+            spawnPos = firePoint.position + new Vector3(hitAreaOffset.x * dir, hitAreaOffset.y, 0f);
 
         GameObject area = Instantiate(hitAreaPrefab, spawnPos, Quaternion.identity);
 
         ConcussiveHitArea ch = area.GetComponent<ConcussiveHitArea>();
         if (ch != null)
             ch.Setup(player, damage, knockback, stun, explosionRadius);
-
-        Debug.Log("[Concussive] MODE A Spawn at: " + spawnPos);
     }
 
-    // ============================================================
-    // MODE B — FIRE ARROW VISUAL
-    // ============================================================
     private void FireVisualArrow()
     {
         float dir = player.isFacingRight ? 1f : -1f;
@@ -207,11 +232,21 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
         {
             visual.Init(player, dir, damage, knockback, stun, explosionRadius);
         }
+        else
+        {
+            Debug.LogWarning("[Concussive] Spawned arrow has no ConcussiveArrowVisual component.");
+        }
     }
 
-    // ============================================================
-    // CAMERA BUMP
-    // ============================================================
+    private void StopOwnerMovement()
+    {
+        if (player == null) return;
+
+        Rigidbody2D ownerRb = player.GetComponent<Rigidbody2D>();
+        if (ownerRb != null)
+            ownerRb.velocity = Vector2.zero;
+    }
+
     private IEnumerator CameraBumpRoutine()
     {
         Camera cam = Camera.main;
@@ -227,49 +262,47 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
             float n = Mathf.Clamp01(t / cameraBumpDuration);
             float offset = Mathf.Sin(n * Mathf.PI);
 
-            ct.position = startPos + new Vector3(0, offset * cameraBumpStrength, 0);
+            ct.position = startPos + new Vector3(0f, offset * cameraBumpStrength, 0f);
             yield return null;
         }
 
         ct.position = startPos;
     }
 
-    // ============================================================
-    // GIZMO PREVIEW (Jump Arc + Ground Raycast + Explosion)
-    // ============================================================
+    private void OnDisable()
+    {
+        if (player != null)
+            player.lockMovement = false;
+
+        isCasting = false;
+        releaseEventReceived = false;
+        releaseExecuted = false;
+        jumpRoutine = null;
+    }
+
 #if UNITY_EDITOR
     private void OnDrawGizmosSelected()
     {
         if (firePoint == null) return;
 
-        Handles.color = Color.green;
-        Handles.Label(firePoint.position + Vector3.up * 0.5f, "FirePoint");
-
         float dir = (player != null && player.isFacingRight) ? 1f : -1f;
 
-        // Jump Arc Preview
         Gizmos.color = Color.yellow;
         Vector3 start = firePoint.position;
-        Vector3 top = firePoint.position + new Vector3(0, jumpHeight, 0);
+        Vector3 top = firePoint.position + new Vector3(0f, jumpHeight, 0f);
         Vector3 end = firePoint.position;
 
         Gizmos.DrawLine(start, top);
         Gizmos.DrawLine(top, end);
-        Handles.Label(top, "Jump Peak");
 
-        // Ground Raycast Preview (Mode A)
-        Vector3 rayOrigin = firePoint.position + new Vector3(0.6f * dir, 0f);
+        Vector3 rayOrigin = firePoint.position + new Vector3(0.6f * dir, 0f, 0f);
         Gizmos.color = Color.cyan;
-        Gizmos.DrawSphere(rayOrigin, 0.08f);
+        Gizmos.DrawSphere(rayOrigin, 0.06f);
         Gizmos.DrawLine(rayOrigin, rayOrigin + Vector3.down * 10f);
-        Handles.Label(rayOrigin + Vector3.right * 0.2f, "Raycast Down");
 
-        // Explosion Preview (fallback)
-        Vector3 predicted = firePoint.position + new Vector3(hitAreaOffset.x * dir, hitAreaOffset.y, 0);
-
-        Gizmos.color = new Color(1f, 0.4f, 0f, 0.6f);
+        Vector3 predicted = firePoint.position + new Vector3(hitAreaOffset.x * dir, hitAreaOffset.y, 0f);
+        Gizmos.color = new Color(1f, 0.4f, 0f, 0.75f);
         Gizmos.DrawWireSphere(predicted, explosionRadius);
-        Handles.Label(predicted + Vector3.up * 0.2f, "Predicted Explosion (Fallback)");
     }
 #endif
 }

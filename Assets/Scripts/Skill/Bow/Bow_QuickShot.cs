@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class Bow_QuickShot : MonoBehaviour, ISkill  
+public class Bow_QuickShot : MonoBehaviour, ISkill
 {
     [Header("References")]
     public Transform firePoint;
@@ -27,28 +27,69 @@ public class Bow_QuickShot : MonoBehaviour, ISkill
     [Header("Cleanup")]
     public float destroyDelay = 0.25f;
 
+    [Header("Timing")]
+    public float cooldown = 0.35f;
+    public float postShotLock = 0.05f;
+
     private bool isOnCooldown;
-    public float cooldown = 0.2f;
+    private bool isCasting;
+    private bool waitingAnimationRelease;
 
     public void TriggerSkill(int slotID)
     {
-         if (isOnCooldown) return;
-        StartCoroutine(Cooldown());
+        if (isOnCooldown || isCasting)
+            return;
+
+        if (player == null || firePoint == null || arrowPrefab == null)
+        {
+            Debug.LogWarning("[QuickShot] Missing player / firePoint / arrowPrefab.");
+            return;
+        }
+
+        if (player.lockMovement)
+            return;
+
+        StartCoroutine(CooldownRoutine());
+
+        isCasting = true;
+        waitingAnimationRelease = true;
+
+        player.lockMovement = true;
+        StopOwnerMovement();
 
         DebugHub.Skill("CAST Quick Shot");
 
         if (anim != null)
             anim.PlayQuickShot();
-
-        ShootArrow();
     }
 
-        IEnumerator Cooldown()
+    public void ReleaseFromAnimationEvent()
+    {
+        if (!isCasting || !waitingAnimationRelease)
+            return;
+
+        waitingAnimationRelease = false;
+        ShootArrow();
+        StartCoroutine(EndCastRoutine());
+    }
+
+    private IEnumerator EndCastRoutine()
+    {
+        yield return new WaitForSeconds(postShotLock);
+
+        if (player != null)
+            player.lockMovement = false;
+
+        isCasting = false;
+    }
+
+    private IEnumerator CooldownRoutine()
     {
         isOnCooldown = true;
         yield return new WaitForSeconds(cooldown);
         isOnCooldown = false;
     }
+
     private void ShootArrow()
     {
         GameObject arrowObj = Instantiate(arrowPrefab, firePoint.position, Quaternion.identity);
@@ -57,31 +98,27 @@ public class Bow_QuickShot : MonoBehaviour, ISkill
         SpriteRenderer sr = arrowObj.GetComponent<SpriteRenderer>();
         ArrowDamage dmg = arrowObj.GetComponent<ArrowDamage>();
 
-        // Flip sprite only
-        if (!player.isFacingRight)
-            sr.flipX = true;
+        float dir = player.isFacingRight ? 1f : -1f;
 
-        // Color
-        if (sr != null) sr.color = arrowColor;
+        if (sr != null)
+        {
+            sr.flipX = dir < 0f;
+            sr.color = arrowColor;
+        }
 
-        // Damage
         if (dmg != null)
         {
             dmg.owner = player;
             dmg.SetStats(quickDamage, knockback, stun, false, false);
         }
 
-        StartCoroutine(ArrowRoutine(rb, arrowObj));
+        StartCoroutine(ArrowRoutine(rb, arrowObj, dir));
     }
 
-    private IEnumerator ArrowRoutine(Rigidbody2D rb, GameObject arrowObj)
+    private IEnumerator ArrowRoutine(Rigidbody2D rb, GameObject arrowObj, float dir)
     {
         float timer = 0f;
-        float dir = player.isFacingRight ? 1 : -1;
 
-        // --------------------
-        // STRAIGHT PHASE
-        // --------------------
         while (timer < straightTime)
         {
             if (rb == null) yield break;
@@ -92,9 +129,6 @@ public class Bow_QuickShot : MonoBehaviour, ISkill
             yield return null;
         }
 
-        // --------------------
-        // CURVE PHASE
-        // --------------------
         float t = 0f;
         while (t < 1f)
         {
@@ -111,35 +145,31 @@ public class Bow_QuickShot : MonoBehaviour, ISkill
             yield return null;
         }
 
-        // STOP movement before destroy to avoid errors
         if (rb != null)
             rb.velocity = Vector2.zero;
 
-        // --------------------
-        // DELAYED DESTROY
-        // --------------------
         yield return new WaitForSeconds(destroyDelay);
 
         if (arrowObj != null)
             Destroy(arrowObj);
     }
 
-    private void OnDrawGizmosSelected()
+    private void StopOwnerMovement()
     {
-        if (firePoint == null) return;
+        if (player == null) return;
 
-        Gizmos.color = arrowColor;
+        Rigidbody2D ownerRb = player.GetComponent<Rigidbody2D>();
+        if (ownerRb != null)
+            ownerRb.velocity = Vector2.zero;
+    }
 
-        float dir = (player != null && !player.isFacingRight) ? -1f : 1f;
+    private void OnDisable()
+    {
+        if (player != null)
+            player.lockMovement = false;
 
-        Vector3 start = firePoint.position;
-        Vector3 straightEnd = start + Vector3.right * dir * speed * straightTime * 0.35f;
-        Gizmos.DrawLine(start, straightEnd);
-
-        Vector3 curvePeak = straightEnd + new Vector3(dir * 0.5f, 0.8f, 0);
-        Gizmos.DrawLine(straightEnd, curvePeak);
-
-        Vector3 curveEnd = curvePeak + new Vector3(dir * 0.5f, -1.2f, 0);
-        Gizmos.DrawLine(curvePeak, curveEnd);
+        isCasting = false;
+        waitingAnimationRelease = false;
+        isOnCooldown = false;
     }
 }

@@ -30,7 +30,6 @@ public class MoveKeyboard : MonoBehaviour
     // Menyimpan arah terakhir untuk prefab yang tidak punya Player
     private float lastMoveX = 1f;
 
-    // ======================================================
     private void Awake()
     {
         // Cari Rigidbody2D di objek ini, parent, atau child (WAJIB ADA)
@@ -43,9 +42,7 @@ public class MoveKeyboard : MonoBehaviour
             Debug.LogError("[MoveKeyboard] Rigidbody2D tidak ditemukan di hierarki objek ini. Skrip akan non-aktif.");
         }
 
-        // ------------ REFERENSI OPSIONAL --------------
-
-        // Cari PlayerAnimation di child dulu (biasanya animator ada di bawah sprite)
+        // Cari PlayerAnimation di child dulu
         if (anim == null)
         {
             anim = GetComponentInChildren<PlayerAnimation>();
@@ -53,7 +50,7 @@ public class MoveKeyboard : MonoBehaviour
                 anim = GetComponentInParent<PlayerAnimation>();
         }
 
-        // Cari Player (turunan CharacterBase)
+        // Cari Player
         if (player == null)
         {
             player = GetComponent<Player>();
@@ -66,9 +63,22 @@ public class MoveKeyboard : MonoBehaviour
 
     private void Update()
     {
-        // Satu-satunya syarat wajib: punya Rigidbody2D
         if (rb == null)
             return;
+
+        // ======================================================
+        // 0. PLAYER LOCK MOVEMENT
+        // ======================================================
+        if (player != null && player.lockMovement)
+        {
+            input = Vector2.zero;
+            rb.velocity = Vector2.zero;
+
+            if (anim != null)
+                anim.SetMoveSpeed(0f);
+
+            return;
+        }
 
         // ======================================================
         // 1. EXTERNAL LOCK (Dash, ChargedStrike, dsb.)
@@ -79,22 +89,19 @@ public class MoveKeyboard : MonoBehaviour
             if (externalLockTimer <= 0f)
                 externalLock = false;
 
-            // Bekukan input gerak
             input = Vector2.zero;
 
             if (externalStopsVelocity)
-            {
                 rb.velocity = Vector2.zero;
-            }
 
             if (anim != null)
-                anim.SetMoveSpeed(0);
+                anim.SetMoveSpeed(0f);
 
             return;
         }
 
         // ======================================================
-        // 2. ATTACK LOCK (Slash Combo, Whirlwind, dll.)
+        // 2. ATTACK LOCK
         // ======================================================
         if (isAttackLocked)
         {
@@ -102,10 +109,11 @@ public class MoveKeyboard : MonoBehaviour
             if (attackLockTimer <= 0f)
                 isAttackLocked = false;
 
+            input = Vector2.zero;
             rb.velocity = Vector2.zero;
 
             if (anim != null)
-                anim.SetMoveSpeed(0);
+                anim.SetMoveSpeed(0f);
 
             return;
         }
@@ -118,12 +126,14 @@ public class MoveKeyboard : MonoBehaviour
             Input.GetAxisRaw("Vertical")
         );
 
-        bool isMoving = input.sqrMagnitude > 0.01f;
+        // SEMENTARA:
+        // semua arah gerak memicu Walk_Bow
+        bool hasAnyMove = input.sqrMagnitude > 0.01f;
 
         if (anim != null)
-            anim.SetMoveSpeed(isMoving ? 1f : 0f);
+            anim.SetMoveSpeed(hasAnyMove ? 1f : 0f);
 
-        // Update arah hadap (kalau ada Player, sinkron dengan isFacingRight)
+        // Update arah hadap hanya dari sumbu X
         if (input.x > 0.1f)
         {
             lastMoveX = 1f;
@@ -151,29 +161,35 @@ public class MoveKeyboard : MonoBehaviour
         if (rb == null)
             return;
 
-        // externalLock: jangan sentuh velocity jika eksternal yang mengatur
-        if (externalLock)
+        // Player lock movement
+        if (player != null && player.lockMovement)
         {
-            if (externalStopsVelocity)
-            {
-                rb.velocity = Vector2.zero;
-            }
+            rb.velocity = Vector2.zero;
             return;
         }
 
-        // attack lock
+        // External lock
+        if (externalLock)
+        {
+            if (externalStopsVelocity)
+                rb.velocity = Vector2.zero;
+
+            return;
+        }
+
+        // Attack lock
         if (isAttackLocked)
         {
             rb.velocity = Vector2.zero;
             return;
         }
 
-        // normal movement
+        // Normal movement
         rb.velocity = input.normalized * moveSpeed;
     }
 
     // ============================================================
-    //  API UNTUK SLASH COMBO (BOOLEAN ANIMATOR)
+    // API UNTUK SLASH COMBO
     // ============================================================
     public void TriggerSlash1(float duration)
     {
@@ -191,9 +207,7 @@ public class MoveKeyboard : MonoBehaviour
         LockMovement(duration);
 
         if (anim != null)
-        {
             anim.SetSlash2(true);
-        }
     }
 
     private void LockMovement(float duration)
@@ -201,14 +215,15 @@ public class MoveKeyboard : MonoBehaviour
         isAttackLocked = true;
         attackLockTimer = duration;
 
-        rb.velocity = Vector2.zero;
+        if (rb != null)
+            rb.velocity = Vector2.zero;
 
         if (anim != null)
-            anim.SetMoveSpeed(0);
+            anim.SetMoveSpeed(0f);
     }
 
     // ============================================================
-    // EXTERNAL LOCK SYSTEM → DIPAKAI OLEH DASH & CHARGED STRIKE
+    // EXTERNAL LOCK SYSTEM
     // ============================================================
     public void LockExternal(float duration, bool stopVelocity = true)
     {
@@ -218,9 +233,11 @@ public class MoveKeyboard : MonoBehaviour
 
         if (stopVelocity)
         {
-            rb.velocity = Vector2.zero;
+            if (rb != null)
+                rb.velocity = Vector2.zero;
+
             if (anim != null)
-                anim.SetMoveSpeed(0);
+                anim.SetMoveSpeed(0f);
         }
     }
 
@@ -238,9 +255,7 @@ public class MoveKeyboard : MonoBehaviour
     public float GetFacingDirection()
     {
         if (player != null)
-        {
             return player.isFacingRight ? 1f : -1f;
-        }
 
         if (Mathf.Abs(lastMoveX) > 0.01f)
             return Mathf.Sign(lastMoveX);

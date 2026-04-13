@@ -20,37 +20,49 @@ public class Bow_FullDraw : MonoBehaviour, ISkill
     public float baseStun = 0.15f;
     public Color arrowColor = Color.yellow;
 
-    // --- BAGIAN YANG DISESUAIKAN DENGAN QUICK SHOT ---
-
     [Header("Flight Curve")]
-    // Sama konsepnya dengan QuickShot
-    public float straightTime = 0.45f;   // dulu: curveStartTime
+    public float straightTime = 0.45f;
     public float gravityStart = 3f;
     public float gravityEnd = 12f;
 
     [Header("Cleanup")]
-    public float destroyDelay = 0.25f;   // panah berhenti sebentar lalu hancur
+    public float destroyDelay = 0.25f;
+
+    [Header("Timing")]
+    public float cooldown = 0.35f;
+    public float postReleaseLock = 0.08f;
 
     private bool isOnCooldown;
-    public float cooldown = 0.2f;        // disamakan dengan QuickShot
-
-    // -------------------------------------------------
-
     private bool isCharging = false;
+    private bool waitingReleaseEvent = false;
     private float chargeTimer = 0f;
+    private float pendingChargePercent = 0f;
 
     public void TriggerSkill(int slot)
     {
-        // Tidak bisa cast kalau sedang charge atau cooldown
         if (isCharging || isOnCooldown)
+            return;
+
+        if (!player || !firePoint || !arrowPrefab)
+        {
+            Debug.LogWarning("[FullDraw] Missing player / firePoint / arrowPrefab.");
+            return;
+        }
+
+        if (player.lockMovement)
             return;
 
         StartCoroutine(CooldownRoutine());
 
         isCharging = true;
+        waitingReleaseEvent = false;
         chargeTimer = 0f;
 
-        if (anim) anim.TriggerBowChargeStart();
+        player.lockMovement = true;
+        StopOwnerMovement();
+
+        if (anim)
+            anim.TriggerBowChargeStart();
 
         StartCoroutine(ChargeRoutine());
     }
@@ -68,10 +80,9 @@ public class Bow_FullDraw : MonoBehaviour, ISkill
         {
             chargeTimer += Time.deltaTime;
 
-            // Auto-release jika sudah penuh
             if (chargeTimer >= maxChargeTime)
             {
-                Release();
+                BeginRelease();
                 yield break;
             }
 
@@ -79,15 +90,32 @@ public class Bow_FullDraw : MonoBehaviour, ISkill
         }
     }
 
-    void Release()
+    private void BeginRelease()
     {
         isCharging = false;
+        waitingReleaseEvent = true;
+        pendingChargePercent = Mathf.Clamp01(chargeTimer / maxChargeTime);
 
-        float chargePercent = Mathf.Clamp01(chargeTimer / maxChargeTime);
+        if (anim)
+            anim.TriggerBowChargeRelease();
+    }
 
-        if (anim) anim.TriggerBowChargeRelease();
+    public void ReleaseFromAnimationEvent()
+    {
+        if (!waitingReleaseEvent)
+            return;
 
-        FireArrow(chargePercent);
+        waitingReleaseEvent = false;
+        FireArrow(pendingChargePercent);
+        StartCoroutine(ReleaseRecoverRoutine());
+    }
+
+    private IEnumerator ReleaseRecoverRoutine()
+    {
+        yield return new WaitForSeconds(postReleaseLock);
+
+        if (player != null)
+            player.lockMovement = false;
     }
 
     void FireArrow(float charge)
@@ -105,29 +133,22 @@ public class Bow_FullDraw : MonoBehaviour, ISkill
             return;
         }
 
-        // 1) Arah berdasarkan facing player
         bool faceRight = player.isFacingRight;
         float direction = faceRight ? 1f : -1f;
 
-        // 2) Kecepatan berdasarkan charge
         float speed = Mathf.Lerp(minArrowSpeed, maxArrowSpeed, charge);
-
-        // velocity awal (fase lurus akan diatur di coroutine)
         rb.velocity = new Vector2(direction * speed, 0f);
 
-        // 3) Warna dan flip sprite
         if (sr != null)
         {
             sr.color = arrowColor;
             sr.flipX = direction < 0;
         }
 
-        // 4) Pastikan scale X mengikuti arah
         Vector3 scale = obj.transform.localScale;
         scale.x = Mathf.Abs(scale.x) * direction;
         obj.transform.localScale = scale;
 
-        // 5) Damage
         if (dmg != null)
         {
             dmg.owner = player;
@@ -142,7 +163,6 @@ public class Bow_FullDraw : MonoBehaviour, ISkill
 
         DebugHub.Bow($"[FullDraw] Spawn dir={direction} | speed={speed}");
 
-        // 6) Pola terbang + destroy (disamakan gaya-nya dengan QuickShot)
         StartCoroutine(ArrowRoutine(rb, obj, speed, direction));
     }
 
@@ -150,9 +170,6 @@ public class Bow_FullDraw : MonoBehaviour, ISkill
     {
         float timer = 0f;
 
-        // --------------------
-        // STRAIGHT PHASE
-        // --------------------
         while (timer < straightTime)
         {
             if (rb == null) yield break;
@@ -163,9 +180,6 @@ public class Bow_FullDraw : MonoBehaviour, ISkill
             yield return null;
         }
 
-        // --------------------
-        // CURVE PHASE
-        // --------------------
         float t = 0f;
         while (t < 1f)
         {
@@ -182,16 +196,31 @@ public class Bow_FullDraw : MonoBehaviour, ISkill
             yield return null;
         }
 
-        // Hentikan panah sebelum dihancurkan
         if (rb != null)
             rb.velocity = Vector2.zero;
 
-        // --------------------
-        // DELAYED DESTROY
-        // --------------------
         yield return new WaitForSeconds(destroyDelay);
 
         if (arrowObj != null)
             Destroy(arrowObj);
+    }
+
+    private void StopOwnerMovement()
+    {
+        if (player == null) return;
+
+        Rigidbody2D ownerRb = player.GetComponent<Rigidbody2D>();
+        if (ownerRb != null)
+            ownerRb.velocity = Vector2.zero;
+    }
+
+    private void OnDisable()
+    {
+        if (player != null)
+            player.lockMovement = false;
+
+        isCharging = false;
+        waitingReleaseEvent = false;
+        pendingChargePercent = 0f;
     }
 }

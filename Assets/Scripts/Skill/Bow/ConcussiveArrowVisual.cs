@@ -23,10 +23,21 @@ public class ConcussiveArrowVisual : MonoBehaviour
     private Vector2 velocity;
     private float dir;
     private float lifeTimer;
+    private bool hasExploded;
 
-    //=====================================================
+    private Collider2D myCollider;
+
+    // =====================================================
+    // AWAKE
+    // =====================================================
+    private void Awake()
+    {
+        myCollider = GetComponent<Collider2D>();
+    }
+
+    // =====================================================
     // INIT
-    //=====================================================
+    // =====================================================
     public void Init(Player ownerPlayer, float direction, float dmg, float kb, float st, float rad)
     {
         owner = ownerPlayer;
@@ -36,81 +47,120 @@ public class ConcussiveArrowVisual : MonoBehaviour
         stun = st;
         radius = rad;
 
-        // initial velocity miring sedikit turun
-        velocity = new Vector2(speed * dir, -speed * 0.30f);
+        // Panah sedikit menukik ke bawah
+        velocity = new Vector2(speed * dir, -speed * 0.08f);
+
+        IgnoreOwnerCollision();
     }
 
-    //=====================================================
-    // UPDATE
-    //=====================================================
-    void Update()
+    // =====================================================
+    // IGNORE OWNER COLLISION
+    // =====================================================
+    private void IgnoreOwnerCollision()
     {
-        // life fallback
+        if (owner == null || myCollider == null)
+            return;
+
+        Collider2D[] ownerColliders = owner.GetComponentsInChildren<Collider2D>();
+        foreach (Collider2D col in ownerColliders)
+        {
+            if (col == null) continue;
+            Physics2D.IgnoreCollision(myCollider, col, true);
+        }
+    }
+
+    // =====================================================
+    // UPDATE
+    // =====================================================
+    private void Update()
+    {
+        if (hasExploded)
+            return;
+
         lifeTimer += Time.deltaTime;
-        if (lifeTimer > 3f)   // Safety destroy
+        if (lifeTimer > 3f)
         {
             Destroy(gameObject);
             return;
         }
 
-        // velocity affected by gravity
+        // Gravity
         velocity.y -= gravity * Time.deltaTime;
 
-        // movement
+        // Movement
         transform.position += (Vector3)(velocity * Time.deltaTime);
 
-        // rotate arrow following velocity
+        // Rotate mengikuti arah gerak
         if (velocity.sqrMagnitude > 0.01f)
         {
             float angle = Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg;
-            transform.rotation = Quaternion.Euler(0, 0, angle);
+            transform.rotation = Quaternion.Euler(0f, 0f, angle);
         }
 
-        // RAYCAST KE ARAH ARROW TERBANG, bukan ke bawah
-        Vector2 rayDir = velocity.normalized;
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, rayDir, rayDistance, groundMask);
-        if (hit.collider != null)
+        // Deteksi tanah memakai raycast ke arah gerak
+        if (velocity.sqrMagnitude > 0.0001f)
         {
-            TriggerExplosion(hit.point);
+            Vector2 rayDir = velocity.normalized;
+            RaycastHit2D hit = Physics2D.Raycast(transform.position, rayDir, rayDistance, groundMask);
+
+            if (hit.collider != null)
+            {
+                TriggerExplosion(hit.point);
+            }
         }
     }
 
-    //=====================================================
+    // =====================================================
     // COLLISION
-    //=====================================================
-    void OnTriggerEnter2D(Collider2D col)
+    // =====================================================
+    private void OnTriggerEnter2D(Collider2D col)
     {
+        if (hasExploded) return;
         CheckEnemyHit(col);
     }
 
-    void OnCollisionEnter2D(Collision2D col)
+    private void OnCollisionEnter2D(Collision2D col)
     {
+        if (hasExploded) return;
         CheckEnemyHit(col.collider);
     }
 
-    void CheckEnemyHit(Collider2D col)
+    private void CheckEnemyHit(Collider2D col)
     {
         if (col == null) return;
 
-        CharacterBase enemy = col.GetComponent<CharacterBase>();
-        if (enemy != null)
-        {
-            TriggerExplosion(transform.position);
-        }
+        CharacterBase target = col.GetComponent<CharacterBase>();
+        if (target == null)
+            target = col.GetComponentInParent<CharacterBase>();
+
+        if (target == null)
+            return;
+
+        // Abaikan owner sendiri
+        if (owner != null && target.transform.root == owner.transform.root)
+            return;
+
+        Vector2 hitPoint = col.ClosestPoint(transform.position);
+        TriggerExplosion(hitPoint);
     }
 
-    //=====================================================
+    // =====================================================
     // EXPLOSION
-    //=====================================================
-    void TriggerExplosion(Vector2 point)
+    // =====================================================
+    private void TriggerExplosion(Vector2 point)
     {
+        if (hasExploded)
+            return;
+
+        hasExploded = true;
+
         if (hitAreaPrefab != null)
         {
             GameObject area = Instantiate(hitAreaPrefab, point, Quaternion.identity);
-            ConcussiveHitArea c = area.GetComponent<ConcussiveHitArea>();
+            ConcussiveHitArea hitArea = area.GetComponent<ConcussiveHitArea>();
 
-            if (c != null)
-                c.Setup(owner, damage, knockback, stun, radius);
+            if (hitArea != null)
+                hitArea.Setup(owner, damage, knockback, stun, radius);
         }
 
         Destroy(gameObject);

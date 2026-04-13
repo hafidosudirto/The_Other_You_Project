@@ -13,9 +13,11 @@ GameObject:
   - component: {fileID: 9133238739521640713}
   - component: {fileID: 900927698793162225}
   - component: {fileID: 3817100853546906439}
-  m_Layer: 0
+  - component: {fileID: 260642627994203250}
+  - component: {fileID: 6055996079452002402}
+  m_Layer: 3
   m_Name: Enemy
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -166,9 +168,49 @@ MonoBehaviour:
   attack: 10
   defense: 5
   moveSpeed: 5
+  maxEnergy: 100
+  currentEnergy: 100
+  regenPerSecond: 8
+  useUnscaledTime: 0
   isFacingRight: 1
   isStaggered: 0
   isRiposteStance: 0
   canRiposte: 1
   riposteWindow: 0.6
   staggerResistance: 1
+--- !u!114 &260642627994203250
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4090163703377844648}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f76b6562a26e9fa4b8d22eaadf0b25ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  attackRadius: 1.5
+  attackAngle: 100
+  cooldownTime: 1.2
+  arcSegments: 20
+  primaryColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  heavyColor: {r: 1, g: 0.5, b: 0, a: 1}
+--- !u!114 &6055996079452002402
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4090163703377844648}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30f9f6ab14f050a4e8010bd68c125119, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  detectionRadius: 8
+  minActionTime: 1
+  maxActionTime: 2.5
+  chaseProbability: 60
+  idleProbability: 30
+  retreatProbability: 20

@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 public class Bow_PiercingShot : MonoBehaviour, ISkill
 {
@@ -15,24 +16,71 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill
     [Header("Visual")]
     public Color arrowColor = Color.white;
 
+    [Header("Animation")]
+    public PlayerAnimation anim;
+
+    [Header("Timing")]
+    public float postShotLock = 0.08f;
+
     private CharacterBase character;
+    private Player player;
     private float lastShootTime = -999f;
+
+    private bool isCasting;
+    private bool waitingAnimationRelease;
 
     void Awake()
     {
         character = GetComponentInParent<CharacterBase>();
+        player = GetComponentInParent<Player>();
     }
 
     public void TriggerSkill(int slotIndex)
     {
+        if (isCasting)
+            return;
+
         if (Time.time < lastShootTime + shootCooldown)
             return;
 
         if (!character || !character.CanAct())
             return;
 
+        if (player != null && player.lockMovement)
+            return;
+
         lastShootTime = Time.time;
+        isCasting = true;
+        waitingAnimationRelease = true;
+
+        if (player != null)
+        {
+            player.lockMovement = true;
+            StopOwnerMovement();
+        }
+
+        if (anim != null)
+            anim.PlayPiercingShot();
+    }
+
+    public void ReleaseFromAnimationEvent()
+    {
+        if (!isCasting || !waitingAnimationRelease)
+            return;
+
+        waitingAnimationRelease = false;
         FireArrow();
+        StartCoroutine(EndCastRoutine());
+    }
+
+    private IEnumerator EndCastRoutine()
+    {
+        yield return new WaitForSeconds(postShotLock);
+
+        if (player != null)
+            player.lockMovement = false;
+
+        isCasting = false;
     }
 
     private void FireArrow()
@@ -67,7 +115,26 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill
         }
 
         DebugHub.Bow($"PiercingShot Spawn @ {arrowSpawnPoint.position}");
-        DebugHub.Bow($"PiercingShot Velocity = {rb.velocity}");
+        if (rb != null)
+            DebugHub.Bow($"PiercingShot Velocity = {rb.velocity}");
         DebugHub.Bow("PiercingShot Damage Applied");
+    }
+
+    private void StopOwnerMovement()
+    {
+        if (player == null) return;
+
+        Rigidbody2D ownerRb = player.GetComponent<Rigidbody2D>();
+        if (ownerRb != null)
+            ownerRb.velocity = Vector2.zero;
+    }
+
+    private void OnDisable()
+    {
+        if (player != null)
+            player.lockMovement = false;
+
+        isCasting = false;
+        waitingAnimationRelease = false;
     }
 }

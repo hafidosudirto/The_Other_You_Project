@@ -11,8 +11,8 @@ GameObject:
   - component: {fileID: 2244074618511987020}
   - component: {fileID: 6128055513166085990}
   - component: {fileID: 4743274049896512793}
-  - component: {fileID: 2071433742224106173}
   - component: {fileID: -6683731761706937545}
+  - component: {fileID: 4380100856003608978}
   m_Layer: 7
   m_Name: Visual_Arrow
   m_TagString: Projectile
@@ -114,30 +114,6 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 0
---- !u!114 &2071433742224106173
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6159413764065269898}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5508980645fd2a446938b0b04a06ab4e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  speed: 12
-  gravity: 8
-  rayDistance: 0.15
-  groundMask:
-    serializedVersion: 2
-    m_Bits: 256
-  hitAreaPrefab: {fileID: 7787539970225032193, guid: 619188559036fb046b54236efbc49691, type: 3}
-  owner: {fileID: 0}
-  damage: 0
-  knockback: 0
-  stun: 0
-  radius: 0
 --- !u!60 &-6683731761706937545
 PolygonCollider2D:
   m_ObjectHideFlags: 0
@@ -187,3 +163,27 @@ PolygonCollider2D:
       - {x: 0.029115455, y: -0.28552467}
       - {x: -0.5044981, y: -0.28522098}
   m_UseDelaunayMesh: 0
+--- !u!114 &4380100856003608978
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6159413764065269898}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 180c2a773c6365c478c597423d8f7c67, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  speed: 12
+  gravity: 8
+  rayDistance: 0.15
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 256
+  hitAreaPrefab: {fileID: 7787539970225032193, guid: 0fce3b503735a724c907468f50083ae3, type: 3}
+  owner: {fileID: 0}
+  damage: 0
+  knockback: 0
+  stun: 0
+  radius: 0
