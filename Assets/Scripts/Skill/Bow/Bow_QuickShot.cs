@@ -12,7 +12,7 @@ public class Bow_QuickShot : MonoBehaviour, ISkill
     [Header("Arrow Settings")]
     public float speed = 10f;
     public float lifeTime = 1.2f;
-    public Color arrowColor = Color.yellow;
+    //public Color arrowColor = Color.yellow;
 
     [Header("Hit Effects")]
     public float quickDamage = 1f;
@@ -103,7 +103,7 @@ public class Bow_QuickShot : MonoBehaviour, ISkill
         if (sr != null)
         {
             sr.flipX = dir < 0f;
-            sr.color = arrowColor;
+            //sr.color = arrowColor;
         }
 
         if (dmg != null)

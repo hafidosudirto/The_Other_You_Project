@@ -13,11 +13,11 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill
     [Header("Damage Settings")]
     public float damage = 10f;
 
-    [Header("Visual")]
-    public Color arrowColor = Color.white;
-
     [Header("Animation")]
     public PlayerAnimation anim;
+
+    [Header("Facing Source")]
+    public SpriteRenderer facingSprite;
 
     [Header("Timing")]
     public float postShotLock = 0.08f;
@@ -94,18 +94,16 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill
         GameObject arrowObj = Instantiate(
             arrowPrefab,
             arrowSpawnPoint.position,
-            arrowSpawnPoint.rotation
+            Quaternion.identity
         );
 
-        SpriteRenderer sr = arrowObj.GetComponent<SpriteRenderer>();
-        if (sr != null)
-            sr.color = arrowColor;
+        float direction = GetFacingDirection();
 
-        Vector2 dir = character.isFacingRight ? Vector2.right : Vector2.left;
+        ApplyArrowFacing(arrowObj, direction);
 
         Rigidbody2D rb = arrowObj.GetComponent<Rigidbody2D>();
         if (rb != null)
-            rb.velocity = dir * shootSpeed;
+            rb.velocity = new Vector2(direction * shootSpeed, 0f);
 
         ArrowDamage dmg = arrowObj.GetComponent<ArrowDamage>();
         if (dmg != null)
@@ -114,10 +112,45 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill
             dmg.SetStats(damage, 0f, 0f, true, false);
         }
 
-        DebugHub.Bow($"PiercingShot Spawn @ {arrowSpawnPoint.position}");
+        DebugHub.Bow($"PiercingShot dir={direction} spawn={arrowSpawnPoint.position}");
         if (rb != null)
-            DebugHub.Bow($"PiercingShot Velocity = {rb.velocity}");
-        DebugHub.Bow("PiercingShot Damage Applied");
+            DebugHub.Bow($"PiercingShot velocity={rb.velocity}");
+    }
+
+    private float GetFacingDirection()
+    {
+        if (facingSprite != null)
+            return facingSprite.flipX ? -1f : 1f;
+
+        if (character != null)
+            return character.isFacingRight ? 1f : -1f;
+
+        if (player != null)
+            return player.isFacingRight ? 1f : -1f;
+
+        return 1f;
+    }
+
+    private void ApplyArrowFacing(GameObject arrowObj, float direction)
+    {
+        if (arrowObj == null) return;
+
+        // Reset scale agar tidak ada warisan negatif
+        Vector3 scale = arrowObj.transform.localScale;
+        arrowObj.transform.localScale = new Vector3(
+            Mathf.Abs(scale.x),
+            Mathf.Abs(scale.y),
+            Mathf.Abs(scale.z)
+        );
+
+        // Pakai rotasi 180 derajat saat menghadap kiri
+        float z = direction > 0f ? 0f : 180f;
+        arrowObj.transform.rotation = Quaternion.Euler(0f, 0f, z);
+
+        // Hindari double flip dari SpriteRenderer
+        SpriteRenderer[] renderers = arrowObj.GetComponentsInChildren<SpriteRenderer>(true);
+        foreach (var sr in renderers)
+            sr.flipX = false;
     }
 
     private void StopOwnerMovement()

@@ -55,7 +55,7 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
     private Coroutine camRoutine;
 
     private bool isCasting;
-    private bool releaseEventReceived;
+    //private bool releaseEventReceived;
     private bool releaseExecuted;
     private Transform jumpTarget;
 
@@ -83,7 +83,7 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
             return;
 
         isCasting = true;
-        releaseEventReceived = false;
+        //releaseEventReceived = false;
         releaseExecuted = false;
         jumpTarget = player.transform;
 
@@ -112,7 +112,6 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
         float peak = jumpHeight;
         float lastOffset = 0f;
 
-        // Naik
         float t = 0f;
         while (t < jumpUpTime)
         {
@@ -128,34 +127,15 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
             yield return null;
         }
 
-        // Hover
         if (hoverTime > 0f)
             yield return new WaitForSeconds(hoverTime);
 
-        // Sedikit buffer minimum sebelum release boleh diproses
-        if (delayBeforeShoot > 0f)
-            yield return new WaitForSeconds(delayBeforeShoot);
-
-        // Tunggu event animasi, tapi jangan sampai freeze selamanya
-        float timer = 0f;
-        while (!releaseEventReceived && timer < releaseEventTimeout)
-        {
-            timer += Time.deltaTime;
-            yield return null;
-        }
-
-        if (!releaseEventReceived)
-        {
-            Debug.LogWarning("[Concussive] Animation Event tidak terpanggil. Fallback release dijalankan.");
-            releaseEventReceived = true;
-        }
-
+        // langsung release, tanpa tunggu animation event
         ExecuteRelease();
 
         if (delayBeforeFall > 0f)
             yield return new WaitForSeconds(delayBeforeFall);
 
-        // Turun
         t = 0f;
         while (t < jumpDownTime)
         {
@@ -184,7 +164,7 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
         if (!isCasting)
             return;
 
-        releaseEventReceived = true;
+        //releaseEventReceived = true;
     }
 
     private void ExecuteRelease()
@@ -275,7 +255,7 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
             player.lockMovement = false;
 
         isCasting = false;
-        releaseEventReceived = false;
+        //releaseEventReceived = false;
         releaseExecuted = false;
         jumpRoutine = null;
     }

@@ -7,11 +7,27 @@ public class ConcussiveArrowVisual : MonoBehaviour
     [Header("Flight Settings")]
     public float speed = 12f;
     public float gravity = 8f;
-    public float rayDistance = 0.25f;
-    public LayerMask groundMask;
+
+    [Tooltip("0 = lurus, 0.2 = agak turun, 0.35 = lebih curam.")]
+    [Range(0f, 1f)]
+    public float initialDownFactor = 0.22f;
+
+    [Tooltip("Raycast pendek ke arah gerak panah untuk mendeteksi tanah/tembok.")]
+    public float rayDistance = 0.15f;
+
+    [Tooltip("Waktu sebelum proyektil mulai boleh menabrak apa pun.")]
+    public float armDelay = 0.05f;
+
+    [Tooltip("Batas hidup proyektil.")]
+    public float lifeTime = 3f;
+
+    [Header("Rotation")]
+    [Tooltip("0 jika sprite sudah menghadap arah gerak yang benar. Coba 180 jika terbalik.")]
+    public float angleOffset = 0f;
 
     [Header("Hit Area")]
     public GameObject hitAreaPrefab;
+    public LayerMask groundMask;
 
     [Header("Runtime Stats")]
     public Player owner;
@@ -23,144 +39,157 @@ public class ConcussiveArrowVisual : MonoBehaviour
     private Vector2 velocity;
     private float dir;
     private float lifeTimer;
-    private bool hasExploded;
+    private float armTimer;
+    private bool initialized;
+    private bool exploded;
 
-    private Collider2D myCollider;
-
-    // =====================================================
-    // AWAKE
-    // =====================================================
-    private void Awake()
-    {
-        myCollider = GetComponent<Collider2D>();
-    }
-
-    // =====================================================
-    // INIT
-    // =====================================================
     public void Init(Player ownerPlayer, float direction, float dmg, float kb, float st, float rad)
     {
         owner = ownerPlayer;
-        dir = direction;
+        dir = (direction >= 0f) ? 1f : -1f;
         damage = dmg;
         knockback = kb;
         stun = st;
         radius = rad;
 
-        // Panah sedikit menukik ke bawah
-        velocity = new Vector2(speed * dir, -speed * 0.08f);
+        lifeTimer = 0f;
+        armTimer = 0f;
+        exploded = false;
+        initialized = true;
 
-        IgnoreOwnerCollision();
+        transform.rotation = Quaternion.identity;
+
+        Vector3 s = transform.localScale;
+        transform.localScale = new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
+
+        velocity = new Vector2(speed * dir, -speed * initialDownFactor);
+
+        UpdateRotation();
     }
 
-    // =====================================================
-    // IGNORE OWNER COLLISION
-    // =====================================================
-    private void IgnoreOwnerCollision()
-    {
-        if (owner == null || myCollider == null)
-            return;
-
-        Collider2D[] ownerColliders = owner.GetComponentsInChildren<Collider2D>();
-        foreach (Collider2D col in ownerColliders)
-        {
-            if (col == null) continue;
-            Physics2D.IgnoreCollision(myCollider, col, true);
-        }
-    }
-
-    // =====================================================
-    // UPDATE
-    // =====================================================
     private void Update()
     {
-        if (hasExploded)
+        if (!initialized || exploded)
             return;
 
-        lifeTimer += Time.deltaTime;
-        if (lifeTimer > 3f)
+        float dt = Time.deltaTime;
+
+        lifeTimer += dt;
+        armTimer += dt;
+
+        if (lifeTimer >= lifeTime)
         {
             Destroy(gameObject);
             return;
         }
 
-        // Gravity
-        velocity.y -= gravity * Time.deltaTime;
+        velocity.y -= gravity * dt;
+        transform.position += (Vector3)(velocity * dt);
 
-        // Movement
-        transform.position += (Vector3)(velocity * Time.deltaTime);
+        UpdateRotation();
 
-        // Rotate mengikuti arah gerak
-        if (velocity.sqrMagnitude > 0.01f)
+        if (armTimer < armDelay)
+            return;
+
+        Vector2 rayDir = velocity.sqrMagnitude > 0.0001f ? velocity.normalized : new Vector2(dir, 0f);
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, rayDir, rayDistance, groundMask);
+        if (hit.collider != null)
         {
-            float angle = Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg;
-            transform.rotation = Quaternion.Euler(0f, 0f, angle);
-        }
-
-        // Deteksi tanah memakai raycast ke arah gerak
-        if (velocity.sqrMagnitude > 0.0001f)
-        {
-            Vector2 rayDir = velocity.normalized;
-            RaycastHit2D hit = Physics2D.Raycast(transform.position, rayDir, rayDistance, groundMask);
-
-            if (hit.collider != null)
-            {
-                TriggerExplosion(hit.point);
-            }
+            TriggerExplosion(hit.point);
         }
     }
 
-    // =====================================================
-    // COLLISION
-    // =====================================================
+    private void UpdateRotation()
+    {
+        if (velocity.sqrMagnitude <= 0.0001f)
+            return;
+
+        float angle = Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg;
+        transform.rotation = Quaternion.Euler(0f, 0f, angle + angleOffset);
+    }
+
+    private CharacterBase ResolveCharacter(Collider2D col)
+    {
+        if (col == null)
+            return null;
+
+        CharacterBase target = col.GetComponent<CharacterBase>();
+        if (target != null)
+            return target;
+
+        target = col.GetComponentInParent<CharacterBase>();
+        if (target != null)
+            return target;
+
+        if (col.transform.root != null)
+            return col.transform.root.GetComponent<CharacterBase>();
+
+        return null;
+    }
+
     private void OnTriggerEnter2D(Collider2D col)
     {
-        if (hasExploded) return;
-        CheckEnemyHit(col);
+        if (exploded || armTimer < armDelay || col == null)
+            return;
+
+        if (owner != null && col.transform.root == owner.transform.root)
+            return;
+
+        CharacterBase enemy = ResolveCharacter(col);
+        if (enemy != null)
+        {
+            if (owner != null && enemy == owner)
+                return;
+
+            TriggerExplosion(transform.position);
+            return;
+        }
+
+        int otherLayerMask = 1 << col.gameObject.layer;
+        if ((groundMask.value & otherLayerMask) != 0)
+        {
+            TriggerExplosion(transform.position);
+        }
     }
 
     private void OnCollisionEnter2D(Collision2D col)
     {
-        if (hasExploded) return;
-        CheckEnemyHit(col.collider);
-    }
-
-    private void CheckEnemyHit(Collider2D col)
-    {
-        if (col == null) return;
-
-        CharacterBase target = col.GetComponent<CharacterBase>();
-        if (target == null)
-            target = col.GetComponentInParent<CharacterBase>();
-
-        if (target == null)
+        if (exploded || armTimer < armDelay || col == null || col.collider == null)
             return;
 
-        // Abaikan owner sendiri
-        if (owner != null && target.transform.root == owner.transform.root)
+        if (owner != null && col.collider.transform.root == owner.transform.root)
             return;
 
-        Vector2 hitPoint = col.ClosestPoint(transform.position);
-        TriggerExplosion(hitPoint);
+        CharacterBase enemy = ResolveCharacter(col.collider);
+        if (enemy != null)
+        {
+            if (owner != null && enemy == owner)
+                return;
+
+            TriggerExplosion(transform.position);
+            return;
+        }
+
+        int otherLayerMask = 1 << col.collider.gameObject.layer;
+        if ((groundMask.value & otherLayerMask) != 0)
+        {
+            TriggerExplosion(transform.position);
+        }
     }
 
-    // =====================================================
-    // EXPLOSION
-    // =====================================================
     private void TriggerExplosion(Vector2 point)
     {
-        if (hasExploded)
+        if (exploded)
             return;
 
-        hasExploded = true;
+        exploded = true;
 
         if (hitAreaPrefab != null)
         {
             GameObject area = Instantiate(hitAreaPrefab, point, Quaternion.identity);
-            ConcussiveHitArea hitArea = area.GetComponent<ConcussiveHitArea>();
-
-            if (hitArea != null)
-                hitArea.Setup(owner, damage, knockback, stun, radius);
+            ConcussiveHitArea c = area.GetComponent<ConcussiveHitArea>();
+            if (c != null)
+                c.Setup(owner, damage, knockback, stun, radius);
         }
 
         Destroy(gameObject);

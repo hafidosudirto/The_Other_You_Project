@@ -9,6 +9,9 @@ public class Bow_FullDraw : MonoBehaviour, ISkill
     public Player player;
     public PlayerAnimation anim;
 
+    [Header("Facing Source")]
+    public SpriteRenderer facingSprite;
+
     [Header("Charge Settings")]
     public float maxChargeTime = 3f;
     public float minArrowSpeed = 6f;
@@ -18,7 +21,6 @@ public class Bow_FullDraw : MonoBehaviour, ISkill
     public int baseDamage = 1;
     public float baseKnockback = 2f;
     public float baseStun = 0.15f;
-    public Color arrowColor = Color.yellow;
 
     [Header("Flight Curve")]
     public float straightTime = 0.45f;
@@ -118,13 +120,12 @@ public class Bow_FullDraw : MonoBehaviour, ISkill
             player.lockMovement = false;
     }
 
-    void FireArrow(float charge)
+    private void FireArrow(float charge)
     {
         if (!arrowPrefab || !firePoint) return;
 
         GameObject obj = Instantiate(arrowPrefab, firePoint.position, Quaternion.identity);
         Rigidbody2D rb = obj.GetComponent<Rigidbody2D>();
-        SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
         ArrowDamage dmg = obj.GetComponent<ArrowDamage>();
 
         if (!rb)
@@ -133,21 +134,12 @@ public class Bow_FullDraw : MonoBehaviour, ISkill
             return;
         }
 
-        bool faceRight = player.isFacingRight;
-        float direction = faceRight ? 1f : -1f;
+        float direction = GetFacingDirection();
+
+        ApplyArrowFacing(obj, direction);
 
         float speed = Mathf.Lerp(minArrowSpeed, maxArrowSpeed, charge);
         rb.velocity = new Vector2(direction * speed, 0f);
-
-        if (sr != null)
-        {
-            sr.color = arrowColor;
-            sr.flipX = direction < 0;
-        }
-
-        Vector3 scale = obj.transform.localScale;
-        scale.x = Mathf.Abs(scale.x) * direction;
-        obj.transform.localScale = scale;
 
         if (dmg != null)
         {
@@ -161,9 +153,39 @@ public class Bow_FullDraw : MonoBehaviour, ISkill
             );
         }
 
-        DebugHub.Bow($"[FullDraw] Spawn dir={direction} | speed={speed}");
+        DebugHub.Bow($"[FullDraw] dir={direction} speed={speed}");
 
         StartCoroutine(ArrowRoutine(rb, obj, speed, direction));
+    }
+
+    private float GetFacingDirection()
+    {
+        if (facingSprite != null)
+            return facingSprite.flipX ? -1f : 1f;
+
+        if (player != null)
+            return player.isFacingRight ? 1f : -1f;
+
+        return 1f;
+    }
+
+    private void ApplyArrowFacing(GameObject arrowObj, float direction)
+    {
+        if (arrowObj == null) return;
+
+        Vector3 scale = arrowObj.transform.localScale;
+        arrowObj.transform.localScale = new Vector3(
+            Mathf.Abs(scale.x),
+            Mathf.Abs(scale.y),
+            Mathf.Abs(scale.z)
+        );
+
+        float z = direction > 0f ? 0f : 180f;
+        arrowObj.transform.rotation = Quaternion.Euler(0f, 0f, z);
+
+        SpriteRenderer[] renderers = arrowObj.GetComponentsInChildren<SpriteRenderer>(true);
+        foreach (var sr in renderers)
+            sr.flipX = false;
     }
 
     private IEnumerator ArrowRoutine(Rigidbody2D rb, GameObject arrowObj, float speed, float dir)
