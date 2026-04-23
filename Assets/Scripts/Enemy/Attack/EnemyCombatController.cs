@@ -16,14 +16,21 @@ public sealed class EnemyCombatController : MonoBehaviour
     [SerializeField] private Enemy_Dash enemyDash;
     [SerializeField] private PlayerAttackSensor playerSensor;
 
-    [Header("Skill Root (struktur prefab lama)")]
+    [Header("Skill Roots")]
     [SerializeField] private Transform skillRootSword;
+    [SerializeField] private Transform skillRootBow;
 
     [Header("Sword Skills - Auto / Manual Assign")]
     [SerializeField] private Enemy_Sword_SlashCombo _slashCombo;
     [SerializeField] private Enemy_Sword_ChargedStrike _chargedStrike;
     [SerializeField] private Enemy_Sword_Whirlwind _whirlwind;
     [SerializeField] private Enemy_Sword_Riposte _riposte;
+
+    [Header("Bow Skills - Auto / Manual Assign")]
+    [SerializeField] private Enemy_Bow_QuickShot _quickShotBow;
+    [SerializeField] private Enemy_Bow_FullDraw _fullDrawBow;
+    [SerializeField] private Enemy_Bow_PiercingShot _piercingBow;
+    [SerializeField] private Enemy_Bow_ConcussiveShot _concussiveBow;
 
     [Header("Legacy Stats Compatibility")]
     public EnemyCombatStatsData stats = new EnemyCombatStatsData();
@@ -45,6 +52,9 @@ public sealed class EnemyCombatController : MonoBehaviour
     [Tooltip("Biasanya 0 agar mode DefensiveDominant benar-benar reaktif.")]
     [Min(0)][SerializeField] private int defensiveLengahWeight = 0;
 
+    [Header("Debug")]
+    [SerializeField] private bool verboseMissingSkillLog = false;
+
     private int _skillBusyCounter = 0;
     private int _reactionBusyCounter = 0;
     private int _lastConsumedOffensiveTriggerId = -1;
@@ -60,6 +70,26 @@ public sealed class EnemyCombatController : MonoBehaviour
     public Enemy_Sword_ChargedStrike chargedStrike => _chargedStrike;
     public Enemy_Sword_Whirlwind whirlwind => _whirlwind;
     public Enemy_Sword_Riposte riposte => _riposte;
+
+    // =========================================================
+    // API baru untuk bow
+    // =========================================================
+    public Enemy_Bow_QuickShot quickShotBow => _quickShotBow;
+    public Enemy_Bow_FullDraw fullDrawBow => _fullDrawBow;
+    public Enemy_Bow_PiercingShot piercingBow => _piercingBow;
+    public Enemy_Bow_ConcussiveShot concussiveBow => _concussiveBow;
+
+    public bool HasSwordSkills =>
+        _slashCombo != null ||
+        _chargedStrike != null ||
+        _whirlwind != null ||
+        _riposte != null;
+
+    public bool HasBowSkills =>
+        _quickShotBow != null ||
+        _fullDrawBow != null ||
+        _piercingBow != null ||
+        _concussiveBow != null;
 
     public float AttackPower
     {
@@ -118,17 +148,41 @@ public sealed class EnemyCombatController : MonoBehaviour
         if (stats.attack <= 0f)
             stats.attack = attackPowerOverride;
 
-        AutoAssignSwordSkills();
+        AutoAssignAllSkills();
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (!Application.isPlaying)
+        {
+            if (ai == null)
+                ai = GetComponent<EnemyAI>();
+
+            if (enemyDash == null)
+                enemyDash = GetComponent<Enemy_Dash>();
+
+            AutoAssignAllSkills();
+        }
+    }
+#endif
+
+    public void RefreshSkillReferences()
+    {
+        AutoAssignAllSkills();
     }
 
     // =========================================================
-    // Auto-assign skill sesuai struktur:
-    // Enemy
-    //  └─ SkillRoot_Sword
-    //      ├─ Enemy_Sword_SlashCombo
-    //      ├─ Enemy_Sword_ChargedStrike
-    //      ├─ Enemy_Sword_Riposte
-    //      └─ Enemy_Sword_Whirlwind
+    // Auto-assign terpadu
+    // =========================================================
+    public void AutoAssignAllSkills()
+    {
+        AutoAssignSwordSkills();
+        AutoAssignBowSkills();
+    }
+
+    // =========================================================
+    // Auto-assign skill sword
     // =========================================================
     private void AutoAssignSwordSkills()
     {
@@ -139,9 +193,12 @@ public sealed class EnemyCombatController : MonoBehaviour
 
         if (root == null)
         {
-            Debug.LogWarning("[EnemyCombatController] SkillRoot_Sword tidak ditemukan. Auto-assign skill sword dilewati.");
+            if (verboseMissingSkillLog && !HasAnySwordFieldAssigned())
+                Debug.LogWarning("[EnemyCombatController] SkillRoot_Sword tidak ditemukan. Auto-assign skill sword dilewati.", this);
             return;
         }
+
+        skillRootSword = root;
 
         if (_slashCombo == null)
             _slashCombo = root.GetComponentInChildren<Enemy_Sword_SlashCombo>(true);
@@ -154,6 +211,70 @@ public sealed class EnemyCombatController : MonoBehaviour
 
         if (_riposte == null)
             _riposte = root.GetComponentInChildren<Enemy_Sword_Riposte>(true);
+
+        if (verboseMissingSkillLog)
+        {
+            if (_slashCombo == null) Debug.LogWarning("[EnemyCombatController] Enemy_Sword_SlashCombo tidak ditemukan.", this);
+            if (_chargedStrike == null) Debug.LogWarning("[EnemyCombatController] Enemy_Sword_ChargedStrike tidak ditemukan.", this);
+            if (_whirlwind == null) Debug.LogWarning("[EnemyCombatController] Enemy_Sword_Whirlwind tidak ditemukan.", this);
+            if (_riposte == null) Debug.LogWarning("[EnemyCombatController] Enemy_Sword_Riposte tidak ditemukan.", this);
+        }
+    }
+
+    // =========================================================
+    // Auto-assign skill bow
+    // =========================================================
+    private void AutoAssignBowSkills()
+    {
+        Transform root = skillRootBow;
+
+        if (root == null)
+            root = FindChildRecursive(transform, "SkillRoot_Bow");
+
+        if (root == null)
+        {
+            if (verboseMissingSkillLog && !HasAnyBowFieldAssigned())
+                Debug.LogWarning("[EnemyCombatController] SkillRoot_Bow tidak ditemukan. Auto-assign skill bow dilewati.", this);
+            return;
+        }
+
+        skillRootBow = root;
+
+        if (_quickShotBow == null)
+            _quickShotBow = root.GetComponentInChildren<Enemy_Bow_QuickShot>(true);
+
+        if (_fullDrawBow == null)
+            _fullDrawBow = root.GetComponentInChildren<Enemy_Bow_FullDraw>(true);
+
+        if (_piercingBow == null)
+            _piercingBow = root.GetComponentInChildren<Enemy_Bow_PiercingShot>(true);
+
+        if (_concussiveBow == null)
+            _concussiveBow = root.GetComponentInChildren<Enemy_Bow_ConcussiveShot>(true);
+
+        if (verboseMissingSkillLog)
+        {
+            if (_quickShotBow == null) Debug.LogWarning("[EnemyCombatController] Enemy_Bow_QuickShot tidak ditemukan.", this);
+            if (_fullDrawBow == null) Debug.LogWarning("[EnemyCombatController] Enemy_Bow_FullDraw tidak ditemukan.", this);
+            if (_piercingBow == null) Debug.LogWarning("[EnemyCombatController] Enemy_Bow_PiercingShot tidak ditemukan.", this);
+            if (_concussiveBow == null) Debug.LogWarning("[EnemyCombatController] Enemy_Bow_ConcussiveShot tidak ditemukan.", this);
+        }
+    }
+
+    private bool HasAnySwordFieldAssigned()
+    {
+        return _slashCombo != null ||
+               _chargedStrike != null ||
+               _whirlwind != null ||
+               _riposte != null;
+    }
+
+    private bool HasAnyBowFieldAssigned()
+    {
+        return _quickShotBow != null ||
+               _fullDrawBow != null ||
+               _piercingBow != null ||
+               _concussiveBow != null;
     }
 
     private Transform FindChildRecursive(Transform root, string targetName)
@@ -175,7 +296,7 @@ public sealed class EnemyCombatController : MonoBehaviour
     }
 
     // =========================================================
-    // Kompatibilitas lifecycle skill lama
+    // Kompatibilitas lifecycle skill lama / baru
     // =========================================================
     public void InvokeSkillStart()
     {
@@ -198,8 +319,6 @@ public sealed class EnemyCombatController : MonoBehaviour
     {
         var dda = DDAController.Instance;
 
-        // Jika belum ada histori defense valid dari stage sebelumnya,
-        // enemy jangan menebak dash/riposte. Beri opening penuh saja.
         if (dda == null || !dda.HasDefenseProfile)
             return 100;
 
@@ -228,7 +347,6 @@ public sealed class EnemyCombatController : MonoBehaviour
 
         int rawDash = Mathf.Clamp(Mathf.RoundToInt(dda.GetCurrentDefenseDashWeight()), 0, 100);
 
-        // Kalau histori dash player nol, enemy juga wajib nol.
         if (rawDash <= 0)
             return 0;
 

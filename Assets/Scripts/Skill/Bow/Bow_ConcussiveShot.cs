@@ -55,7 +55,6 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
     private Coroutine camRoutine;
 
     private bool isCasting;
-    //private bool releaseEventReceived;
     private bool releaseExecuted;
     private Transform jumpTarget;
 
@@ -83,7 +82,6 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
             return;
 
         isCasting = true;
-        //releaseEventReceived = false;
         releaseExecuted = false;
         jumpTarget = player.transform;
 
@@ -130,7 +128,6 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
         if (hoverTime > 0f)
             yield return new WaitForSeconds(hoverTime);
 
-        // langsung release, tanpa tunggu animation event
         ExecuteRelease();
 
         if (delayBeforeFall > 0f)
@@ -158,13 +155,10 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
         jumpRoutine = null;
     }
 
-    // Dipanggil dari Animation Event
     public void ReleaseFromAnimationEvent()
     {
         if (!isCasting)
             return;
-
-        //releaseEventReceived = true;
     }
 
     private void ExecuteRelease()
@@ -195,10 +189,17 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
             spawnPos = firePoint.position + new Vector3(hitAreaOffset.x * dir, hitAreaOffset.y, 0f);
 
         GameObject area = Instantiate(hitAreaPrefab, spawnPos, Quaternion.identity);
+        if (area == null)
+        {
+            Debug.LogWarning("[Concussive] Failed to instantiate hit area.");
+            return;
+        }
 
         ConcussiveHitArea ch = area.GetComponent<ConcussiveHitArea>();
         if (ch != null)
             ch.Setup(player, damage, knockback, stun, explosionRadius);
+
+        NotifyDataTrackerConcussiveShot();
     }
 
     private void FireVisualArrow()
@@ -206,16 +207,38 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
         float dir = player.isFacingRight ? 1f : -1f;
 
         GameObject arrow = Instantiate(arrowPrefab, firePoint.position, Quaternion.identity);
+        if (arrow == null)
+        {
+            Debug.LogWarning("[Concussive] Failed to instantiate arrow visual.");
+            return;
+        }
 
         ConcussiveArrowVisual visual = arrow.GetComponent<ConcussiveArrowVisual>();
         if (visual != null)
         {
             visual.Init(player, dir, damage, knockback, stun, explosionRadius);
+            NotifyDataTrackerConcussiveShot();
         }
         else
         {
             Debug.LogWarning("[Concussive] Spawned arrow has no ConcussiveArrowVisual component.");
         }
+    }
+
+    private void NotifyDataTrackerConcussiveShot()
+    {
+        DataTracker tracker = DataTracker.Instance;
+        if (tracker == null)
+            return;
+
+        var method = tracker.GetType().GetMethod("RecordBowConcussiveShot");
+        if (method != null)
+        {
+            method.Invoke(tracker, null);
+            return;
+        }
+
+        tracker.RecordAction(PlayerActionType.Offensive, WeaponType.Bow);
     }
 
     private void StopOwnerMovement()
@@ -255,7 +278,6 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
             player.lockMovement = false;
 
         isCasting = false;
-        //releaseEventReceived = false;
         releaseExecuted = false;
         jumpRoutine = null;
     }

@@ -125,12 +125,19 @@ public class Bow_FullDraw : MonoBehaviour, ISkill
         if (!arrowPrefab || !firePoint) return;
 
         GameObject obj = Instantiate(arrowPrefab, firePoint.position, Quaternion.identity);
+        if (obj == null)
+        {
+            DebugHub.Warning("[FullDraw] Failed to instantiate arrow!");
+            return;
+        }
+
         Rigidbody2D rb = obj.GetComponent<Rigidbody2D>();
         ArrowDamage dmg = obj.GetComponent<ArrowDamage>();
 
         if (!rb)
         {
             DebugHub.Warning("[FullDraw] Arrow missing Rigidbody2D!");
+            Destroy(obj);
             return;
         }
 
@@ -153,9 +160,27 @@ public class Bow_FullDraw : MonoBehaviour, ISkill
             );
         }
 
+        NotifyDataTrackerFullDraw();
+
         DebugHub.Bow($"[FullDraw] dir={direction} speed={speed}");
 
         StartCoroutine(ArrowRoutine(rb, obj, speed, direction));
+    }
+
+    private void NotifyDataTrackerFullDraw()
+    {
+        DataTracker tracker = DataTracker.Instance;
+        if (tracker == null)
+            return;
+
+        var method = tracker.GetType().GetMethod("RecordBowFullDraw");
+        if (method != null)
+        {
+            method.Invoke(tracker, null);
+            return;
+        }
+
+        tracker.RecordAction(PlayerActionType.Offensive, WeaponType.Bow);
     }
 
     private float GetFacingDirection()

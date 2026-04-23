@@ -29,6 +29,13 @@ public enum SwordSkillSlot
     Riposte = 3,
 }
 
+public enum BowSkillSlot
+{
+    QuickShot = 0,
+    PiercingShot = 1,
+    FullDraw = 2,
+}
+
 public class DataTracker : MonoBehaviour
 {
     public static DataTracker Instance { get; private set; }
@@ -41,10 +48,14 @@ public class DataTracker : MonoBehaviour
     private int gauntletUsageCount;
 
     private readonly int[] swordSkillCounts = new int[4];
+    private readonly int[] bowSkillCounts = new int[3];
 
-    // DEFENSE BREAKDOWN
+    // Defense breakdown
     private int dashCount;
     private int riposteCount;
+
+    // Dicatat untuk analisis / debug, tetapi tidak masuk normalisasi 3 skill bow attack tree
+    private int bowConcussiveCount;
 
     private WeaponType lastUsedWeapon = WeaponType.None;
 
@@ -110,11 +121,15 @@ public class DataTracker : MonoBehaviour
         float currentDistance = Vector2.Distance(currentPlayerPos, enemyTransform.position);
 
         if (playerMovement < idleMovementThreshold)
+        {
             CurrentDistanceState = PlayerDistanceState.Idle;
+        }
         else
+        {
             CurrentDistanceState = (currentDistance < lastDistance)
                 ? PlayerDistanceState.Chase
                 : PlayerDistanceState.Retreat;
+        }
 
         lastPlayerPos = currentPlayerPos;
         lastDistance = currentDistance;
@@ -122,9 +137,9 @@ public class DataTracker : MonoBehaviour
 
     // ================================================================
     // GENERIC ACTION TRACKING
-    // CATATAN:
-    // WeaponType.Sword jangan dicatat lewat sini kalau itu skill sword spesifik,
-    // agar tidak double count dengan RecordSwordSkill(...).
+    // Catatan:
+    // Jangan gunakan method ini untuk skill spesifik sword / bow,
+    // karena data skill menjadi tidak terurai per slot.
     // ================================================================
     public void RecordAction(PlayerActionType actionType, WeaponType weaponType)
     {
@@ -134,12 +149,14 @@ public class DataTracker : MonoBehaviour
         AddPlaystyleCount(actionType);
         AddWeaponUsage(weaponType);
 
-        DebugHub.DDA($"Action Recorded -> O={offensiveCount}, D={defensiveCount}, Weapon={lastUsedWeapon}");
+        DebugHub.DDA(
+            $"Action Recorded -> O={offensiveCount}, D={defensiveCount}, Weapon={lastUsedWeapon}"
+        );
     }
 
     // ================================================================
     // KHUSUS DASH
-    // Ini yang akan dibaca DDA sebagai dashCount
+    // Ini dibaca DDA sebagai dashCount
     // ================================================================
     public void RecordDefenseDash(WeaponType weaponType = WeaponType.None)
     {
@@ -165,7 +182,10 @@ public class DataTracker : MonoBehaviour
 
         AddPlaystyleCount(actionType);
         swordUsageCount++;
-        swordSkillCounts[(int)slot]++;
+
+        int idx = (int)slot;
+        if (idx >= 0 && idx < swordSkillCounts.Length)
+            swordSkillCounts[idx]++;
 
         if (slot == SwordSkillSlot.Riposte)
             riposteCount++;
@@ -173,7 +193,7 @@ public class DataTracker : MonoBehaviour
         DebugHub.DDA(
             $"Sword Skill Recorded -> {slot} | O={offensiveCount}, D={defensiveCount}, " +
             $"Dash={dashCount}, Riposte={riposteCount}, SwordUse={swordUsageCount}, " +
-            $"SkillCounts=[{swordSkillCounts[0]}, {swordSkillCounts[1]}, {swordSkillCounts[2]}, {swordSkillCounts[3]}]"
+            $"SwordSkillCounts=[{swordSkillCounts[0]}, {swordSkillCounts[1]}, {swordSkillCounts[2]}, {swordSkillCounts[3]}]"
         );
     }
 
@@ -195,6 +215,64 @@ public class DataTracker : MonoBehaviour
     public void RecordSwordRiposte()
     {
         RecordSwordSkill(SwordSkillSlot.Riposte, PlayerActionType.Defensive);
+    }
+
+    // ================================================================
+    // REAL BOW SKILL TRACKING
+    // Attack tree bow utama hanya memakai 3 skill ofensif:
+    // Quick Shot, Piercing Shot, Full Draw.
+    // ================================================================
+    public void RecordBowSkill(BowSkillSlot slot)
+    {
+        lastUsedWeapon = WeaponType.Bow;
+
+        AddPlaystyleCount(PlayerActionType.Offensive);
+        bowUsageCount++;
+
+        int idx = (int)slot;
+        if (idx >= 0 && idx < bowSkillCounts.Length)
+            bowSkillCounts[idx]++;
+
+        DebugHub.DDA(
+            $"Bow Skill Recorded -> {slot} | O={offensiveCount}, D={defensiveCount}, " +
+            $"BowUse={bowUsageCount}, BowSkillCounts=[{bowSkillCounts[0]}, {bowSkillCounts[1]}, {bowSkillCounts[2]}], " +
+            $"BowConcussive={bowConcussiveCount}"
+        );
+    }
+
+    public void RecordBowQuickShot()
+    {
+        RecordBowSkill(BowSkillSlot.QuickShot);
+    }
+
+    public void RecordBowPiercingShot()
+    {
+        RecordBowSkill(BowSkillSlot.PiercingShot);
+    }
+
+    public void RecordBowFullDraw()
+    {
+        RecordBowSkill(BowSkillSlot.FullDraw);
+    }
+
+    // ================================================================
+    // CONCUSSIVE SHOT
+    // Tetap dicatat sebagai penggunaan bow pemain,
+    // tetapi TIDAK masuk normalisasi 3 skill attack tree bow.
+    // ================================================================
+    public void RecordBowConcussiveShot()
+    {
+        lastUsedWeapon = WeaponType.Bow;
+
+        AddPlaystyleCount(PlayerActionType.Offensive);
+        bowUsageCount++;
+        bowConcussiveCount++;
+
+        DebugHub.DDA(
+            $"Bow Concussive Recorded -> O={offensiveCount}, D={defensiveCount}, " +
+            $"BowUse={bowUsageCount}, BowSkillCounts=[{bowSkillCounts[0]}, {bowSkillCounts[1]}, {bowSkillCounts[2]}], " +
+            $"BowConcussive={bowConcussiveCount}"
+        );
     }
 
     private void AddPlaystyleCount(PlayerActionType actionType)
@@ -236,6 +314,7 @@ public class DataTracker : MonoBehaviour
             bowUsageCount,
             gauntletUsageCount,
             swordSkillCounts,
+            bowSkillCounts,
             dashCount,
             riposteCount
         );
@@ -243,7 +322,10 @@ public class DataTracker : MonoBehaviour
         DebugHub.DDA(
             $"Stage Final Data Sent -> O={offensiveCount}, D={defensiveCount}, " +
             $"WeaponUse[S={swordUsageCount}, B={bowUsageCount}, G={gauntletUsageCount}], " +
-            $"SwordSkillCounts=[{swordSkillCounts[0]}, {swordSkillCounts[1]}, {swordSkillCounts[2]}, {swordSkillCounts[3]}]"
+            $"SwordSkillCounts=[{swordSkillCounts[0]}, {swordSkillCounts[1]}, {swordSkillCounts[2]}, {swordSkillCounts[3]}], " +
+            $"BowSkillCounts=[{bowSkillCounts[0]}, {bowSkillCounts[1]}, {bowSkillCounts[2]}], " +
+            $"BowConcussive={bowConcussiveCount}, " +
+            $"Defense=[Dash={dashCount}, Riposte={riposteCount}]"
         );
 
         ResetStageData();
@@ -260,9 +342,13 @@ public class DataTracker : MonoBehaviour
 
         dashCount = 0;
         riposteCount = 0;
+        bowConcussiveCount = 0;
 
         for (int i = 0; i < swordSkillCounts.Length; i++)
             swordSkillCounts[i] = 0;
+
+        for (int i = 0; i < bowSkillCounts.Length; i++)
+            bowSkillCounts[i] = 0;
 
         lastUsedWeapon = WeaponType.None;
     }

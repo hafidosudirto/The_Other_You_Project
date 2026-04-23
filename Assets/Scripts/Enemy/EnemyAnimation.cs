@@ -2,63 +2,152 @@ using UnityEngine;
 
 public class EnemyAnimation : MonoBehaviour
 {
-    [SerializeField] public Animator animator;
-    [SerializeField] private float moveSpeedDamp = 0.08f;
+    [Header("References")]
+    public Animator animator;
     private SpriteRenderer sr;
 
-    // Sama dengan PlayerAnimation
+    // =========================
+    // HASH PARAMETERS
+    // =========================
     private static readonly int HashMoveSpeed = Animator.StringToHash("MoveSpeed");
+    private static readonly int HashQuickShot = Animator.StringToHash("QuickShot");
+    private static readonly int HashIsCharging = Animator.StringToHash("IsCharging");
+    private static readonly int HashChargeRelease = Animator.StringToHash("ChargeRelease");
+    private static readonly int HashPiercing = Animator.StringToHash("Piercing");
+    private static readonly int HashConcussive = Animator.StringToHash("Concussive");
 
+    // Sword / kompatibilitas lama
     private static readonly int HashSlash1 = Animator.StringToHash("Slash1");
     private static readonly int HashSlash2 = Animator.StringToHash("Slash2");
+    private static readonly int HashDash = Animator.StringToHash("Dash");
     private static readonly int HashWhirlwind = Animator.StringToHash("Whirlwind");
-
-    private static readonly int HashCharging = Animator.StringToHash("isCharging");
-
     private static readonly int HashRiposteReady = Animator.StringToHash("RiposteReady");
     private static readonly int HashRiposteCounter = Animator.StringToHash("RiposteCounter");
 
     private void Awake()
     {
-        // Gunakan (true) agar tetap mencari meskipun objek sedang nonaktif
-        if (animator == null) animator = GetComponentInChildren<Animator>(true);
+        if (!animator)
+            animator = GetComponentInChildren<Animator>(true);
 
-        // Ini krusial: ambil SpriteRenderer di hierarki bawah
-        if (sr == null) sr = GetComponentInChildren<SpriteRenderer>(true);
+        sr = GetComponentInChildren<SpriteRenderer>(true);
 
-        if (sr == null) Debug.LogError($"[EnemyAnimation] SpriteRenderer tidak ditemukan di {gameObject.name}");
+        if (sr == null)
+            Debug.LogError($"[EnemyAnimation] SpriteRenderer tidak ditemukan di {gameObject.name}");
+
+        if (animator == null)
+            Debug.LogError($"[EnemyAnimation] Animator tidak ditemukan di {gameObject.name}");
     }
 
-    public void SetFlip(bool flipX)
+    public void SetMoveSpeed(float speed)
+    {
+        if (animator != null)
+            animator.SetFloat(HashMoveSpeed, speed);
+    }
+
+    public void SetFlip(bool flip)
     {
         if (sr != null)
-        {
-            sr.flipX = flipX;
-        }
+            sr.flipX = flip;
     }
 
-    // Locomotion sama dengan player
-    public void SetMoveSpeed(float speed01)
+    // =========================
+    // BOW
+    // =========================
+    public void PlayQuickShot()
     {
-        if (!animator) return;
+        if (animator == null) return;
 
-        // Haluskan perubahan MoveSpeed (Unity menyediakan overload dampTime/deltaTime) :contentReference[oaicite:3]{index=3}
-        animator.SetFloat(HashMoveSpeed, speed01, moveSpeedDamp, Time.deltaTime);
+        ResetBowTriggers();
+        animator.SetTrigger(HashQuickShot);
     }
 
-    // Sword
-    public void PlaySlash1() { if (animator) animator.SetTrigger(HashSlash1); }
-    public void PlaySlash2() { if (animator) animator.SetTrigger(HashSlash2); }
-    public void PlayWhirlwind() { if (animator) animator.SetTrigger(HashWhirlwind); }
+    public void TriggerBowChargeStart()
+    {
+        if (animator == null) return;
 
-    // Charged
-    public void SetCharging(bool v) { if (animator) animator.SetBool(HashCharging, v); }
+        animator.ResetTrigger(HashChargeRelease);
+        animator.SetBool(HashIsCharging, true);
+    }
 
-    // Riposte (sama dengan player)
-    public void SetRiposteReady(bool isReady) { if (animator) animator.SetBool(HashRiposteReady, isReady); }
+    public void TriggerBowChargeRelease()
+    {
+        if (animator == null) return;
+
+        animator.SetBool(HashIsCharging, false);
+        animator.SetTrigger(HashChargeRelease);
+    }
+
+    public void PlayPiercingShot()
+    {
+        if (animator == null) return;
+
+        ResetBowTriggers();
+        animator.SetTrigger(HashPiercing);
+    }
+
+    public void PlayConcussiveShot()
+    {
+        if (animator == null) return;
+
+        ResetBowTriggers();
+        animator.SetTrigger(HashConcussive);
+    }
+
+    private void ResetBowTriggers()
+    {
+        if (animator == null) return;
+
+        animator.ResetTrigger(HashQuickShot);
+        animator.ResetTrigger(HashChargeRelease);
+        animator.ResetTrigger(HashPiercing);
+        animator.ResetTrigger(HashConcussive);
+    }
+
+    // =========================
+    // SWORD / KOMPATIBILITAS LAMA
+    // =========================
+    public void SetCharging(bool value)
+    {
+        if (animator != null)
+            animator.SetBool(HashIsCharging, value);
+    }
+
+    public void PlayDash()
+    {
+        if (animator != null)
+            animator.SetTrigger(HashDash);
+    }
+
+    public void PlaySlash1()
+    {
+        if (animator == null) return;
+        animator.ResetTrigger(HashSlash1);
+        animator.SetTrigger(HashSlash1);
+    }
+
+    public void PlaySlash2()
+    {
+        if (animator == null) return;
+        animator.ResetTrigger(HashSlash2);
+        animator.SetTrigger(HashSlash2);
+    }
+
+    public void PlayWhirlwind()
+    {
+        if (animator != null)
+            animator.SetTrigger(HashWhirlwind);
+    }
+
+    public void SetRiposteReady(bool isReady)
+    {
+        if (animator != null)
+            animator.SetBool(HashRiposteReady, isReady);
+    }
+
     public void TriggerRiposteCounter()
     {
-        if (!animator) return;
+        if (animator == null) return;
+
         animator.ResetTrigger(HashRiposteCounter);
         animator.SetTrigger(HashRiposteCounter);
     }

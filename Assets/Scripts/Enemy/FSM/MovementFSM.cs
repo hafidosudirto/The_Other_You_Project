@@ -1,15 +1,26 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class EnemyMovementFSM : MonoBehaviour
 {
     private EnemyAI ai;
 
-    public enum MoveState { Idle, Aligning, Chase }
+    public enum CombatMovementMode
+    {
+        Sword,
+        Bow
+    }
+
+    public enum MoveState
+    {
+        Idle,
+        Aligning,
+        Chase,
+        Retreat
+    }
 
     [Header("Debug Info")]
     [SerializeField] private MoveState currentState;
+    [SerializeField] private CombatMovementMode movementMode = CombatMovementMode.Sword;
 
     [Header("References")]
     [SerializeField] private Transform player;
@@ -17,61 +28,49 @@ public class EnemyMovementFSM : MonoBehaviour
 
     [Header("Movement Settings")]
     public float moveSpeed = 4f;
-    public float accel = 40f; 
+    public float accel = 40f;
 
-    [Header("LF2 Style Logic")]
-    public float stopDistanceX = 5.0f;
+    [Header("Vertical Logic")]
+    public bool useVerticalAlign = true;
     public float verticalTolerance = 0.2f;
 
-    [Header("Dynamic Skill Range")]
-    public float desiredRange = 1.5f;   // default, nanti diubah BT
+    [Header("Dynamic Combat Range")]
+    public float desiredRange = 1.5f;
+    public float minimumCombatRange = 0f;
     public float rangeTolerance = 0.25f;
 
     private void Awake()
     {
         ai = GetComponent<EnemyAI>();
-        rb = GetComponent<Rigidbody2D>();
+        if (rb == null) rb = GetComponent<Rigidbody2D>();
     }
 
     private void Start()
     {
-        if (player == null)
-            player = GameObject.FindGameObjectWithTag("Player")?.transform;
-
-        if (rb == null)
-            rb = GetComponent<Rigidbody2D>();
-
+        if (player == null) player = GameObject.FindGameObjectWithTag("Player")?.transform;
         currentState = MoveState.Idle;
     }
 
-    public void Update()
+    public void Tick()
     {
+        if (player == null || rb == null) return;
         UpdateState();
         RunState();
-        UpdateAnimation();
     }
 
-    private void UpdateAnimation()
+    public void SetDesiredRange(float range) { desiredRange = Mathf.Max(0f, range); }
+    public void SetMinimumCombatRange(float range) { minimumCombatRange = Mathf.Max(0f, range); }
+
+    public void SetMovementMode(CombatMovementMode mode)
     {
-        if (ai != null && ai.Animation != null && rb != null)
-        {
-            // Ambil kecepatan saat ini (0 jika diam, ~moveSpeed jika jalan)
-            float currentSpeed = rb.velocity.magnitude;
-
-            // Normalisasi nilai agar cocok dengan Blend Tree (misal 0 sampai 1)
-            // Jika Anda pakai Blend Tree sederhana, kirim currentSpeed langsung juga bisa
-            float normalizedSpeed = currentSpeed / moveSpeed;
-
-            // Kirim ke script EnemyAnimation
-            ai.Animation.SetMoveSpeed(normalizedSpeed);
-        }
+        movementMode = mode;
+        useVerticalAlign = true;
     }
 
-    public void SetDesiredRange(float range)
+    public void SetPlayer(Transform target)
     {
-        desiredRange = range;
+        player = target;
     }
-
 
     private void UpdateState()
     {
@@ -81,25 +80,50 @@ public class EnemyMovementFSM : MonoBehaviour
         float absDistX = Mathf.Abs(toPlayer.x);
         float absDistY = Mathf.Abs(toPlayer.y);
 
-        // 1. Vertical alignment
-        if (absDistY > verticalTolerance)
+        // [PERBAIKAN JITTER]: HYSTERESIS
+        // Mencegah FSM bolak-balik state jika jarak berada persis di garis batas (threshold)
+        bool isRetreating = (currentState == MoveState.Retreat);
+        bool isChasing = (currentState == MoveState.Chase);
+        bool isAligning = (currentState == MoveState.Aligning);
+
+        float retreatThreshold = isRetreating ? minimumCombatRange : (minimumCombatRange - rangeTolerance);
+        float chaseThreshold = isChasing ? desiredRange : (desiredRange + rangeTolerance);
+        float alignThreshold = isAligning ? (verticalTolerance * 0.5f) : verticalTolerance;
+
+        if (movementMode == CombatMovementMode.Bow)
         {
-            SwitchState(MoveState.Aligning);
-            return;
+            if (absDistX < retreatThreshold)
+            {
+                SwitchState(MoveState.Retreat);
+                return;
+            }
+            if (absDistX > chaseThreshold)
+            {
+                SwitchState(MoveState.Chase);
+                return;
+            }
+            if (useVerticalAlign && absDistY > alignThreshold)
+            {
+                SwitchState(MoveState.Aligning);
+                return;
+            }
+        }
+        else // SWORD
+        {
+            if (useVerticalAlign && absDistY > alignThreshold)
+            {
+                SwitchState(MoveState.Aligning);
+                return;
+            }
+            if (absDistX > chaseThreshold)
+            {
+                SwitchState(MoveState.Chase);
+                return;
+            }
         }
 
-        // 2. Horizontal movement based on DESIRED RANGE (skillRange)
-        if (absDistX > desiredRange + rangeTolerance)
-        {
-            // terlalu jauh → chase
-            SwitchState(MoveState.Chase);
-            return;
-        }
-
-        // 3. Jika sudah dalam window skill range → Idle
         SwitchState(MoveState.Idle);
     }
-
 
     private void RunState()
     {
@@ -112,7 +136,12 @@ public class EnemyMovementFSM : MonoBehaviour
                 DoAlignManeuver();
                 break;
             case MoveState.Chase:
-                DoChase();
+                if (movementMode == CombatMovementMode.Bow) DoChaseDiagonal();
+                else DoChaseHorizontalOnly();
+                break;
+            case MoveState.Retreat:
+                if (movementMode == CombatMovementMode.Bow) DoRetreatDiagonal();
+                else DoRetreatHorizontalOnly();
                 break;
         }
     }
@@ -129,22 +158,60 @@ public class EnemyMovementFSM : MonoBehaviour
         SwitchState(MoveState.Idle);
     }
 
+    // ==========================================
+    // GERAK SWORD (Horizontal Only)
+    // ==========================================
     private void DoAlignManeuver()
     {
-        float dirY = Mathf.Sign(player.position.y - transform.position.y);
-        Vector2 targetVel = new Vector2(0, dirY * moveSpeed);
+        float diffY = player.position.y - transform.position.y;
+
+        // [PERBAIKAN JITTER]: Smooth Braking. Melambat perlahan saat mendekati target Y (mencegah bablas/overshoot)
+        float smoothMult = Mathf.Clamp01(Mathf.Abs(diffY) / (verticalTolerance * 2f));
+        float dirY = Mathf.Sign(diffY) * smoothMult;
+
+        rb.velocity = Vector2.Lerp(rb.velocity, new Vector2(0f, dirY * moveSpeed), Time.deltaTime * accel);
+    }
+
+    private void DoChaseHorizontalOnly()
+    {
+        float dirX = Mathf.Sign(player.position.x - transform.position.x);
+        rb.velocity = Vector2.Lerp(rb.velocity, new Vector2(dirX * moveSpeed, 0f), Time.deltaTime * accel);
+    }
+
+    private void DoRetreatHorizontalOnly()
+    {
+        float dirX = -Mathf.Sign(player.position.x - transform.position.x);
+        rb.velocity = Vector2.Lerp(rb.velocity, new Vector2(dirX * moveSpeed, 0f), Time.deltaTime * accel);
+    }
+
+    // ==========================================
+    // GERAK DIAGONAL BOW (Henry LF2 Style)
+    // ==========================================
+    private void DoChaseDiagonal()
+    {
+        float diffX = player.position.x - transform.position.x;
+        float diffY = player.position.y - transform.position.y;
+
+        float dirX = Mathf.Sign(diffX);
+
+        // [PERBAIKAN JITTER]: Pengereman halus sumbu Y saat bergerak diagonal
+        float smoothMultY = Mathf.Clamp01(Mathf.Abs(diffY) / (verticalTolerance * 2f));
+        float dirY = Mathf.Sign(diffY) * smoothMultY;
+
+        Vector2 targetVel = new Vector2(dirX, dirY).normalized * moveSpeed;
         rb.velocity = Vector2.Lerp(rb.velocity, targetVel, Time.deltaTime * accel);
     }
 
-    private void DoChase()
+    private void DoRetreatDiagonal()
     {
-        Vector2 dir = (player.position - transform.position).normalized;
-        Vector2 targetVel = dir * moveSpeed;
+        float diffX = player.position.x - transform.position.x;
+        float diffY = player.position.y - transform.position.y;
 
-        // Instant turn logic
-        if (Vector2.Dot(rb.velocity.normalized, dir) < 0)
-            rb.velocity = targetVel;
-        else
-            rb.velocity = Vector2.Lerp(rb.velocity, targetVel, Time.deltaTime * accel);
+        float dirX = -Mathf.Sign(diffX);
+        float smoothMultY = Mathf.Clamp01(Mathf.Abs(diffY) / (verticalTolerance * 2f));
+        float dirY = Mathf.Sign(diffY) * smoothMultY;
+
+        Vector2 targetVel = new Vector2(dirX, dirY).normalized * moveSpeed;
+        rb.velocity = Vector2.Lerp(rb.velocity, targetVel, Time.deltaTime * accel);
     }
 }

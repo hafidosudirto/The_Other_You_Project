@@ -97,6 +97,12 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill
             Quaternion.identity
         );
 
+        if (arrowObj == null)
+        {
+            DebugHub.Warning("PiercingShot: Instantiate failed!");
+            return;
+        }
+
         float direction = GetFacingDirection();
 
         ApplyArrowFacing(arrowObj, direction);
@@ -112,9 +118,27 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill
             dmg.SetStats(damage, 0f, 0f, true, false);
         }
 
+        NotifyDataTrackerPiercingShot();
+
         DebugHub.Bow($"PiercingShot dir={direction} spawn={arrowSpawnPoint.position}");
         if (rb != null)
             DebugHub.Bow($"PiercingShot velocity={rb.velocity}");
+    }
+
+    private void NotifyDataTrackerPiercingShot()
+    {
+        DataTracker tracker = DataTracker.Instance;
+        if (tracker == null)
+            return;
+
+        var method = tracker.GetType().GetMethod("RecordBowPiercingShot");
+        if (method != null)
+        {
+            method.Invoke(tracker, null);
+            return;
+        }
+
+        tracker.RecordAction(PlayerActionType.Offensive, WeaponType.Bow);
     }
 
     private float GetFacingDirection()
@@ -135,7 +159,6 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill
     {
         if (arrowObj == null) return;
 
-        // Reset scale agar tidak ada warisan negatif
         Vector3 scale = arrowObj.transform.localScale;
         arrowObj.transform.localScale = new Vector3(
             Mathf.Abs(scale.x),
@@ -143,11 +166,9 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill
             Mathf.Abs(scale.z)
         );
 
-        // Pakai rotasi 180 derajat saat menghadap kiri
         float z = direction > 0f ? 0f : 180f;
         arrowObj.transform.rotation = Quaternion.Euler(0f, 0f, z);
 
-        // Hindari double flip dari SpriteRenderer
         SpriteRenderer[] renderers = arrowObj.GetComponentsInChildren<SpriteRenderer>(true);
         foreach (var sr in renderers)
             sr.flipX = false;

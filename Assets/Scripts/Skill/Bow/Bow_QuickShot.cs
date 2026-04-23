@@ -93,6 +93,11 @@ public class Bow_QuickShot : MonoBehaviour, ISkill
     private void ShootArrow()
     {
         GameObject arrowObj = Instantiate(arrowPrefab, firePoint.position, Quaternion.identity);
+        if (arrowObj == null)
+        {
+            Debug.LogWarning("[QuickShot] Failed to instantiate arrow.");
+            return;
+        }
 
         Rigidbody2D rb = arrowObj.GetComponent<Rigidbody2D>();
         SpriteRenderer sr = arrowObj.GetComponent<SpriteRenderer>();
@@ -112,7 +117,25 @@ public class Bow_QuickShot : MonoBehaviour, ISkill
             dmg.SetStats(quickDamage, knockback, stun, false, false);
         }
 
+        NotifyDataTrackerQuickShot();
+
         StartCoroutine(ArrowRoutine(rb, arrowObj, dir));
+    }
+
+    private void NotifyDataTrackerQuickShot()
+    {
+        DataTracker tracker = DataTracker.Instance;
+        if (tracker == null)
+            return;
+
+        var method = tracker.GetType().GetMethod("RecordBowQuickShot");
+        if (method != null)
+        {
+            method.Invoke(tracker, null);
+            return;
+        }
+
+        tracker.RecordAction(PlayerActionType.Offensive, WeaponType.Bow);
     }
 
     private IEnumerator ArrowRoutine(Rigidbody2D rb, GameObject arrowObj, float dir)

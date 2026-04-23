@@ -25,11 +25,17 @@ public sealed class Enemy_DefenseTree : MonoBehaviour
     private void Build()
     {
         _root = new SequenceNode(
+            new ConditionNode(IsCombatValid),
             new ConditionNode(() => combat.IsPlayerAttacking),
             new ConditionNode(() => combat.IsNotBusy),
             new ConditionNode(() => combat.HasNewPlayerAttack),
             new DynamicDefenseReactionNode(combat)
         );
+    }
+
+    private bool IsCombatValid()
+    {
+        return combat != null;
     }
 
     private sealed class DynamicDefenseReactionNode : BTNode
@@ -74,6 +80,13 @@ public sealed class Enemy_DefenseTree : MonoBehaviour
             if (combat == null)
                 return NodeStatus.Failure;
 
+            // Jika kondisi dasar defense berubah di tengah proses, reset.
+            if (!combat.IsPlayerAttacking || !combat.HasNewPlayerAttack)
+            {
+                Reset();
+                return NodeStatus.Failure;
+            }
+
             if (chosen == ReactionChoice.None)
                 chosen = ChooseReaction();
 
@@ -115,19 +128,19 @@ public sealed class Enemy_DefenseTree : MonoBehaviour
         private ReactionChoice ChooseReaction()
         {
             // Jika tidak ada histori defense valid dari DDA,
-            // enemy hanya memberi celah.
+            // enemy hanya memberi celah (lengah).
             if (!combat.HasDefenseProfile)
                 return ReactionChoice.Lengah;
 
             int lengahWeight = Mathf.Max(0, combat.GetLengahWeight());
             int dashWeight = Mathf.Max(0, combat.GetDashWeight());
+
             int riposteWeight = combat.CanRiposteCurrentPlayerAction
                 ? Mathf.Max(0, combat.GetRiposteWeight())
                 : 0;
 
             int total = lengahWeight + dashWeight + riposteWeight;
 
-            // Tidak ada reaksi valid -> lengah
             if (total <= 0)
                 return ReactionChoice.Lengah;
 

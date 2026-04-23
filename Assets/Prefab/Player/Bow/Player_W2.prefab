@@ -207,7 +207,7 @@ CapsuleCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: -0.89442384, y: -0.19903754}
+  m_Offset: {x: 0, y: 0}
   m_Size: {x: 0.5336993, y: 1.2853394}
   m_Direction: 0
 --- !u!1 &3047793432696247020
@@ -372,6 +372,7 @@ MonoBehaviour:
   arrowPrefab: {fileID: 1692899915983295771, guid: eda8816cfe96bca40ba183b8df7a9492, type: 3}
   player: {fileID: 3019785914136632114}
   anim: {fileID: 0}
+  facingSprite: {fileID: 0}
   maxChargeTime: 1.2
   minArrowSpeed: 8
   maxArrowSpeed: 18
@@ -402,6 +403,7 @@ MonoBehaviour:
   shootSpeed: 14
   damage: 10
   anim: {fileID: 0}
+  facingSprite: {fileID: 0}
   postShotLock: 0.08
 --- !u!114 &5298149805424230708
 MonoBehaviour:

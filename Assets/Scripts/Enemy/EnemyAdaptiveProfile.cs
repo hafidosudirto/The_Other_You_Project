@@ -20,7 +20,7 @@ public enum EnemyWeaponResponse
 /// Adaptive profile final:
 /// - Mirror playstyle pemain dari DDAController
 /// - Ambil weapon response dari senjata dominan pemain
-/// - Ambil bobot Sword musuh LANGSUNG dari hasil normalisasi riil DDAController
+/// - Ambil bobot Sword dan Bow LANGSUNG dari hasil normalisasi riil DDAController
 /// </summary>
 public class EnemyAdaptiveProfile : MonoBehaviour
 {
@@ -28,8 +28,9 @@ public class EnemyAdaptiveProfile : MonoBehaviour
     public EnemyCombatStyle combatStyle = EnemyCombatStyle.Balanced;
     public EnemyWeaponResponse weaponResponse = EnemyWeaponResponse.None;
 
-    [Header("Normalized Sword Weights")]
+    [Header("Normalized Weights")]
     [SerializeField] private float[] normalizedSwordWeights = new float[] { 25f, 25f, 25f, 25f };
+    [SerializeField] private float[] normalizedBowWeights = new float[] { 34f, 33f, 33f };
 
     private void Start()
     {
@@ -42,6 +43,7 @@ public class EnemyAdaptiveProfile : MonoBehaviour
         ApplyMirrorPlaystyle();
         ApplyWeaponResponse();
         CopyRealNormalizedSwordWeights();
+        CopyRealNormalizedBowWeights();
     }
 
     private void ApplyMirrorPlaystyle()
@@ -99,14 +101,14 @@ public class EnemyAdaptiveProfile : MonoBehaviour
         var dda = DDAController.Instance;
         if (dda == null)
         {
-            ResetToDefaultWeights();
+            ResetToDefaultSwordWeights();
             return;
         }
 
         float[] copy = dda.GetCurrentSwordSkillWeightsCopy();
         if (copy == null || copy.Length != 4)
         {
-            ResetToDefaultWeights();
+            ResetToDefaultSwordWeights();
             return;
         }
 
@@ -114,17 +116,50 @@ public class EnemyAdaptiveProfile : MonoBehaviour
             normalizedSwordWeights[i] = copy[i];
     }
 
-    private void ResetToDefaultWeights()
+    private void CopyRealNormalizedBowWeights()
+    {
+        var dda = DDAController.Instance;
+        if (dda == null || !dda.HasBowSkillProfile)
+        {
+            ResetToDefaultBowWeights();
+            return;
+        }
+
+        float[] copy = dda.GetCurrentBowSkillWeightsCopy();
+        if (copy == null || copy.Length != 3)
+        {
+            ResetToDefaultBowWeights();
+            return;
+        }
+
+        for (int i = 0; i < 3; i++)
+            normalizedBowWeights[i] = copy[i];
+    }
+
+    private void ResetToDefaultSwordWeights()
     {
         for (int i = 0; i < normalizedSwordWeights.Length; i++)
             normalizedSwordWeights[i] = 25f;
     }
 
+    private void ResetToDefaultBowWeights()
+    {
+        normalizedBowWeights[0] = 34f;
+        normalizedBowWeights[1] = 33f;
+        normalizedBowWeights[2] = 33f;
+    }
+
     public IReadOnlyList<float> GetSwordSkillWeights() => normalizedSwordWeights;
+    public IReadOnlyList<float> GetBowSkillWeights() => normalizedBowWeights;
 
     public float[] GetSwordSkillWeightsCopy()
     {
         return (float[])normalizedSwordWeights.Clone();
+    }
+
+    public float[] GetBowSkillWeightsCopy()
+    {
+        return (float[])normalizedBowWeights.Clone();
     }
 
     private void PrintDebug()
@@ -132,7 +167,8 @@ public class EnemyAdaptiveProfile : MonoBehaviour
         Debug.Log(
             $"[EnemyAdaptiveProfile] FINAL -> " +
             $"CombatStyle={combatStyle}, WeaponResponse={weaponResponse}, " +
-            $"SwordWeights=[{normalizedSwordWeights[0]:F2}, {normalizedSwordWeights[1]:F2}, {normalizedSwordWeights[2]:F2}, {normalizedSwordWeights[3]:F2}]"
+            $"SwordWeights=[{normalizedSwordWeights[0]:F2}, {normalizedSwordWeights[1]:F2}, {normalizedSwordWeights[2]:F2}, {normalizedSwordWeights[3]:F2}], " +
+            $"BowWeights=[{normalizedBowWeights[0]:F2}, {normalizedBowWeights[1]:F2}, {normalizedBowWeights[2]:F2}]"
         );
     }
 }
