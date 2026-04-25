@@ -61,10 +61,10 @@ GameObject:
   - component: {fileID: 2394147951062621979}
   - component: {fileID: 679016720296936666}
   - component: {fileID: 8273877875982860227}
-  - component: {fileID: 3044989801005669859}
   - component: {fileID: 3060324101768364948}
   - component: {fileID: 3416067351600877366}
   - component: {fileID: 4495831448187383308}
+  - component: {fileID: 4721237734604726269}
   m_Layer: 3
   m_Name: Enemy_Bow
   m_TagString: Enemy
@@ -195,9 +195,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   playerTransform: {fileID: 0}
   weaponMode: 0
-  adaptiveProfile: {fileID: 3044989801005669859}
+  adaptiveProfile: {fileID: 0}
   spriteVisual: {fileID: 7686073481702737145}
-  spriteRenderer: {fileID: 0}
+  spriteRenderer: {fileID: 4184288291677543696}
   invertFlipX: 0
   maxMoveSpeed: 3
   attackRange: 1.8
@@ -208,29 +208,6 @@ MonoBehaviour:
   bowMinimumRange: 3.75
   swordDesiredRange: 1.8
   isPerformingAction: 0
---- !u!114 &3044989801005669859
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1718376399928103269}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ae57a7f8418bf7f4d949d1f5c30cb8cd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  combatStyle: 0
-  weaponResponse: 0
-  normalizedSwordWeights:
-  - 25
-  - 25
-  - 25
-  - 25
-  normalizedBowWeights:
-  - 34
-  - 33
-  - 33
 --- !u!114 &3060324101768364948
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -295,11 +272,34 @@ MonoBehaviour:
     attack: 10
   attackPowerOverride: 10
   riposteCooldown: 0.75
+  concussiveCooldown: 1
   lengahBusyDuration: 0.28
   balancedLengahWeight: 45
   offensiveLengahWeight: 20
   defensiveLengahWeight: 0
-  verboseMissingSkillLog: 0
+--- !u!114 &4721237734604726269
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1718376399928103269}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae57a7f8418bf7f4d949d1f5c30cb8cd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  combatStyle: 0
+  weaponResponse: 0
+  normalizedSwordWeights:
+  - 25
+  - 25
+  - 25
+  - 25
+  normalizedBowWeights:
+  - 34
+  - 33
+  - 33
 --- !u!1 &3047793432696247020
 GameObject:
   m_ObjectHideFlags: 0

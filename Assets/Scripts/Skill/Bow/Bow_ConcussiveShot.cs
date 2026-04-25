@@ -238,7 +238,7 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill
             return;
         }
 
-        tracker.RecordAction(PlayerActionType.Offensive, WeaponType.Bow);
+        tracker.RecordAction(PlayerActionType.Defensive, WeaponType.Bow);
     }
 
     private void StopOwnerMovement()

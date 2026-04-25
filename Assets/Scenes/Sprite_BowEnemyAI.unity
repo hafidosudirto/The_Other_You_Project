@@ -132,6 +132,9 @@ GameObject:
   m_Component:
   - component: {fileID: 281164784}
   - component: {fileID: 281164783}
+  - component: {fileID: 281164787}
+  - component: {fileID: 281164786}
+  - component: {fileID: 281164785}
   m_Layer: 0
   m_Name: Polos
   m_TagString: Untagged
@@ -206,6 +209,47 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &281164785
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 281164782}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 158c440fb7710744e931a3430206f7c7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerCharacter: {fileID: 443342432}
+  gameOverSceneName: GameOver
+  triggerOnDestroyedReference: 1
+--- !u!114 &281164786
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 281164782}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 703c5b5b95189294e9cbd98981d05385, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  gameplaySceneName: Sprite_SwordEnemyAI
+--- !u!114 &281164787
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 281164782}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db0017ded6050a44e807900a792181a0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  gameOverSceneName: GameOver
 --- !u!1 &352206440
 GameObject:
   m_ObjectHideFlags: 0
@@ -822,9 +866,6 @@ GameObject:
   - component: {fileID: 1234914217}
   - component: {fileID: 1234914216}
   - component: {fileID: 1234914215}
-  - component: {fileID: 1234914214}
-  - component: {fileID: 1234914213}
-  - component: {fileID: 1234914212}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -832,47 +873,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1234914212
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1234914211}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 703c5b5b95189294e9cbd98981d05385, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  gameplaySceneName: Sprite_SwordEnemyAI
---- !u!114 &1234914213
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1234914211}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: db0017ded6050a44e807900a792181a0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  gameOverSceneName: GameOver
---- !u!114 &1234914214
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1234914211}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 158c440fb7710744e931a3430206f7c7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  playerCharacter: {fileID: 443342432}
-  gameOverSceneName: GameOver
-  triggerOnDestroyedReference: 1
 --- !u!114 &1234914215
 MonoBehaviour:
   m_ObjectHideFlags: 0
