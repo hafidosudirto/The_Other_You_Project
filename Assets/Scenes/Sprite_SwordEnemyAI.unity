@@ -1210,6 +1210,22 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3794125175681826129, guid: ce054ee026d254547908bf4f689bb853, type: 3}
+      propertyPath: slot1Key
+      value: 323
+      objectReference: {fileID: 0}
+    - target: {fileID: 3794125175681826129, guid: ce054ee026d254547908bf4f689bb853, type: 3}
+      propertyPath: slot2Key
+      value: 324
+      objectReference: {fileID: 0}
+    - target: {fileID: 3794125175681826129, guid: ce054ee026d254547908bf4f689bb853, type: 3}
+      propertyPath: slot3Key
+      value: 113
+      objectReference: {fileID: 0}
+    - target: {fileID: 3794125175681826129, guid: ce054ee026d254547908bf4f689bb853, type: 3}
+      propertyPath: slot4Key
+      value: 101
+      objectReference: {fileID: 0}
     - target: {fileID: 4161538057422261065, guid: ce054ee026d254547908bf4f689bb853, type: 3}
       propertyPath: m_Size.x
       value: 0.625
@@ -1229,6 +1245,10 @@ PrefabInstance:
     - target: {fileID: 7456105813554528496, guid: ce054ee026d254547908bf4f689bb853, type: 3}
       propertyPath: isAttacking
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7726836508198251131, guid: ce054ee026d254547908bf4f689bb853, type: 3}
+      propertyPath: energyCost
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8363849397101325717, guid: ce054ee026d254547908bf4f689bb853, type: 3}
       propertyPath: m_LocalScale.x
