@@ -71,7 +71,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 3298720581760886592}
   - {fileID: 721536974599694162}
@@ -188,8 +188,8 @@ CapsuleCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0.2, y: -0.16}
-  m_Size: {x: 0.67, y: 1.66}
+  m_Offset: {x: 0.18661523, y: -0.070768476}
+  m_Size: {x: 1.3570828, y: 2.9806268}
   m_Direction: 0
 --- !u!114 &1603249717165998674
 MonoBehaviour:
@@ -231,6 +231,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerTransform: {fileID: 0}
+  weaponMode: 0
   adaptiveProfile: {fileID: 0}
   spriteVisual: {fileID: 7686073481702737145}
   spriteRenderer: {fileID: 8597872111708491915}
@@ -238,6 +239,12 @@ MonoBehaviour:
   maxMoveSpeed: 3
   attackRange: 1.8
   attackRangeOffset: {x: 1.5, y: 0}
+  useBowBalancedBag: 0
+  bowSenseRange: 8.5
+  bowDesiredRange: 5.25
+  bowMinimumRange: 2.25
+  swordDesiredRange: 1.8
+  swordSenseRange: 3.2
   isPerformingAction: 0
 --- !u!114 &6893955486669756002
 MonoBehaviour:
@@ -252,13 +259,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   currentState: 0
+  movementMode: 0
   player: {fileID: 0}
   rb: {fileID: 0}
   moveSpeed: 3
   accel: 10
-  stopDistanceX: 5
+  useVerticalAlign: 1
   verticalTolerance: 0.2
   desiredRange: 1.5
+  minimumCombatRange: 0
   rangeTolerance: 0.25
 --- !u!114 &5434613646505759902
 MonoBehaviour:
@@ -291,6 +300,13 @@ MonoBehaviour:
   - 25
   - 25
   - 25
+  normalizedBowWeights:
+  - 25
+  - 25
+  - 25
+  - 25
+  normalizedDashWeight: 0
+  normalizedRiposteWeight: 0
 --- !u!114 &3098827453847523507
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -368,14 +384,20 @@ MonoBehaviour:
   enemyDash: {fileID: 8169837083311072351}
   playerSensor: {fileID: 0}
   skillRootSword: {fileID: 1295630744342105822}
+  skillRootBow: {fileID: 0}
   _slashCombo: {fileID: 1557463422569850212}
   _chargedStrike: {fileID: 8238309777232854303}
   _whirlwind: {fileID: 3443164050013538122}
   _riposte: {fileID: 4999943360712908657}
+  _quickShotBow: {fileID: 0}
+  _fullDrawBow: {fileID: 0}
+  _piercingBow: {fileID: 0}
+  _concussiveBow: {fileID: 0}
   stats:
     attack: 10
   attackPowerOverride: 10
   riposteCooldown: 0.75
+  concussiveCooldown: 1
   lengahBusyDuration: 0.28
   balancedLengahWeight: 45
   offensiveLengahWeight: 20
@@ -694,7 +716,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 1988705241, guid: a36a84d2f648c6642b092ba42a61336a, type: 3}
+  m_Sprite: {fileID: -488073180, guid: 8b1afa61d296c0a4782d078223fe273d, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -739,7 +761,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 3180929586462168031}
-  moveSpeedDamp: 0.08
 --- !u!1001 &4465779769779001524
 PrefabInstance:
   m_ObjectHideFlags: 0
