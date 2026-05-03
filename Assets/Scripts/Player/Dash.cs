@@ -4,20 +4,29 @@ using UnityEngine;
 public class Dash : MonoBehaviour, ISkill
 {
     [Header("Dash Settings")]
-    [Tooltip("Semakin besar, jarak dash makin jauh. Jarak kira-kira ≈ dashSpeed * dashDuration.")]
+    [Tooltip("Kecepatan dash. Jarak kira-kira = dashSpeed * dashDuration.")]
     public float dashSpeed = 10f;
 
-    [Tooltip("Semakin kecil, dash makin singkat dan terasa lebih snap (0.1–0.2 cocok untuk action).")]
+    [Tooltip("Durasi dash. Umumnya 0.10 sampai 0.18 cocok untuk action 2D.")]
     public float dashDuration = 0.15f;
 
-    [Tooltip("Jeda sebelum boleh dash lagi.")]
+    [Tooltip("Jeda sebelum dash boleh dipakai lagi.")]
     public float dashCooldown = 0.2f;
 
-    [Header("References (opsional)")]
+    [Header("Energy Cost")]
+    [SerializeField, Min(0f)] private float dashEnergyCost = 15f;
+
+    [Tooltip("Biasanya isi dengan Player, karena Player mewarisi CharacterBase.")]
+    [SerializeField] private CharacterBase energyOwner;
+
+    [Header("References")]
     public PlayerAnimation anim;
     public Player player;
 
-    [Header("Input (opsional, jika ingin dash pakai tombol langsung)")]
+    [Header("Input")]
+    [Tooltip("Aktifkan jika dash dipanggil langsung dari script ini, misalnya Left Shift.")]
+    public bool useDirectInput = true;
+
     public KeyCode dashKey = KeyCode.LeftShift;
 
     private MoveKeyboard mover;
@@ -25,29 +34,40 @@ public class Dash : MonoBehaviour, ISkill
 
     private bool isDashing = false;
     private float lastDashTime = -999f;
+    private Coroutine dashRoutine;
 
     private void Awake()
     {
         if (player == null)
-            player = GetComponent<Player>();
+            player = GetComponentInParent<Player>();
+
+        if (energyOwner == null)
+            energyOwner = GetComponentInParent<CharacterBase>();
 
         if (anim == null)
             anim = GetComponentInChildren<PlayerAnimation>();
 
         rb = GetComponent<Rigidbody2D>();
+        if (rb == null)
+            rb = GetComponentInParent<Rigidbody2D>();
         if (rb == null && player != null)
             rb = player.GetComponent<Rigidbody2D>();
 
         if (rb == null)
-            Debug.LogError("[Dash] Rigidbody2D tidak ditemukan di hierarki objek ini. Dash tidak dapat dijalankan.");
+            Debug.LogError("[Dash] Rigidbody2D tidak ditemukan. Dash tidak dapat dijalankan.");
 
         mover = GetComponent<MoveKeyboard>();
+        if (mover == null)
+            mover = GetComponentInParent<MoveKeyboard>();
         if (mover == null)
             mover = GetComponentInChildren<MoveKeyboard>();
     }
 
     private void Update()
     {
+        if (!useDirectInput)
+            return;
+
         if (rb == null)
             return;
 
@@ -62,37 +82,63 @@ public class Dash : MonoBehaviour, ISkill
 
     private void TryStartDash()
     {
-        if (rb == null)
+        if (!CanStartDash())
             return;
+
+        if (!TryPayEnergy())
+            return;
+
+        if (DataTracker.Instance != null)
+            DataTracker.Instance.RecordDefenseDash(WeaponType.Sword);
+
+        dashRoutine = StartCoroutine(DashRoutine());
+    }
+
+    private bool CanStartDash()
+    {
+        if (rb == null)
+            return false;
 
         if (isDashing)
-            return;
+            return false;
 
         if (Time.time < lastDashTime + dashCooldown)
-            return;
+            return false;
 
         if (player != null)
         {
             if (!player.CanAct())
-                return;
+                return false;
 
             if (player.isAttacking)
-                return;
+                return false;
         }
 
-        // Dash harus dicatat spesifik sebagai dashCount,
-        // bukan sekadar defensive action umum.
-        if (DataTracker.Instance != null)
-            DataTracker.Instance.RecordDefenseDash(WeaponType.Sword);
+        return true;
+    }
 
-        StartCoroutine(DashRoutine());
+    private bool TryPayEnergy()
+    {
+        if (dashEnergyCost <= 0f)
+            return true;
+
+        if (energyOwner == null)
+        {
+            Debug.LogWarning("[Dash] Energy Owner belum di-assign. Dash dibatalkan agar tidak gratis.");
+            return false;
+        }
+
+        if (!energyOwner.TrySpendEnergy(dashEnergyCost))
+        {
+            Debug.LogWarning($"[Dash] Energy kurang. Dash butuh {dashEnergyCost} energy.");
+            return false;
+        }
+
+        return true;
     }
 
     private IEnumerator DashRoutine()
     {
-        if (rb == null)
-            yield break;
-
         isDashing = true;
         lastDashTime = Time.time;
 
@@ -106,32 +152,53 @@ public class Dash : MonoBehaviour, ISkill
             facingX = -1f;
 
         Vector2 dir = new Vector2(facingX, 0f).normalized;
-        Vector2 startPos = rb.position;
-        float distance = dashSpeed * dashDuration;
-        Vector2 targetPos = startPos + dir * distance;
 
         if (mover != null)
-            mover.LockExternal(dashDuration + 0.05f, stopVelocity: false);
+            mover.LockExternal(dashDuration + 0.01f, stopVelocity: false);
 
         if (anim != null)
-            anim.PlayDash();
-
-        float timer = 0f;
-        rb.velocity = Vector2.zero;
-
-        while (timer < dashDuration)
         {
-            timer += Time.deltaTime;
-            float t = Mathf.Clamp01(timer / dashDuration);
-            float eased = 1f - (1f - t) * (1f - t);
-
-            Vector2 newPos = Vector2.Lerp(startPos, targetPos, eased);
-            rb.MovePosition(newPos);
-
-            yield return null;
+            anim.SetMoveSpeed(0f);
+            anim.PlayDash();
         }
 
         rb.velocity = Vector2.zero;
+
+        float elapsed = 0f;
+
+        while (elapsed < dashDuration)
+        {
+            float stepTime = Mathf.Min(Time.fixedDeltaTime, dashDuration - elapsed);
+            Vector2 nextPosition = rb.position + dir * dashSpeed * stepTime;
+
+            rb.MovePosition(nextPosition);
+
+            elapsed += stepTime;
+            yield return new WaitForFixedUpdate();
+        }
+
+        rb.velocity = Vector2.zero;
+
+        if (mover != null)
+            mover.UnlockExternal();
+
+        if (anim != null)
+            anim.SetMoveSpeed(0f);
+
+        isDashing = false;
+        dashRoutine = null;
+    }
+
+    private void OnDisable()
+    {
+        if (dashRoutine != null)
+        {
+            StopCoroutine(dashRoutine);
+            dashRoutine = null;
+        }
+
+        if (rb != null)
+            rb.velocity = Vector2.zero;
 
         if (mover != null)
             mover.UnlockExternal();

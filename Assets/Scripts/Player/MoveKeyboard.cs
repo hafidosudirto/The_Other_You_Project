@@ -2,10 +2,17 @@ using UnityEngine;
 
 public class MoveKeyboard : MonoBehaviour
 {
+
     [Header("Movement")]
     public float moveSpeed = 4f;
     private Vector2 input;
     private Rigidbody2D rb;
+
+    [Header("Movement Boundary")]
+    public bool useYLimit = true;
+    public float maxYPosition = 1.6f;
+    public float minYPosition = -6.809996f;
+
 
     [Header("References (opsional)")]
     public PlayerAnimation anim;   // boleh null
@@ -184,10 +191,33 @@ public class MoveKeyboard : MonoBehaviour
             return;
         }
 
-        // Normal movement
-        rb.velocity = input.normalized * moveSpeed;
-    }
+        // Normal movement dengan batas Y atas dan bawah
+        Vector2 moveInput = input;
 
+        if (useYLimit)
+        {
+            // Batas atas: player tidak bisa naik melebihi maxYPosition
+            if (rb.position.y >= maxYPosition && moveInput.y > 0f)
+            {
+                moveInput.y = 0f;
+            }
+
+            // Batas bawah: player tidak bisa turun melebihi minYPosition
+            if (rb.position.y <= minYPosition && moveInput.y < 0f)
+            {
+                moveInput.y = 0f;
+            }
+        }
+
+        rb.velocity = moveInput.normalized * moveSpeed;
+
+        // Koreksi posisi jika player sempat melewati batas Y atas/bawah
+        if (useYLimit)
+        {
+            float clampedY = Mathf.Clamp(rb.position.y, minYPosition, maxYPosition);
+            rb.position = new Vector2(rb.position.x, clampedY);
+        }
+    }
     // ============================================================
     // API UNTUK SLASH COMBO
     // ============================================================
