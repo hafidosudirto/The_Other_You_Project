@@ -14,7 +14,6 @@ public class CharacterBase : MonoBehaviour
 
     [Header("Energy (Character-Level)")]
     [SerializeField, Min(0f)] private float maxEnergy = 100f;
-
     [SerializeField, Min(0f)] private float currentEnergy = 100f;
 
     [Header("Energy Regen (Time-Based)")]
@@ -23,10 +22,14 @@ public class CharacterBase : MonoBehaviour
     [Tooltip("Jika true, regen memakai unscaled time.")]
     [SerializeField] private bool useUnscaledTime = false;
 
+    [Tooltip("Jika aktif, energi tidak akan regen. Dipakai saat skill seperti Bow Full Draw sedang charge/release.")]
+    [SerializeField] private bool energyRegenBlocked = false;
+
     public event Action OnEnergyChanged;
 
     public float MaxEnergy => maxEnergy;
     public float CurrentEnergy => currentEnergy;
+    public bool EnergyRegenBlocked => energyRegenBlocked;
 
     public bool HasEnergy(float cost)
     {
@@ -37,7 +40,9 @@ public class CharacterBase : MonoBehaviour
     {
         get
         {
-            if (maxEnergy <= 0f) return 0f;
+            if (maxEnergy <= 0f)
+                return 0f;
+
             return Mathf.Clamp01(currentEnergy / maxEnergy);
         }
     }
@@ -46,7 +51,7 @@ public class CharacterBase : MonoBehaviour
     public bool isFacingRight = true;
     public bool isStaggered = false;
 
-    // Riposte state lama / player
+    [Header("Riposte")]
     public bool isRiposteStance = false;
     public bool canRiposte = true;
     public float riposteWindow = 0.6f;
@@ -56,13 +61,16 @@ public class CharacterBase : MonoBehaviour
 
     protected Rigidbody2D rb;
 
+    private Coroutine stunRoutine;
+    private Coroutine staggerRoutine;
+
     protected virtual void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
 
         if (rb != null)
         {
-            rb.gravityScale = 0;
+            rb.gravityScale = 0f;
             rb.freezeRotation = true;
         }
 
@@ -70,6 +78,7 @@ public class CharacterBase : MonoBehaviour
 
         maxEnergy = Mathf.Max(0f, maxEnergy);
         currentEnergy = Mathf.Clamp(currentEnergy, 0f, maxEnergy);
+
         OnEnergyChanged?.Invoke();
     }
 
@@ -80,47 +89,87 @@ public class CharacterBase : MonoBehaviour
 
     private void TickEnergyRegen()
     {
-        if (regenPerSecond <= 0f) return;
+        if (energyRegenBlocked)
+            return;
+
+        if (regenPerSecond <= 0f)
+            return;
+
+        if (currentEnergy >= maxEnergy)
+            return;
 
         float dt = useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
-        if (dt <= 0f) return;
+
+        if (dt <= 0f)
+            return;
 
         AddEnergy(regenPerSecond * dt);
+    }
+
+    public void SetEnergyRegenBlocked(bool blocked)
+    {
+        energyRegenBlocked = blocked;
+    }
+
+    public void StopEnergyRegen()
+    {
+        SetEnergyRegenBlocked(true);
+    }
+
+    public void StartEnergyRegen()
+    {
+        SetEnergyRegenBlocked(false);
+    }
+
+    public void StopRegenerasiEnergi()
+    {
+        SetEnergyRegenBlocked(true);
+    }
+
+    public void StartRegenerasiEnergi()
+    {
+        SetEnergyRegenBlocked(false);
     }
 
     public void SetEnergy(float value)
     {
         float prev = currentEnergy;
         currentEnergy = Mathf.Clamp(value, 0f, maxEnergy);
+
         if (!Mathf.Approximately(prev, currentEnergy))
             OnEnergyChanged?.Invoke();
     }
 
     public void AddEnergy(float amount)
     {
-        if (amount <= 0f) return;
+        if (amount <= 0f)
+            return;
 
         float prev = currentEnergy;
         currentEnergy = Mathf.Clamp(currentEnergy + amount, 0f, maxEnergy);
+
         if (!Mathf.Approximately(prev, currentEnergy))
             OnEnergyChanged?.Invoke();
     }
 
     public bool TrySpendEnergy(float cost)
     {
-        if (cost <= 0f) return true;
+        if (cost <= 0f)
+            return true;
 
         if (currentEnergy + 1e-6f < cost)
             return false;
 
         currentEnergy = Mathf.Clamp(currentEnergy - cost, 0f, maxEnergy);
         OnEnergyChanged?.Invoke();
+
         return true;
     }
 
     public void Flip()
     {
         isFacingRight = !isFacingRight;
+
         Vector3 scale = transform.localScale;
         scale.x *= -1f;
         transform.localScale = scale;
@@ -128,29 +177,22 @@ public class CharacterBase : MonoBehaviour
 
     public bool CanAct()
     {
-        return !isStaggered && currentHP > 0;
+        return !isStaggered && currentHP > 0f;
     }
 
     public virtual void TakeDamage(float dmg, GameObject attacker = null)
     {
-        if (currentHP <= 0)
+        if (currentHP <= 0f)
             return;
 
-        // =====================================================
-        // PRIORITAS 1: Enemy riposte stance baru
-        // Jika target sedang stance Enemy_Sword_Riposte,
-        // serangan player diparry dan dipakai untuk memicu counter.
-        // =====================================================
         Enemy_Sword_Riposte enemyRiposte = GetComponentInChildren<Enemy_Sword_Riposte>(true);
+
         if (enemyRiposte != null && enemyRiposte.IsStanceActive)
         {
             enemyRiposte.NotifyPlayerAttackAttempt(attacker);
             return;
         }
 
-        // =====================================================
-        // PRIORITAS 2: Riposte stance lama / player
-        // =====================================================
         if (isRiposteStance)
         {
             Parry(attacker);
@@ -160,20 +202,17 @@ public class CharacterBase : MonoBehaviour
         float finalDamage = Mathf.Max(1f, dmg - defense);
         currentHP -= finalDamage;
 
-        if (currentHP <= 0)
-        {
+        if (currentHP <= 0f)
             Die();
-        }
     }
 
     private void Parry(GameObject attacker)
     {
         if (DataTracker.Instance != null)
-        {
             DataTracker.Instance.RecordAction(PlayerActionType.Defensive, WeaponType.Sword);
-        }
 
         Sword_Riposte riposte = GetComponentInChildren<Sword_Riposte>(true);
+
         if (riposte != null)
             riposte.TriggerFollowUpDash();
 
@@ -182,6 +221,7 @@ public class CharacterBase : MonoBehaviour
         if (attacker != null)
         {
             CharacterBase enemy = attacker.GetComponent<CharacterBase>();
+
             if (enemy != null)
             {
                 Vector2 dir = (enemy.transform.position - transform.position).normalized;
@@ -192,7 +232,8 @@ public class CharacterBase : MonoBehaviour
 
     public void ActivateRiposte()
     {
-        if (!canRiposte) return;
+        if (!canRiposte)
+            return;
 
         isRiposteStance = true;
         canRiposte = false;
@@ -219,8 +260,6 @@ public class CharacterBase : MonoBehaviour
         ApplyStagger(direction, force, knockDuration);
     }
 
-    private Coroutine stunRoutine;
-
     public void ApplyStun(float duration)
     {
         if (duration <= 0f || currentHP <= 0f)
@@ -235,18 +274,22 @@ public class CharacterBase : MonoBehaviour
     private IEnumerator ApplyStunRoutine(float duration)
     {
         isStaggered = true;
+
         yield return new WaitForSeconds(duration);
+
         isStaggered = false;
         stunRoutine = null;
     }
 
     public void ApplyStagger(Vector2 direction, float force, float duration)
     {
-        if (currentHP <= 0)
+        if (currentHP <= 0f)
             return;
 
-        StopAllCoroutines();
-        StartCoroutine(StaggerRoutine(direction, force, duration));
+        if (staggerRoutine != null)
+            StopCoroutine(staggerRoutine);
+
+        staggerRoutine = StartCoroutine(StaggerRoutine(direction, force, duration));
     }
 
     private IEnumerator StaggerRoutine(Vector2 dir, float force, float duration)
@@ -263,7 +306,9 @@ public class CharacterBase : MonoBehaviour
         }
 
         yield return new WaitForSeconds(duration);
+
         isStaggered = false;
+        staggerRoutine = null;
     }
 
     private IEnumerator KinematicKnockback(Vector2 dir, float force, float time)
@@ -271,7 +316,7 @@ public class CharacterBase : MonoBehaviour
         float timer = time;
         float speed = force;
 
-        while (timer > 0)
+        while (timer > 0f)
         {
             timer -= Time.deltaTime;
             transform.position += (Vector3)(dir * speed * Time.deltaTime);
@@ -282,10 +327,12 @@ public class CharacterBase : MonoBehaviour
     public virtual void Die()
     {
         Debug.Log($"{name} MATI");
-        Destroy(gameObject);
 
         EnemyDeathHandler death = GetComponent<EnemyDeathHandler>();
+
         if (death != null)
             death.HandleDeath();
+
+        Destroy(gameObject);
     }
 }

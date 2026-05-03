@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class EnergyBarUI : MonoBehaviour
 {
@@ -8,8 +9,11 @@ public class EnergyBarUI : MonoBehaviour
     [SerializeField] private CharacterBase target;
 
     [Header("UI Images")]
-    [SerializeField] private Image mainFillImage; // berubah cepat (nilai aktual)
-    [SerializeField] private Image lagFillImage;  // mengejar (lag effect)
+    [SerializeField] private Image mainFillImage; // nilai stamina aktual
+    [SerializeField] private Image lagFillImage;  // efek lag ketika stamina berkurang
+
+    [Header("UI Text")]
+    [SerializeField] private TMP_Text energyText;
 
     [Header("Lag Settings (only when decreasing)")]
     [Min(0f)][SerializeField] private float lagCatchUpSpeed = 2f;
@@ -21,6 +25,9 @@ public class EnergyBarUI : MonoBehaviour
 
     private void Awake()
     {
+        if (target == null)
+            target = FindObjectOfType<Player>();
+
         if (target == null)
             target = FindObjectOfType<CharacterBase>();
     }
@@ -49,25 +56,26 @@ public class EnergyBarUI : MonoBehaviour
 
     private void OnEnergyChanged()
     {
-        if (target == null) return;
+        if (target == null)
+            return;
 
         latestTargetFill = Mathf.Clamp01(target.EnergyNormalized);
 
-        // Main selalu mengikuti nilai aktual
         if (mainFillImage != null)
             mainFillImage.fillAmount = latestTargetFill;
 
-        if (lagFillImage == null) return;
+        UpdateEnergyText();
 
-        // Jika energi naik, lag langsung ikut (agar tidak “lag kebalikan”)
+        if (lagFillImage == null)
+            return;
+
         if (lagFillImage.fillAmount <= latestTargetFill)
         {
             lagFillImage.fillAmount = latestTargetFill;
-            delayAlreadyPassed = false; // reset logika lag untuk penurunan berikutnya
+            delayAlreadyPassed = false;
             return;
         }
 
-        // Jika energi turun, jalankan 1 coroutine yang selalu mengejar target terbaru
         if (lagRoutine == null)
         {
             lagRoutine = StartCoroutine(LagChaseLoop());
@@ -76,7 +84,6 @@ public class EnergyBarUI : MonoBehaviour
 
     private IEnumerator LagChaseLoop()
     {
-        // Delay hanya sekali untuk satu rangkaian penurunan
         if (!delayAlreadyPassed && lagDelay > 0f)
         {
             yield return new WaitForSeconds(lagDelay);
@@ -85,7 +92,6 @@ public class EnergyBarUI : MonoBehaviour
 
         while (lagFillImage != null)
         {
-            // Jika sudah menyamai target, hentikan dan tunggu event berikutnya
             if (lagFillImage.fillAmount <= latestTargetFill)
             {
                 lagFillImage.fillAmount = latestTargetFill;
@@ -107,7 +113,8 @@ public class EnergyBarUI : MonoBehaviour
 
     private void ForceRefreshImmediate()
     {
-        if (target == null) return;
+        if (target == null)
+            return;
 
         float fill = Mathf.Clamp01(target.EnergyNormalized);
 
@@ -119,5 +126,18 @@ public class EnergyBarUI : MonoBehaviour
 
         latestTargetFill = fill;
         delayAlreadyPassed = false;
+
+        UpdateEnergyText();
+    }
+
+    private void UpdateEnergyText()
+    {
+        if (target == null || energyText == null)
+            return;
+
+        int current = Mathf.RoundToInt(target.CurrentEnergy);
+        int max = Mathf.RoundToInt(target.MaxEnergy);
+
+        energyText.text = $"{current}/{max}";
     }
 }

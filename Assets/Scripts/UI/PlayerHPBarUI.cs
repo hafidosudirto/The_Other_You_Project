@@ -1,24 +1,26 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class PlayerHPBarUI : MonoBehaviour
 {
     [Header("References")]
     public CharacterBase target;
     public Image fill;
+    public TMP_Text hpText;
 
     private void Update()
     {
-        if (target == null || fill == null)
+        if (target == null)
             return;
 
-        if (target.maxHP <= 0f)
-        {
-            fill.fillAmount = 0f;
-            return;
-        }
+        float maxHp = Mathf.Max(1f, target.maxHP);
+        float currentHp = Mathf.Clamp(target.currentHP, 0f, maxHp);
 
-        float ratio = target.currentHP / target.maxHP;
-        fill.fillAmount = Mathf.Clamp01(ratio);
+        if (fill != null)
+            fill.fillAmount = currentHp / maxHp;
+
+        if (hpText != null)
+            hpText.text = $"{Mathf.RoundToInt(currentHp)}/{Mathf.RoundToInt(maxHp)}";
     }
 }
