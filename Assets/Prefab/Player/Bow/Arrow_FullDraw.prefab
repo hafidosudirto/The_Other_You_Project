@@ -13,9 +13,9 @@ GameObject:
   - component: {fileID: 4280799721995992493}
   - component: {fileID: 5039378159981235166}
   - component: {fileID: 7468609875317467290}
-  - component: {fileID: -3453210763418327954}
+  - component: {fileID: 1812182387734284894}
   m_Layer: 7
-  m_Name: Arrow_Piercing
+  m_Name: Arrow_FullDraw
   m_TagString: Projectile
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -30,7 +30,7 @@ Transform:
   m_GameObject: {fileID: 1692899915983295771}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.3706, y: 0.0811, z: 0}
+  m_LocalPosition: {x: -1.2673, y: 0.31206, z: 0}
   m_LocalScale: {x: 1.2, y: 1.4, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -78,7 +78,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: -1555136557, guid: ea119906498ebd1479cfc67607a17340, type: 3}
+  m_Sprite: {fileID: 1329345980, guid: ea119906498ebd1479cfc67607a17340, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -181,7 +181,7 @@ MonoBehaviour:
   baseDamage: 10
   knockbackForce: 10
   stunDuration: 2
---- !u!96 &-3453210763418327954
+--- !u!96 &1812182387734284894
 TrailRenderer:
   serializedVersion: 3
   m_ObjectHideFlags: 0
@@ -222,8 +222,8 @@ TrailRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 1
-  m_Time: 0.12
+  m_SortingOrder: 5
+  m_Time: 0.05
   m_PreviewTimeScale: 1
   m_Parameters:
     serializedVersion: 3
@@ -232,8 +232,8 @@ TrailRenderer:
       serializedVersion: 2
       m_Curve:
       - serializedVersion: 3
-        time: 0.6977051
-        value: 0.16756193
+        time: 0.10207492
+        value: 0.1000061
         inSlope: 0
         outSlope: 0
         tangentMode: 0
@@ -245,7 +245,7 @@ TrailRenderer:
       m_RotationOrder: 4
     colorGradient:
       serializedVersion: 2
-      key0: {r: 1, g: 0.118867874, b: 0.118867874, a: 0.78431374}
+      key0: {r: 1, g: 0.60784316, b: 0, a: 1}
       key1: {r: 1, g: 1, b: 1, a: 1}
       key2: {r: 0, g: 0, b: 0, a: 0}
       key3: {r: 0, g: 0, b: 0, a: 0}
