@@ -19,6 +19,7 @@ public class WeightedRandomSelector : Node
             return;
 
         weights.Clear();
+
         for (int i = 0; i < newWeights.Count; i++)
             weights.Add(Mathf.Max(0f, newWeights[i]));
     }
@@ -27,47 +28,99 @@ public class WeightedRandomSelector : Node
 
     public override NodeState Evaluate()
     {
-        if (nodes.Count == 0) return NodeState.Failure;
-        if (weights.Count != nodes.Count) return NodeState.Failure;
+        if (nodes.Count == 0)
+            return NodeState.Failure;
 
+        if (weights.Count != nodes.Count)
+            return NodeState.Failure;
+
+        // Jika ada node yang sedang Running, pertahankan node tersebut
+        // sampai node selesai. Ini mencegah selector mengganti skill
+        // di tengah eksekusi animasi atau action lock.
         if (runningIndex >= 0 && runningIndex < nodes.Count)
         {
-            var result = nodes[runningIndex].Evaluate();
-            if (result == NodeState.Running)
+            NodeState runningResult = nodes[runningIndex].Evaluate();
+
+            if (runningResult == NodeState.Running)
                 return NodeState.Running;
 
             runningIndex = -1;
-            return result;
+            return runningResult;
         }
 
-        int picked = PickWeightedIndex();
-        var pickedResult = nodes[picked].Evaluate();
+        bool[] tried = new bool[nodes.Count];
 
-        if (pickedResult == NodeState.Running)
-            runningIndex = picked;
+        // Fallback dilakukan maksimal sebanyak jumlah node.
+        // Pemilihan pertama tetap berbasis bobot DDA.
+        // Jika node pertama gagal, node berikutnya dipilih lagi
+        // berdasarkan bobot yang tersisa, bukan urutan tetap.
+        for (int attempt = 0; attempt < nodes.Count; attempt++)
+        {
+            int pickedIndex = PickWeightedIndexExcluding(tried);
 
-        return pickedResult;
+            if (pickedIndex < 0)
+                break;
+
+            tried[pickedIndex] = true;
+
+            NodeState result = nodes[pickedIndex].Evaluate();
+
+            if (result == NodeState.Running)
+            {
+                runningIndex = pickedIndex;
+                return NodeState.Running;
+            }
+
+            if (result == NodeState.Success)
+            {
+                return NodeState.Success;
+            }
+
+            // Jika Failure, selector tidak langsung berhenti.
+            // Selector mencoba node lain yang belum dicoba.
+        }
+
+        return NodeState.Failure;
     }
 
-    private int PickWeightedIndex()
+    private int PickWeightedIndexExcluding(bool[] excluded)
     {
+        if (excluded == null || excluded.Length != weights.Count)
+            return -1;
+
         float total = 0f;
-        for (int i = 0; i < weights.Count; i++)
-            total += Mathf.Max(0f, weights[i]);
-
-        if (total <= 0f)
-            return 0;
-
-        float roll = Random.Range(0f, total);
-        float acc = 0f;
 
         for (int i = 0; i < weights.Count; i++)
         {
-            acc += Mathf.Max(0f, weights[i]);
-            if (roll <= acc)
+            if (excluded[i])
+                continue;
+
+            total += Mathf.Max(0f, weights[i]);
+        }
+
+        if (total <= 0f)
+            return -1;
+
+        float roll = Random.Range(0f, total);
+        float accumulator = 0f;
+
+        for (int i = 0; i < weights.Count; i++)
+        {
+            if (excluded[i])
+                continue;
+
+            accumulator += Mathf.Max(0f, weights[i]);
+
+            if (roll <= accumulator)
                 return i;
         }
 
-        return weights.Count - 1;
+        for (int i = weights.Count - 1; i >= 0; i--)
+        {
+            if (!excluded[i] && weights[i] > 0f)
+                return i;
+        }
+
+        return -1;
     }
 }

@@ -16,21 +16,19 @@ public enum EnemyWeaponResponse
     VsGauntlet
 }
 
-/// <summary>
-/// Adaptive profile final:
-/// - Mirror playstyle pemain dari DDAController
-/// - Ambil weapon response dari senjata dominan pemain
-/// - Ambil bobot Sword dan Bow LANGSUNG dari hasil normalisasi riil DDAController
-/// </summary>
 public class EnemyAdaptiveProfile : MonoBehaviour
 {
     [Header("Final AI Settings (Computed)")]
     public EnemyCombatStyle combatStyle = EnemyCombatStyle.Balanced;
     public EnemyWeaponResponse weaponResponse = EnemyWeaponResponse.None;
 
-    [Header("Normalized Weights")]
+    [Header("Normalized Attack Weights (Bow Slot 3 = Concussive)")]
     [SerializeField] private float[] normalizedSwordWeights = new float[] { 25f, 25f, 25f, 25f };
-    [SerializeField] private float[] normalizedBowWeights = new float[] { 34f, 33f, 33f };
+    [SerializeField] private float[] normalizedBowWeights = new float[] { 25f, 25f, 25f, 25f };
+
+    [Header("Normalized Defense Weights")]
+    [SerializeField] private float normalizedDashWeight = 0f;
+    [SerializeField] private float normalizedRiposteWeight = 0f;
 
     private void Start()
     {
@@ -44,6 +42,7 @@ public class EnemyAdaptiveProfile : MonoBehaviour
         ApplyWeaponResponse();
         CopyRealNormalizedSwordWeights();
         CopyRealNormalizedBowWeights();
+        CopyRealNormalizedDefenseWeights();
     }
 
     private void ApplyMirrorPlaystyle()
@@ -112,6 +111,12 @@ public class EnemyAdaptiveProfile : MonoBehaviour
             return;
         }
 
+        // Pengaman ukuran array Sword
+        if (normalizedSwordWeights == null || normalizedSwordWeights.Length != 4)
+        {
+            normalizedSwordWeights = new float[4];
+        }
+
         for (int i = 0; i < 4; i++)
             normalizedSwordWeights[i] = copy[i];
     }
@@ -126,30 +131,58 @@ public class EnemyAdaptiveProfile : MonoBehaviour
         }
 
         float[] copy = dda.GetCurrentBowSkillWeightsCopy();
-        if (copy == null || copy.Length != 3)
+        if (copy == null || copy.Length != 4)
         {
             ResetToDefaultBowWeights();
             return;
         }
 
-        for (int i = 0; i < 3; i++)
+        // FIX: Pengaman ukuran array Bow. Paksa resize jadi 4 jika Inspector masih menyimpan ukuran lama.
+        if (normalizedBowWeights == null || normalizedBowWeights.Length != 4)
+        {
+            normalizedBowWeights = new float[4];
+        }
+
+        for (int i = 0; i < 4; i++)
             normalizedBowWeights[i] = copy[i];
+    }
+
+    private void CopyRealNormalizedDefenseWeights()
+    {
+        var dda = DDAController.Instance;
+        if (dda == null || !dda.HasDefenseProfile)
+        {
+            normalizedDashWeight = 0f;
+            normalizedRiposteWeight = 0f;
+            return;
+        }
+
+        normalizedDashWeight = dda.GetCurrentDefenseDashWeight();
+        normalizedRiposteWeight = dda.GetCurrentDefenseRiposteWeight();
     }
 
     private void ResetToDefaultSwordWeights()
     {
+        if (normalizedSwordWeights == null || normalizedSwordWeights.Length != 4)
+        {
+            normalizedSwordWeights = new float[4];
+        }
         for (int i = 0; i < normalizedSwordWeights.Length; i++)
             normalizedSwordWeights[i] = 25f;
     }
 
     private void ResetToDefaultBowWeights()
     {
-        normalizedBowWeights[0] = 34f;
-        normalizedBowWeights[1] = 33f;
-        normalizedBowWeights[2] = 33f;
+        if (normalizedBowWeights == null || normalizedBowWeights.Length != 4)
+        {
+            normalizedBowWeights = new float[4];
+        }
+        for (int i = 0; i < normalizedBowWeights.Length; i++)
+            normalizedBowWeights[i] = 25f;
     }
 
     public IReadOnlyList<float> GetSwordSkillWeights() => normalizedSwordWeights;
+
     public IReadOnlyList<float> GetBowSkillWeights() => normalizedBowWeights;
 
     public float[] GetSwordSkillWeightsCopy()
@@ -168,7 +201,8 @@ public class EnemyAdaptiveProfile : MonoBehaviour
             $"[EnemyAdaptiveProfile] FINAL -> " +
             $"CombatStyle={combatStyle}, WeaponResponse={weaponResponse}, " +
             $"SwordWeights=[{normalizedSwordWeights[0]:F2}, {normalizedSwordWeights[1]:F2}, {normalizedSwordWeights[2]:F2}, {normalizedSwordWeights[3]:F2}], " +
-            $"BowWeights=[{normalizedBowWeights[0]:F2}, {normalizedBowWeights[1]:F2}, {normalizedBowWeights[2]:F2}]"
+            $"BowWeights=[{normalizedBowWeights[0]:F2}, {normalizedBowWeights[1]:F2}, {normalizedBowWeights[2]:F2}, {normalizedBowWeights[3]:F2}], " +
+            $"DefenseWeights=[Dash={normalizedDashWeight:F2}, Riposte={normalizedRiposteWeight:F2}]"
         );
     }
 }

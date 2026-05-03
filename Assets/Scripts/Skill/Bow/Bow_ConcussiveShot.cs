@@ -996,7 +996,7 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
             return;
         }
 
-        tracker.RecordAction(PlayerActionType.Offensive, WeaponType.Bow);
+        tracker.RecordAction(PlayerActionType.Defensive, WeaponType.Bow);
     }
 
     private IEnumerator CameraBumpRoutine()

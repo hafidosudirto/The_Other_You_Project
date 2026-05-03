@@ -45,13 +45,15 @@ public sealed class Enemy_DefenseTree : MonoBehaviour
             None,
             Lengah,
             Dash,
-            Riposte
+            Riposte,
+            Concussive
         }
 
         private readonly EnemyCombatController combat;
         private readonly StartReactionNode lengahNode;
         private readonly StartReactionNode dashNode;
         private readonly StartReactionNode riposteNode;
+        private readonly StartReactionNode concussiveNode;
 
         private ReactionChoice chosen = ReactionChoice.None;
 
@@ -71,6 +73,11 @@ public sealed class Enemy_DefenseTree : MonoBehaviour
 
             riposteNode = new StartReactionNode(
                 tryStart: () => combat.StartRiposte(),
+                isBusy: () => !combat.IsNotBusy
+            );
+
+            concussiveNode = new StartReactionNode(
+                tryStart: () => combat.StartConcussive(),
                 isBusy: () => !combat.IsNotBusy
             );
         }
@@ -106,6 +113,10 @@ public sealed class Enemy_DefenseTree : MonoBehaviour
                     result = riposteNode.Tick();
                     break;
 
+                case ReactionChoice.Concussive:
+                    result = concussiveNode.Tick();
+                    break;
+
                 default:
                     result = NodeStatus.Failure;
                     break;
@@ -123,6 +134,7 @@ public sealed class Enemy_DefenseTree : MonoBehaviour
             lengahNode.Reset();
             dashNode.Reset();
             riposteNode.Reset();
+            concussiveNode.Reset();
         }
 
         private ReactionChoice ChooseReaction()
@@ -139,7 +151,11 @@ public sealed class Enemy_DefenseTree : MonoBehaviour
                 ? Mathf.Max(0, combat.GetRiposteWeight())
                 : 0;
 
-            int total = lengahWeight + dashWeight + riposteWeight;
+            int concussiveWeight = combat.CanConcussiveCurrentSituation
+                ? Mathf.Max(0, combat.GetConcussiveWeight())
+                : 0;
+
+            int total = lengahWeight + dashWeight + riposteWeight + concussiveWeight;
 
             if (total <= 0)
                 return ReactionChoice.Lengah;
@@ -153,7 +169,12 @@ public sealed class Enemy_DefenseTree : MonoBehaviour
             if (roll < dashWeight)
                 return ReactionChoice.Dash;
 
-            return ReactionChoice.Riposte;
+            roll -= dashWeight;
+            if (roll < riposteWeight)
+                return ReactionChoice.Riposte;
+
+            // Sisa roll akan masuk ke concussive
+            return ReactionChoice.Concussive;
         }
     }
 }

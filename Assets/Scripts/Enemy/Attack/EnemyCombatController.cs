@@ -40,6 +40,7 @@ public sealed class EnemyCombatController : MonoBehaviour
 
     [Header("Defense Reaction Settings")]
     [Min(0f)][SerializeField] private float riposteCooldown = 0.75f;
+    [Min(0f)][SerializeField] private float concussiveCooldown = 1.0f;
     [Min(0f)][SerializeField] private float lengahBusyDuration = 0.28f;
 
     [Header("Balanced Openings")]
@@ -52,75 +53,56 @@ public sealed class EnemyCombatController : MonoBehaviour
     [Tooltip("Biasanya 0 agar mode DefensiveDominant benar-benar reaktif.")]
     [Min(0)][SerializeField] private int defensiveLengahWeight = 0;
 
-    [Header("Debug")]
-    [SerializeField] private bool verboseMissingSkillLog = false;
 
     private int _skillBusyCounter = 0;
     private int _reactionBusyCounter = 0;
     private int _lastConsumedOffensiveTriggerId = -1;
     private float _lastRiposteTime = -999f;
+    private float _lastConcussiveTime = -999f;
 
     public event Action OnSkillStart;
     public event Action OnSkillEnd;
 
-    // =========================================================
-    // API lama yang masih dipakai node / EnemyAI lama
-    // =========================================================
     public Enemy_Sword_SlashCombo slashCombo => _slashCombo;
     public Enemy_Sword_ChargedStrike chargedStrike => _chargedStrike;
     public Enemy_Sword_Whirlwind whirlwind => _whirlwind;
     public Enemy_Sword_Riposte riposte => _riposte;
 
-    // =========================================================
-    // API baru untuk bow
-    // =========================================================
     public Enemy_Bow_QuickShot quickShotBow => _quickShotBow;
     public Enemy_Bow_FullDraw fullDrawBow => _fullDrawBow;
     public Enemy_Bow_PiercingShot piercingBow => _piercingBow;
     public Enemy_Bow_ConcussiveShot concussiveBow => _concussiveBow;
 
     public bool HasSwordSkills =>
-        _slashCombo != null ||
-        _chargedStrike != null ||
-        _whirlwind != null ||
-        _riposte != null;
+        _slashCombo != null || _chargedStrike != null || _whirlwind != null || _riposte != null;
 
     public bool HasBowSkills =>
-        _quickShotBow != null ||
-        _fullDrawBow != null ||
-        _piercingBow != null ||
-        _concussiveBow != null;
+        _quickShotBow != null || _fullDrawBow != null || _piercingBow != null || _concussiveBow != null;
 
-    public float AttackPower
+    public float AttackPower => stats != null ? Mathf.Max(0f, stats.attack) : Mathf.Max(0f, attackPowerOverride);
+
+    public bool IsBusy => (ai != null && ai.isPerformingAction) || _skillBusyCounter > 0 || _reactionBusyCounter > 0;
+    public bool IsNotBusy => !IsBusy;
+
+    public bool IsPlayerAttacking => playerSensor != null && playerSensor.IsAttacking;
+    public bool HasNewPlayerAttack => playerSensor != null && playerSensor.OffensiveTriggerId != _lastConsumedOffensiveTriggerId;
+    public bool CanRiposteCurrentPlayerAction => playerSensor != null && playerSensor.IsCurrentActionRipostable;
+
+    // Menentukan apakah musuh sedang pegang panah dan player terlalu dekat
+    public bool CanConcussiveCurrentSituation
     {
         get
         {
-            if (stats != null)
-                return Mathf.Max(0f, stats.attack);
+            if (_concussiveBow == null) return false;
+            if (Time.time < _lastConcussiveTime + concussiveCooldown) return false;
 
-            return Mathf.Max(0f, attackPowerOverride);
+            float distanceToPlayer = 0f;
+            if (ai != null && ai.playerTransform != null)
+                distanceToPlayer = Vector2.Distance(transform.position, ai.playerTransform.position);
+
+            return _concussiveBow.CanTrigger(distanceToPlayer);
         }
     }
-
-    public bool IsBusy =>
-        (ai != null && ai.isPerformingAction) ||
-        _skillBusyCounter > 0 ||
-        _reactionBusyCounter > 0;
-
-    public bool IsNotBusy => !IsBusy;
-
-    // =========================================================
-    // API untuk defense tree reaktif
-    // =========================================================
-    public bool IsPlayerAttacking =>
-        playerSensor != null && playerSensor.IsAttacking;
-
-    public bool HasNewPlayerAttack =>
-        playerSensor != null &&
-        playerSensor.OffensiveTriggerId != _lastConsumedOffensiveTriggerId;
-
-    public bool CanRiposteCurrentPlayerAction =>
-        playerSensor != null && playerSensor.IsCurrentActionRipostable;
 
     public bool HasDefenseProfile
     {
@@ -133,20 +115,11 @@ public sealed class EnemyCombatController : MonoBehaviour
 
     private void Awake()
     {
-        if (ai == null)
-            ai = GetComponent<EnemyAI>();
-
-        if (enemyDash == null)
-            enemyDash = GetComponent<Enemy_Dash>();
-
-        if (playerSensor == null)
-            playerSensor = FindObjectOfType<PlayerAttackSensor>();
-
-        if (stats == null)
-            stats = new EnemyCombatStatsData();
-
-        if (stats.attack <= 0f)
-            stats.attack = attackPowerOverride;
+        if (ai == null) ai = GetComponent<EnemyAI>();
+        if (enemyDash == null) enemyDash = GetComponent<Enemy_Dash>();
+        if (playerSensor == null) playerSensor = FindObjectOfType<PlayerAttackSensor>();
+        if (stats == null) stats = new EnemyCombatStatsData();
+        if (stats.attack <= 0f) stats.attack = attackPowerOverride;
 
         AutoAssignAllSkills();
     }
@@ -156,200 +129,79 @@ public sealed class EnemyCombatController : MonoBehaviour
     {
         if (!Application.isPlaying)
         {
-            if (ai == null)
-                ai = GetComponent<EnemyAI>();
-
-            if (enemyDash == null)
-                enemyDash = GetComponent<Enemy_Dash>();
-
+            if (ai == null) ai = GetComponent<EnemyAI>();
+            if (enemyDash == null) enemyDash = GetComponent<Enemy_Dash>();
             AutoAssignAllSkills();
         }
     }
 #endif
 
-    public void RefreshSkillReferences()
-    {
-        AutoAssignAllSkills();
-    }
+    public void RefreshSkillReferences() => AutoAssignAllSkills();
+    public void AutoAssignAllSkills() { AutoAssignSwordSkills(); AutoAssignBowSkills(); }
 
-    // =========================================================
-    // Auto-assign terpadu
-    // =========================================================
-    public void AutoAssignAllSkills()
-    {
-        AutoAssignSwordSkills();
-        AutoAssignBowSkills();
-    }
-
-    // =========================================================
-    // Auto-assign skill sword
-    // =========================================================
     private void AutoAssignSwordSkills()
     {
         Transform root = skillRootSword;
-
-        if (root == null)
-            root = FindChildRecursive(transform, "SkillRoot_Sword");
-
-        if (root == null)
-        {
-            if (verboseMissingSkillLog && !HasAnySwordFieldAssigned())
-                Debug.LogWarning("[EnemyCombatController] SkillRoot_Sword tidak ditemukan. Auto-assign skill sword dilewati.", this);
-            return;
-        }
+        if (root == null) root = FindChildRecursive(transform, "SkillRoot_Sword");
+        if (root == null) return;
 
         skillRootSword = root;
-
-        if (_slashCombo == null)
-            _slashCombo = root.GetComponentInChildren<Enemy_Sword_SlashCombo>(true);
-
-        if (_chargedStrike == null)
-            _chargedStrike = root.GetComponentInChildren<Enemy_Sword_ChargedStrike>(true);
-
-        if (_whirlwind == null)
-            _whirlwind = root.GetComponentInChildren<Enemy_Sword_Whirlwind>(true);
-
-        if (_riposte == null)
-            _riposte = root.GetComponentInChildren<Enemy_Sword_Riposte>(true);
-
-        if (verboseMissingSkillLog)
-        {
-            if (_slashCombo == null) Debug.LogWarning("[EnemyCombatController] Enemy_Sword_SlashCombo tidak ditemukan.", this);
-            if (_chargedStrike == null) Debug.LogWarning("[EnemyCombatController] Enemy_Sword_ChargedStrike tidak ditemukan.", this);
-            if (_whirlwind == null) Debug.LogWarning("[EnemyCombatController] Enemy_Sword_Whirlwind tidak ditemukan.", this);
-            if (_riposte == null) Debug.LogWarning("[EnemyCombatController] Enemy_Sword_Riposte tidak ditemukan.", this);
-        }
+        if (_slashCombo == null) _slashCombo = root.GetComponentInChildren<Enemy_Sword_SlashCombo>(true);
+        if (_chargedStrike == null) _chargedStrike = root.GetComponentInChildren<Enemy_Sword_ChargedStrike>(true);
+        if (_whirlwind == null) _whirlwind = root.GetComponentInChildren<Enemy_Sword_Whirlwind>(true);
+        if (_riposte == null) _riposte = root.GetComponentInChildren<Enemy_Sword_Riposte>(true);
     }
 
-    // =========================================================
-    // Auto-assign skill bow
-    // =========================================================
     private void AutoAssignBowSkills()
     {
         Transform root = skillRootBow;
-
-        if (root == null)
-            root = FindChildRecursive(transform, "SkillRoot_Bow");
-
-        if (root == null)
-        {
-            if (verboseMissingSkillLog && !HasAnyBowFieldAssigned())
-                Debug.LogWarning("[EnemyCombatController] SkillRoot_Bow tidak ditemukan. Auto-assign skill bow dilewati.", this);
-            return;
-        }
+        if (root == null) root = FindChildRecursive(transform, "SkillRoot_Bow");
+        if (root == null) return;
 
         skillRootBow = root;
-
-        if (_quickShotBow == null)
-            _quickShotBow = root.GetComponentInChildren<Enemy_Bow_QuickShot>(true);
-
-        if (_fullDrawBow == null)
-            _fullDrawBow = root.GetComponentInChildren<Enemy_Bow_FullDraw>(true);
-
-        if (_piercingBow == null)
-            _piercingBow = root.GetComponentInChildren<Enemy_Bow_PiercingShot>(true);
-
-        if (_concussiveBow == null)
-            _concussiveBow = root.GetComponentInChildren<Enemy_Bow_ConcussiveShot>(true);
-
-        if (verboseMissingSkillLog)
-        {
-            if (_quickShotBow == null) Debug.LogWarning("[EnemyCombatController] Enemy_Bow_QuickShot tidak ditemukan.", this);
-            if (_fullDrawBow == null) Debug.LogWarning("[EnemyCombatController] Enemy_Bow_FullDraw tidak ditemukan.", this);
-            if (_piercingBow == null) Debug.LogWarning("[EnemyCombatController] Enemy_Bow_PiercingShot tidak ditemukan.", this);
-            if (_concussiveBow == null) Debug.LogWarning("[EnemyCombatController] Enemy_Bow_ConcussiveShot tidak ditemukan.", this);
-        }
-    }
-
-    private bool HasAnySwordFieldAssigned()
-    {
-        return _slashCombo != null ||
-               _chargedStrike != null ||
-               _whirlwind != null ||
-               _riposte != null;
-    }
-
-    private bool HasAnyBowFieldAssigned()
-    {
-        return _quickShotBow != null ||
-               _fullDrawBow != null ||
-               _piercingBow != null ||
-               _concussiveBow != null;
+        if (_quickShotBow == null) _quickShotBow = root.GetComponentInChildren<Enemy_Bow_QuickShot>(true);
+        if (_fullDrawBow == null) _fullDrawBow = root.GetComponentInChildren<Enemy_Bow_FullDraw>(true);
+        if (_piercingBow == null) _piercingBow = root.GetComponentInChildren<Enemy_Bow_PiercingShot>(true);
+        if (_concussiveBow == null) _concussiveBow = root.GetComponentInChildren<Enemy_Bow_ConcussiveShot>(true);
     }
 
     private Transform FindChildRecursive(Transform root, string targetName)
     {
-        if (root == null)
-            return null;
-
-        if (root.name == targetName)
-            return root;
-
+        if (root == null) return null;
+        if (root.name == targetName) return root;
         for (int i = 0; i < root.childCount; i++)
         {
             Transform found = FindChildRecursive(root.GetChild(i), targetName);
-            if (found != null)
-                return found;
+            if (found != null) return found;
         }
-
         return null;
     }
 
-    // =========================================================
-    // Kompatibilitas lifecycle skill lama / baru
-    // =========================================================
-    public void InvokeSkillStart()
-    {
-        _skillBusyCounter++;
-        OnSkillStart?.Invoke();
-    }
-
-    public void InvokeSkillEnd()
-    {
-        if (_skillBusyCounter > 0)
-            _skillBusyCounter--;
-
-        OnSkillEnd?.Invoke();
-    }
+    public void InvokeSkillStart() { _skillBusyCounter++; OnSkillStart?.Invoke(); }
+    public void InvokeSkillEnd() { if (_skillBusyCounter > 0) _skillBusyCounter--; OnSkillEnd?.Invoke(); }
 
     // =========================================================
-    // Bobot defense dibaca dari DDAController
+    // DDA Defense & Reaction Weights
     // =========================================================
     public int GetLengahWeight()
     {
         var dda = DDAController.Instance;
-
-        if (dda == null || !dda.HasDefenseProfile)
-            return 100;
-
+        if (dda == null || !dda.HasDefenseProfile) return 100;
         switch (dda.currentPlayerPlaystyle)
         {
-            case PlayerPlaystyle.Balanced:
-                return Mathf.Max(0, balancedLengahWeight);
-
-            case PlayerPlaystyle.OffensiveDominant:
-                return Mathf.Max(0, offensiveLengahWeight);
-
-            case PlayerPlaystyle.DefensiveDominant:
-                return Mathf.Max(0, defensiveLengahWeight);
-
-            default:
-                return 100;
+            case PlayerPlaystyle.Balanced: return Mathf.Max(0, balancedLengahWeight);
+            case PlayerPlaystyle.OffensiveDominant: return Mathf.Max(0, offensiveLengahWeight);
+            case PlayerPlaystyle.DefensiveDominant: return Mathf.Max(0, defensiveLengahWeight);
+            default: return 100;
         }
     }
 
     public int GetDashWeight()
     {
         var dda = DDAController.Instance;
-
-        if (dda == null || !dda.HasDefenseProfile)
-            return 0;
-
+        if (dda == null || !dda.HasDefenseProfile) return 0;
         int rawDash = Mathf.Clamp(Mathf.RoundToInt(dda.GetCurrentDefenseDashWeight()), 0, 100);
-
-        if (rawDash <= 0)
-            return 0;
-
+        if (rawDash <= 0) return 0;
         int budget = Mathf.Clamp(100 - GetLengahWeight(), 0, 100);
         return Mathf.RoundToInt((rawDash / 100f) * budget);
     }
@@ -357,31 +209,43 @@ public sealed class EnemyCombatController : MonoBehaviour
     public int GetRiposteWeight()
     {
         var dda = DDAController.Instance;
-
-        if (dda == null || !dda.HasDefenseProfile)
-            return 0;
-
+        if (dda == null || !dda.HasDefenseProfile) return 0;
         int rawRiposte = Mathf.Clamp(Mathf.RoundToInt(dda.GetCurrentDefenseRiposteWeight()), 0, 100);
-
-        if (rawRiposte <= 0)
-            return 0;
-
+        if (rawRiposte <= 0) return 0;
         int budget = Mathf.Clamp(100 - GetLengahWeight(), 0, 100);
         return Mathf.RoundToInt((rawRiposte / 100f) * budget);
     }
 
+    public int GetConcussiveWeight()
+    {
+        var dda = DDAController.Instance;
+        if (dda == null || !dda.HasBowSkillProfile) return 0;
+
+        float[] bowWeights = dda.GetCurrentBowSkillWeightsCopy();
+        if (bowWeights == null || bowWeights.Length < 4) return 0;
+
+        // Murni mengambil persentase bobot slot ke-3 (Concussive)
+        return Mathf.Clamp(Mathf.RoundToInt(bowWeights[3]), 0, 100);
+    }
+
     // =========================================================
-    // Reaksi defense
+    // Reactions
     // =========================================================
+
+    // Lengah akibat serangan pemain
     public bool StartLengah()
     {
-        if (!IsNotBusy)
-            return false;
-
-        if (!HasNewPlayerAttack)
-            return false;
-
+        if (!IsNotBusy || !HasNewPlayerAttack) return false;
         ConsumeCurrentAttackTrigger();
+        _reactionBusyCounter++;
+        StartCoroutine(ReleaseReactionBusy(lengahBusyDuration));
+        return true;
+    }
+
+    // Lengah akibat JARAK dekat pemain (Reaksi Bow)
+    public bool StartLengahDistance()
+    {
+        if (!IsNotBusy) return false;
         _reactionBusyCounter++;
         StartCoroutine(ReleaseReactionBusy(lengahBusyDuration));
         return true;
@@ -389,18 +253,9 @@ public sealed class EnemyCombatController : MonoBehaviour
 
     public bool StartDash()
     {
-        if (!IsNotBusy)
-            return false;
-
-        if (enemyDash == null)
-            return false;
-
-        if (ai != null && ai.playerTransform != null)
-            enemyDash.SetPlayer(ai.playerTransform);
-
-        bool started = enemyDash.TryDashAwayFromPlayer();
-        if (!started)
-            return false;
+        if (!IsNotBusy || enemyDash == null) return false;
+        if (ai != null && ai.playerTransform != null) enemyDash.SetPlayer(ai.playerTransform);
+        if (!enemyDash.TryDashAwayFromPlayer()) return false;
 
         ConsumeCurrentAttackTrigger();
         _reactionBusyCounter++;
@@ -410,47 +265,60 @@ public sealed class EnemyCombatController : MonoBehaviour
 
     public bool StartRiposte()
     {
-        if (!IsNotBusy)
-            return false;
-
-        if (!CanRiposteCurrentPlayerAction)
-            return false;
-
-        if (Time.time < _lastRiposteTime + riposteCooldown)
-            return false;
-
-        if (_riposte == null)
-            return false;
+        if (!IsNotBusy || !CanRiposteCurrentPlayerAction || Time.time < _lastRiposteTime + riposteCooldown || _riposte == null) return false;
 
         float distanceToPlayer = 0f;
         if (ai != null && ai.playerTransform != null)
             distanceToPlayer = Vector2.Distance(transform.position, ai.playerTransform.position);
 
-        if (!_riposte.CanTrigger(distanceToPlayer))
-            return false;
-
-        bool started = _riposte.TryStartRiposte();
-        if (!started)
-            return false;
+        if (!_riposte.CanTrigger(distanceToPlayer) || !_riposte.TryStartRiposte()) return false;
 
         _lastRiposteTime = Time.time;
         ConsumeCurrentAttackTrigger();
         return true;
     }
 
+    public bool StartConcussive()
+    {
+        if (!IsNotBusy || !CanConcussiveCurrentSituation) return false;
+
+        _concussiveBow.Trigger();
+
+        _lastConcussiveTime = Time.time;
+        return true;
+    }
+
+    // =========================================================
+    // DDA Execution Logic untuk Bow Defense
+    // =========================================================
+    public bool TryExecuteBowDefenseReaction()
+    {
+        if (!IsNotBusy || !CanConcussiveCurrentSituation) return false;
+
+        int concWeight = GetConcussiveWeight();
+
+        // Roll murni 0 - 99.
+        // Jika concWeight = 100 (player selalu pakai Concussive), peluang AI membalas = 100%.
+        int roll = UnityEngine.Random.Range(0, 100);
+
+        if (roll < concWeight)
+        {
+            return StartConcussive();
+        }
+        else
+        {
+            return StartLengahDistance();
+        }
+    }
+
     private void ConsumeCurrentAttackTrigger()
     {
-        if (playerSensor == null)
-            return;
-
-        _lastConsumedOffensiveTriggerId = playerSensor.OffensiveTriggerId;
+        if (playerSensor != null) _lastConsumedOffensiveTriggerId = playerSensor.OffensiveTriggerId;
     }
 
     private IEnumerator ReleaseReactionBusy(float duration)
     {
         yield return new WaitForSeconds(duration);
-
-        if (_reactionBusyCounter > 0)
-            _reactionBusyCounter--;
+        if (_reactionBusyCounter > 0) _reactionBusyCounter--;
     }
 }

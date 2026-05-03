@@ -54,12 +54,20 @@ public class EnemyMovementFSM : MonoBehaviour
     public void Tick()
     {
         if (player == null || rb == null) return;
+
         UpdateState();
         RunState();
     }
 
-    public void SetDesiredRange(float range) { desiredRange = Mathf.Max(0f, range); }
-    public void SetMinimumCombatRange(float range) { minimumCombatRange = Mathf.Max(0f, range); }
+    public void SetDesiredRange(float range)
+    {
+        desiredRange = Mathf.Max(0f, range);
+    }
+
+    public void SetMinimumCombatRange(float range)
+    {
+        minimumCombatRange = Mathf.Max(0f, range);
+    }
 
     public void SetMovementMode(CombatMovementMode mode)
     {
@@ -81,14 +89,14 @@ public class EnemyMovementFSM : MonoBehaviour
         float absDistY = Mathf.Abs(toPlayer.y);
 
         // [PERBAIKAN JITTER]: HYSTERESIS
-        // Mencegah FSM bolak-balik state jika jarak berada persis di garis batas (threshold)
-        bool isRetreating = (currentState == MoveState.Retreat);
-        bool isChasing = (currentState == MoveState.Chase);
-        bool isAligning = (currentState == MoveState.Aligning);
+        // Mencegah FSM bolak-balik state jika jarak berada persis di garis batas threshold.
+        bool isRetreating = currentState == MoveState.Retreat;
+        bool isChasing = currentState == MoveState.Chase;
+        bool isAligning = currentState == MoveState.Aligning;
 
-        float retreatThreshold = isRetreating ? minimumCombatRange : (minimumCombatRange - rangeTolerance);
-        float chaseThreshold = isChasing ? desiredRange : (desiredRange + rangeTolerance);
-        float alignThreshold = isAligning ? (verticalTolerance * 0.5f) : verticalTolerance;
+        float retreatThreshold = isRetreating ? minimumCombatRange : minimumCombatRange - rangeTolerance;
+        float chaseThreshold = isChasing ? desiredRange : desiredRange + rangeTolerance;
+        float alignThreshold = isAligning ? verticalTolerance * 0.5f : verticalTolerance;
 
         if (movementMode == CombatMovementMode.Bow)
         {
@@ -97,11 +105,13 @@ public class EnemyMovementFSM : MonoBehaviour
                 SwitchState(MoveState.Retreat);
                 return;
             }
+
             if (absDistX > chaseThreshold)
             {
                 SwitchState(MoveState.Chase);
                 return;
             }
+
             if (useVerticalAlign && absDistY > alignThreshold)
             {
                 SwitchState(MoveState.Aligning);
@@ -110,14 +120,21 @@ public class EnemyMovementFSM : MonoBehaviour
         }
         else // SWORD
         {
-            if (useVerticalAlign && absDistY > alignThreshold)
-            {
-                SwitchState(MoveState.Aligning);
-                return;
-            }
+            // [REVISI AGRESIVITAS SWORD]
+            // Sebelumnya, sword selalu memprioritaskan vertical alignment.
+            // Akibatnya musuh sering terlihat berhenti atau lambat mengejar jika posisi Y belum sejajar.
+            //
+            // Sekarang, sword memprioritaskan chase horizontal terlebih dahulu.
+            // Alignment Y baru dilakukan setelah jarak X sudah cukup dekat.
             if (absDistX > chaseThreshold)
             {
                 SwitchState(MoveState.Chase);
+                return;
+            }
+
+            if (useVerticalAlign && absDistY > alignThreshold)
+            {
+                SwitchState(MoveState.Aligning);
                 return;
             }
         }
@@ -132,16 +149,23 @@ public class EnemyMovementFSM : MonoBehaviour
             case MoveState.Idle:
                 rb.velocity = Vector2.Lerp(rb.velocity, Vector2.zero, Time.deltaTime * accel);
                 break;
+
             case MoveState.Aligning:
                 DoAlignManeuver();
                 break;
+
             case MoveState.Chase:
-                if (movementMode == CombatMovementMode.Bow) DoChaseDiagonal();
-                else DoChaseHorizontalOnly();
+                if (movementMode == CombatMovementMode.Bow)
+                    DoChaseDiagonal();
+                else
+                    DoChaseHorizontalOnly();
                 break;
+
             case MoveState.Retreat:
-                if (movementMode == CombatMovementMode.Bow) DoRetreatDiagonal();
-                else DoRetreatHorizontalOnly();
+                if (movementMode == CombatMovementMode.Bow)
+                    DoRetreatDiagonal();
+                else
+                    DoRetreatHorizontalOnly();
                 break;
         }
     }
@@ -165,23 +189,38 @@ public class EnemyMovementFSM : MonoBehaviour
     {
         float diffY = player.position.y - transform.position.y;
 
-        // [PERBAIKAN JITTER]: Smooth Braking. Melambat perlahan saat mendekati target Y (mencegah bablas/overshoot)
+        // [PERBAIKAN JITTER]: Smooth braking.
+        // Melambat perlahan saat mendekati target Y agar tidak overshoot.
         float smoothMult = Mathf.Clamp01(Mathf.Abs(diffY) / (verticalTolerance * 2f));
         float dirY = Mathf.Sign(diffY) * smoothMult;
 
-        rb.velocity = Vector2.Lerp(rb.velocity, new Vector2(0f, dirY * moveSpeed), Time.deltaTime * accel);
+        rb.velocity = Vector2.Lerp(
+            rb.velocity,
+            new Vector2(0f, dirY * moveSpeed),
+            Time.deltaTime * accel
+        );
     }
 
     private void DoChaseHorizontalOnly()
     {
         float dirX = Mathf.Sign(player.position.x - transform.position.x);
-        rb.velocity = Vector2.Lerp(rb.velocity, new Vector2(dirX * moveSpeed, 0f), Time.deltaTime * accel);
+
+        rb.velocity = Vector2.Lerp(
+            rb.velocity,
+            new Vector2(dirX * moveSpeed, 0f),
+            Time.deltaTime * accel
+        );
     }
 
     private void DoRetreatHorizontalOnly()
     {
         float dirX = -Mathf.Sign(player.position.x - transform.position.x);
-        rb.velocity = Vector2.Lerp(rb.velocity, new Vector2(dirX * moveSpeed, 0f), Time.deltaTime * accel);
+
+        rb.velocity = Vector2.Lerp(
+            rb.velocity,
+            new Vector2(dirX * moveSpeed, 0f),
+            Time.deltaTime * accel
+        );
     }
 
     // ==========================================
@@ -194,12 +233,17 @@ public class EnemyMovementFSM : MonoBehaviour
 
         float dirX = Mathf.Sign(diffX);
 
-        // [PERBAIKAN JITTER]: Pengereman halus sumbu Y saat bergerak diagonal
+        // [PERBAIKAN JITTER]: Pengereman halus sumbu Y saat bergerak diagonal.
         float smoothMultY = Mathf.Clamp01(Mathf.Abs(diffY) / (verticalTolerance * 2f));
         float dirY = Mathf.Sign(diffY) * smoothMultY;
 
         Vector2 targetVel = new Vector2(dirX, dirY).normalized * moveSpeed;
-        rb.velocity = Vector2.Lerp(rb.velocity, targetVel, Time.deltaTime * accel);
+
+        rb.velocity = Vector2.Lerp(
+            rb.velocity,
+            targetVel,
+            Time.deltaTime * accel
+        );
     }
 
     private void DoRetreatDiagonal()
@@ -212,6 +256,11 @@ public class EnemyMovementFSM : MonoBehaviour
         float dirY = Mathf.Sign(diffY) * smoothMultY;
 
         Vector2 targetVel = new Vector2(dirX, dirY).normalized * moveSpeed;
-        rb.velocity = Vector2.Lerp(rb.velocity, targetVel, Time.deltaTime * accel);
+
+        rb.velocity = Vector2.Lerp(
+            rb.velocity,
+            targetVel,
+            Time.deltaTime * accel
+        );
     }
 }
