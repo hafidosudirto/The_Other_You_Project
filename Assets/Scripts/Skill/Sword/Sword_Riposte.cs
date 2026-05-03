@@ -4,14 +4,18 @@ using System.Collections;
 public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
 {
     private CharacterBase character;
-    private SkillBase skillBase;
     private Player player;
+    private MoveKeyboard mover;
+    private Rigidbody2D rb;
 
     [Header("Animation")]
     public PlayerAnimation anim;
 
     [Header("Riposte Settings")]
+    [Tooltip("Durasi karakter berada dalam kondisi Riposte Ready.")]
     public float stanceDuration = 0.6f;
+
+    [Tooltip("Cooldown setelah Riposte dipakai.")]
     public float cooldownTime = 1.0f;
 
     private bool isOnCooldown = false;
@@ -27,108 +31,88 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
     private bool isDashing = false;
     private Vector3 dashStart;
     private Vector3 dashTarget;
-    private int mySlotIndex;
 
     [Header("Energy")]
     [SerializeField, Min(0f)] private float energyCost = 10f;
 
     public float EnergyCost => energyCost;
-    public bool PayEnergyInSkillBase => true;
+
+    // Energy dipotong langsung di script ini,
+    // supaya hanya berkurang kalau Riposte benar-benar berhasil aktif.
+    public bool PayEnergyInSkillBase => false;
+
+    private bool movementLockedByThisSkill = false;
+    private Coroutine cooldownRoutine;
 
     private void Awake()
     {
         character = GetComponentInParent<CharacterBase>();
-        skillBase = GetComponentInParent<SkillBase>();
         player = GetComponentInParent<Player>();
+        mover = GetComponentInParent<MoveKeyboard>();
+
+        if (mover == null)
+            mover = GetComponentInChildren<MoveKeyboard>();
 
         if (anim == null)
             anim = GetComponentInParent<PlayerAnimation>();
-    }
 
-    private bool HasEnoughEnergyToStart()
-    {
-        if (character == null) return false;
-        return character.CurrentEnergy + 1e-6f >= energyCost;
-    }
-
-    private bool HasAnyEnergyLeft()
-    {
-        if (character == null) return false;
-        return character.CurrentEnergy > 0f;
-    }
-
-    private void ForceStopRiposte(bool resetCooldownUsable = true)
-    {
-        isActive = false;
-        isDashing = false;
-        stanceTimer = 0f;
+        if (anim == null)
+            anim = GetComponentInChildren<PlayerAnimation>();
 
         if (character != null)
-        {
-            character.isRiposteStance = false;
-            if (resetCooldownUsable)
-                character.canRiposte = true;
-        }
+            rb = character.GetComponent<Rigidbody2D>();
 
-        if (anim != null)
-            anim.SetRiposteReady(false);
+        if (rb == null)
+            rb = GetComponentInParent<Rigidbody2D>();
 
-        if (player != null)
-            player.isAttacking = false;
+        if (rb == null)
+            rb = GetComponentInChildren<Rigidbody2D>();
     }
 
     private void Update()
     {
-        if ((isActive || isDashing) && !HasAnyEnergyLeft())
-        {
-            ForceStopRiposte(true);
-            return;
-        }
-
         if (isActive)
         {
+            // Kunci gerakan dipertahankan setiap frame.
+            // Ini mencegah kasus lock habis lebih dulu tetapi animasi masih Riposte Ready.
+            MaintainRiposteMovementLock();
+
             stanceTimer -= Time.deltaTime;
 
             if (stanceTimer <= 0f)
             {
-                isActive = false;
-
-                if (character != null)
-                    character.EndRiposteStance();
-
-                if (character != null)
-                    character.canRiposte = true;
-
-                if (anim != null)
-                    anim.SetRiposteReady(false);
-
-                if (player != null && !isDashing)
-                    player.isAttacking = false;
+                EndRiposteReady();
             }
         }
 
         if (isDashing)
+        {
+            // Saat Riposte Counter, input player juga tetap dikunci.
+            MaintainRiposteMovementLock();
             DashForward();
+        }
     }
 
     public void TriggerSkill(int slotIndex)
     {
-        if (isActive || isDashing || isOnCooldown)
+        if (isActive)
             return;
 
-        if (character == null || !character.CanAct())
+        if (isDashing)
+            return;
+
+        if (isOnCooldown)
+            return;
+
+        if (character == null)
+            return;
+
+        if (!character.CanAct())
             return;
 
         if (player != null && player.isAttacking)
             return;
 
-        if (!HasEnoughEnergyToStart())
-        {
-            DebugHub.Warning($"ENERGY KURANG: Riposte butuh {energyCost}.");
-            return;
-        }
-
-        mySlotIndex = slotIndex;
         TryActivateRiposte();
     }
 
@@ -137,29 +121,68 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
         if (character == null)
             return;
 
-        if (!character.canRiposte || isOnCooldown)
+        if (!character.canRiposte)
             return;
 
-        if (!HasAnyEnergyLeft())
+        if (isOnCooldown)
+            return;
+
+        if (!HasEnoughEnergyToStart())
         {
-            ForceStopRiposte(true);
+            Debug.LogWarning($"[Sword_Riposte] Energy kurang. Riposte butuh {energyCost} energy.");
+            return;
+        }
+
+        if (!character.TrySpendEnergy(energyCost))
+        {
+            Debug.LogWarning($"[Sword_Riposte] Energy kurang. Riposte butuh {energyCost} energy.");
             return;
         }
 
         character.ActivateRiposte();
+
         isActive = true;
+        isDashing = false;
         stanceTimer = stanceDuration;
 
         if (player != null)
             player.isAttacking = true;
 
+        LockRiposteMovement();
+
         if (anim != null)
+        {
+            anim.SetMoveSpeed(0f);
             anim.SetRiposteReady(true);
+        }
 
         if (DataTracker.Instance != null)
             DataTracker.Instance.RecordSwordRiposte();
 
-        StartCoroutine(StartCooldown());
+        StartRiposteCooldown();
+    }
+
+    private void EndRiposteReady()
+    {
+        isActive = false;
+        stanceTimer = 0f;
+
+        if (character != null)
+        {
+            character.EndRiposteStance();
+        }
+
+        if (anim != null)
+        {
+            anim.SetRiposteReady(false);
+            anim.SetMoveSpeed(0f);
+        }
+
+        if (player != null && !isDashing)
+            player.isAttacking = false;
+
+        if (!isDashing)
+            UnlockRiposteMovement();
     }
 
     public void TriggerFollowUpDash()
@@ -167,31 +190,35 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
         if (character == null)
             return;
 
-        if (!isActive) return;
-        if (isDashing) return;
-
-        if (!HasAnyEnergyLeft())
-        {
-            ForceStopRiposte(true);
+        if (!isActive)
             return;
-        }
+
+        if (isDashing)
+            return;
 
         Vector3 dir = character.isFacingRight ? Vector3.right : Vector3.left;
 
         dashStart = character.transform.position;
         dashTarget = dashStart + dir * dashDistance;
 
-        isDashing = true;
         isActive = false;
+        isDashing = true;
+        stanceTimer = 0f;
+
+        LockRiposteMovement();
 
         if (anim != null)
         {
+            anim.SetMoveSpeed(0f);
             anim.SetRiposteReady(false);
             anim.TriggerRiposteCounter();
         }
 
         if (player != null)
             player.isAttacking = true;
+
+        if (character != null)
+            character.isRiposteStance = false;
     }
 
     private void DashForward()
@@ -208,47 +235,177 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
             dashSpeed * Time.deltaTime
         );
 
+        if (rb != null)
+            rb.velocity = Vector2.zero;
+
         if (Vector3.Distance(character.transform.position, dashTarget) <= 0.05f)
         {
             isDashing = false;
 
-            if (HasAnyEnergyLeft())
-                PerformFollowUpDamage();
+            PerformFollowUpDamage();
 
             if (character != null)
-                character.canRiposte = true;
+            {
+                character.isRiposteStance = false;
+            }
 
             if (player != null)
                 player.isAttacking = false;
+
+            if (anim != null)
+            {
+                anim.SetRiposteReady(false);
+                anim.SetMoveSpeed(0f);
+            }
+
+            UnlockRiposteMovement();
         }
     }
 
     private void PerformFollowUpDamage()
     {
+        if (character == null)
+            return;
+
         Vector2 start = dashStart;
         Vector2 end = dashTarget;
+        Vector2 direction = (end - start).normalized;
+        float distance = Vector2.Distance(start, end);
 
         RaycastHit2D[] hits = Physics2D.CircleCastAll(
             start,
             hitRadius,
-            (end - start).normalized,
-            Vector2.Distance(start, end),
+            direction,
+            distance,
             enemyLayer
         );
 
-        foreach (var h in hits)
+        foreach (RaycastHit2D h in hits)
         {
             CharacterBase enemy = h.collider.GetComponent<CharacterBase>();
+
             if (enemy != null && enemy != character)
+            {
                 enemy.TakeDamage(character.attack);
+            }
         }
+    }
+
+    private bool HasEnoughEnergyToStart()
+    {
+        if (character == null)
+            return false;
+
+        return character.HasEnergy(energyCost);
+    }
+
+    private void LockRiposteMovement()
+    {
+        movementLockedByThisSkill = true;
+
+        if (player != null)
+        {
+            player.lockMovement = true;
+        }
+
+        if (mover != null)
+        {
+            // Durasi dibuat pendek tetapi nanti dipanggil ulang setiap frame oleh MaintainRiposteMovementLock().
+            // Jadi lock tidak akan putus selama isActive / isDashing masih true.
+            mover.LockExternal(0.2f, stopVelocity: true);
+        }
+
+        if (rb != null)
+            rb.velocity = Vector2.zero;
+
+        if (anim != null)
+            anim.SetMoveSpeed(0f);
+    }
+
+    private void MaintainRiposteMovementLock()
+    {
+        if (!movementLockedByThisSkill)
+            movementLockedByThisSkill = true;
+
+        if (player != null)
+        {
+            player.lockMovement = true;
+        }
+
+        if (mover != null)
+        {
+            mover.LockExternal(0.2f, stopVelocity: true);
+        }
+
+        if (rb != null)
+            rb.velocity = Vector2.zero;
+
+        if (anim != null)
+            anim.SetMoveSpeed(0f);
+    }
+
+    private void UnlockRiposteMovement()
+    {
+        if (movementLockedByThisSkill)
+        {
+            if (player != null)
+                player.lockMovement = false;
+
+            if (mover != null)
+                mover.UnlockExternal();
+
+            if (rb != null)
+                rb.velocity = Vector2.zero;
+
+            if (anim != null)
+                anim.SetMoveSpeed(0f);
+
+            movementLockedByThisSkill = false;
+        }
+    }
+
+    private void ForceStopRiposte(bool resetCooldownUsable = true)
+    {
+        isActive = false;
+        isDashing = false;
+        stanceTimer = 0f;
+
+        if (character != null)
+        {
+            character.isRiposteStance = false;
+
+            if (resetCooldownUsable)
+                character.canRiposte = true;
+        }
+
+        if (anim != null)
+        {
+            anim.SetRiposteReady(false);
+            anim.SetMoveSpeed(0f);
+        }
+
+        if (player != null)
+            player.isAttacking = false;
+
+        UnlockRiposteMovement();
+    }
+
+    private void StartRiposteCooldown()
+    {
+        if (cooldownRoutine != null)
+            StopCoroutine(cooldownRoutine);
+
+        cooldownRoutine = StartCoroutine(StartCooldown());
     }
 
     private IEnumerator StartCooldown()
     {
         isOnCooldown = true;
+
         yield return new WaitForSeconds(cooldownTime + stanceDuration);
+
         isOnCooldown = false;
+        cooldownRoutine = null;
     }
 
     private void OnDisable()
@@ -259,7 +416,8 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
 #if UNITY_EDITOR
     private void OnDrawGizmos()
     {
-        if (!Application.isPlaying || character == null) return;
+        if (!Application.isPlaying || character == null)
+            return;
 
         Vector3 center = character.transform.position;
         Vector3 facing = character.isFacingRight ? Vector3.right : Vector3.left;
