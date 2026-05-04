@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class Bow_PiercingShot : MonoBehaviour, ISkill
+public class Bow_PiercingShot : MonoBehaviour, ISkill, IEnergySkill
 {
     [Header("Piercing Shot Settings")]
     public GameObject arrowPrefab;
@@ -22,6 +22,12 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill
     [Header("Timing")]
     public float postShotLock = 0.08f;
 
+    [Header("Energy")]
+    [SerializeField, Min(0f)] private float energyCost = 12f;
+
+    public float EnergyCost => energyCost;
+    public bool PayEnergyInSkillBase => false;
+
     private CharacterBase character;
     private Player player;
     private float lastShootTime = -999f;
@@ -29,10 +35,13 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill
     private bool isCasting;
     private bool waitingAnimationRelease;
 
-    void Awake()
+    private void Awake()
     {
         character = GetComponentInParent<CharacterBase>();
         player = GetComponentInParent<Player>();
+
+        if (anim == null)
+            anim = GetComponentInParent<PlayerAnimation>();
     }
 
     public void TriggerSkill(int slotIndex)
@@ -43,10 +52,13 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill
         if (Time.time < lastShootTime + shootCooldown)
             return;
 
-        if (!character || !character.CanAct())
+        if (character == null || !character.CanAct())
             return;
 
         if (player != null && player.lockMovement)
+            return;
+
+        if (!TryPayEnergy())
             return;
 
         lastShootTime = Time.time;
@@ -181,6 +193,29 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill
         Rigidbody2D ownerRb = player.GetComponent<Rigidbody2D>();
         if (ownerRb != null)
             ownerRb.velocity = Vector2.zero;
+    }
+
+    private bool TryPayEnergy()
+    {
+        if (energyCost <= 0f)
+            return true;
+
+        if (character == null)
+            character = player != null ? player : GetComponentInParent<CharacterBase>();
+
+        if (character == null)
+        {
+            Debug.LogWarning("[PiercingShot] Energy owner tidak ditemukan. Cast dibatalkan.");
+            return false;
+        }
+
+        if (!character.TrySpendEnergy(energyCost))
+        {
+            Debug.LogWarning($"[PiercingShot] Energy kurang. Butuh {energyCost} energy.");
+            return false;
+        }
+
+        return true;
     }
 
     private void OnDisable()

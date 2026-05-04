@@ -2,55 +2,63 @@ using UnityEngine;
 
 public class ConcussiveHitArea : MonoBehaviour
 {
-    [Header("Stats")]
-    public float damage = 10f;
-    public float knockback = 6f;
-    public float stun = 0.35f;
-    public float radius = 1.4f;
+    [Header("Blast Setup")]
+    [Tooltip("Damage ledakan Concussive. Biasanya nilai ini dikirim dari Bow_ConcussiveShot.cs lewat Setup().")]
+    public float damageLedak = 10f;
+
+    [Tooltip("Kekuatan dorong ledakan. Dorongannya dipaksa mendatar ke kiri / kanan.")]
+    public float dorongLedak = 6f;
+
+    [Tooltip("Durasi stun dari ledakan. Kalau ingin ubah reaksi musuh lebih jauh, cek CharacterBase.cs / Enemy.cs.")]
+    public float stunLedak = 0.35f;
+
+    [Tooltip("Jangkauan ledakan. Semakin besar, semakin luas area yang kena.")]
+    public float radiusLedak = 1.4f;
 
     [Header("Owner")]
+    [Tooltip("Pemilik ledakan ini. Biasanya diisi otomatis saat Concussive dibuat.")]
     public CharacterBase owner;
 
-    [Header("Filter")]
-    public LayerMask hitMask = ~0;   // set di prefab ke Enemy
+    [Header("Target Filter")]
+    [Tooltip("Layer target yang boleh kena ledakan. Biasanya diarahkan ke Enemy.")]
+    public LayerMask hitMask = ~0;
 
-    [Header("Lifetime")]
-    [Tooltip("Berapa lama area ini hidup setelah aktif.")]
-    public float lifeTime = 0.15f;
+    [Header("Life Time")]
+    [Tooltip("Berapa lama area ledak tetap ada setelah aktif.")]
+    public float waktuHidup = 0.15f;
 
-    bool hasTriggered;
+    private bool sudahAktif;
 
-    // Dipanggil dari skill untuk setup value
+    // Dipanggil dari Bow_ConcussiveShot.cs
     public void Setup(CharacterBase ownerCharacter, float dmg, float kb, float st, float rad)
     {
         owner = ownerCharacter;
-        damage = dmg;
-        knockback = kb;
-        stun = st;
-        radius = rad;
+        damageLedak = dmg;
+        dorongLedak = kb;
+        stunLedak = st;
+        radiusLedak = rad;
     }
 
     void OnEnable()
     {
         TriggerHit();
 
-        if (lifeTime > 0f)
-            Destroy(gameObject, lifeTime);
+        if (waktuHidup > 0f)
+            Destroy(gameObject, waktuHidup);
     }
 
     public void TriggerHit()
     {
-        if (hasTriggered) return;
-        hasTriggered = true;
+        if (sudahAktif) return;
+        sudahAktif = true;
 
-        Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, radius, hitMask);
+        Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, radiusLedak, hitMask);
         foreach (var h in hits)
         {
             CharacterBase target = h.GetComponent<CharacterBase>();
             if (target == null)
                 continue;
 
-            // jangan pukul diri sendiri
             if (owner != null && target == owner)
                 continue;
 
@@ -59,29 +67,25 @@ public class ConcussiveHitArea : MonoBehaviour
         }
     }
 
-    void ApplyEffectsToTarget(CharacterBase target, Vector2 hitPoint)
+    private void ApplyEffectsToTarget(CharacterBase target, Vector2 hitPoint)
     {
-        // Damage
-        if (damage > 0f)
+        if (damageLedak > 0f)
         {
             GameObject source = owner != null ? owner.gameObject : gameObject;
-            target.TakeDamage(damage, source);
+            target.TakeDamage(damageLedak, source);
         }
 
-        // Knockback
-        if (knockback > 0f)
+        // Knockback ledak dipaksa horizontal
+        if (dorongLedak > 0f)
         {
-            Vector2 dir = ((Vector2)target.transform.position - hitPoint).normalized;
-            if (dir.sqrMagnitude < 0.0001f)
-                dir = Vector2.up;
-
-            target.ApplyKnockback(dir, knockback);
+            float arahX = target.transform.position.x >= transform.position.x ? 1f : -1f;
+            Vector2 arahDorong = new Vector2(arahX, 0f);
+            target.ApplyKnockback(arahDorong, dorongLedak);
         }
 
-        // Stun
-        if (stun > 0f)
+        if (stunLedak > 0f)
         {
-            target.ApplyStun(stun);
+            target.ApplyStun(stunLedak);
         }
     }
 
@@ -89,7 +93,7 @@ public class ConcussiveHitArea : MonoBehaviour
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, radius);
+        Gizmos.DrawWireSphere(transform.position, radiusLedak);
     }
 #endif
 }

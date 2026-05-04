@@ -2,60 +2,45 @@ using UnityEngine;
 
 public class ArrowDamage : MonoBehaviour
 {
-    [Header("Base Stats")]
-    [Tooltip("Damage dasar panah. Bisa dioverride oleh skill lewat SetStats().")]
-    public float baseDamage = 10f;
-
-    [Tooltip("Kekuatan knockback. 0 = tidak ada knockback.")]
-    public float knockbackForce = 0f;
-
-    [Tooltip("Durasi stun (detik). 0 = tidak ada stun.")]
-    public float stunDuration = 0f;
-
-    [Header("Behaviour Flags")]
-    [Tooltip("Jika true, panah hancur setelah kena target (kecuali piercing).")]
+    [Header("Arrow Behaviour")]
+    [Tooltip("Kalau aktif, panah hilang setelah kena target. Kalau false, panah bisa tetap lanjut.")]
     public bool destroyOnHit = true;
 
-    [Tooltip("Jika true, panah akan menembus target (tidak hancur saat hit).")]
+    [Tooltip("Kalau aktif, panah bisa tembus target dan tidak langsung hilang saat kena musuh.")]
     public bool piercing = false;
 
-    [Tooltip("Jika true, panah bertipe concussive (ada efek AoE).")]
+    [Tooltip("Kalau aktif, panah membawa efek ledak area. Biasanya dipakai untuk varian khusus, bukan Quick Shot biasa.")]
     public bool concussive = false;
 
-    [Tooltip("Radius AoE untuk concussive shot.")]
+    [Tooltip("Radius ledak untuk panah tipe concussive. Kalau Anda ingin ubah ledakan skill, cek Bow_ConcussiveShot.cs atau ConcussiveHitArea.cs.")]
     public float explosionRadius = 1.5f;
 
     [Header("Debug / Owner")]
-    [Tooltip("Siapa pemilik panah ini (player / enemy)")]
+    [Tooltip("Pemilik panah ini. Biasanya diisi otomatis oleh skill saat panah dibuat.")]
     [SerializeField] public CharacterBase owner;
+
+    [Header("Hidden Runtime Stats")]
+    [HideInInspector] public float baseDamage = 10f;
+    [HideInInspector] public float knockbackForce = 0f;
+    [HideInInspector] public float stunDuration = 0f;
 
     private Rigidbody2D rb;
 
-    // -------------------------------------------------------------
-    //  INIT
-    // -------------------------------------------------------------
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
     }
 
-    /// <summary>
-    /// Dipanggil dari skill bow untuk mendaftarkan pemilik panah.
-    /// Player mewarisi CharacterBase, jadi parameter-nya pakai base class.
-    /// </summary>
     public void SetOwner(CharacterBase ownerCharacter)
     {
         owner = ownerCharacter;
     }
 
-    /// <summary>
-    /// API sederhana untuk override stat panah per-skill.
-    /// Contoh:
-    ///   arrow.SetStats(8, 0, 0, false);              // Quick Shot
-    ///   arrow.SetStats(14, 4, 0, false);             // Full Draw
-    ///   arrow.SetStats(10, 0, 0, true);              // Piercing
-    ///   arrow.SetStats(8, 3, 1.5f, false, true);     // Concussive
-    /// </summary>
+    // Dipanggil dari skill Bow:
+    // - Bow_QuickShot.cs
+    // - Bow_FullDraw.cs
+    // - Bow_PiercingShot.cs
+    // dll
     public void SetStats(
         float damage,
         float knockback,
@@ -71,74 +56,70 @@ public class ArrowDamage : MonoBehaviour
         concussive = isConcussive;
     }
 
-    // -------------------------------------------------------------
-    //  COLLISION
-    // -------------------------------------------------------------
     private void OnTriggerEnter2D(Collider2D other)
     {
-        // Cari target yang punya CharacterBase
         CharacterBase target = other.GetComponent<CharacterBase>();
         if (target == null)
             return;
 
-        // Jangan hit owner sendiri
         if (owner != null && other.gameObject == owner.gameObject)
             return;
 
-        // Hit utama
         Vector2 hitPoint = other.ClosestPoint(transform.position);
         ApplyEffectsToTarget(target, hitPoint, applyDamage: true);
 
-        // Efek concussive AoE (knockback + stun ke sekitar)
         if (concussive && explosionRadius > 0f)
         {
             Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, explosionRadius);
             foreach (var h in hits)
             {
-                if (h == other) continue; // yang sudah kena di atas
+                if (h == other) continue;
 
                 CharacterBase extraTarget = h.GetComponent<CharacterBase>();
                 if (extraTarget == null || extraTarget == target)
                     continue;
 
                 Vector2 extraPoint = h.ClosestPoint(transform.position);
-                // Di AoE biasanya cuma knockback + stun, damage opsional (di sini: tidak tambah damage)
                 ApplyEffectsToTarget(extraTarget, extraPoint, applyDamage: false);
             }
         }
 
-        // Kalau bukan piercing, panah hancur setelah hit
         if (!piercing && destroyOnHit)
         {
             Destroy(gameObject);
         }
     }
 
-    // -------------------------------------------------------------
-    //  EFFECT HELPER
-    // -------------------------------------------------------------
     private void ApplyEffectsToTarget(CharacterBase target, Vector2 hitPoint, bool applyDamage)
     {
-        // Damage
         if (applyDamage && baseDamage > 0f)
         {
             GameObject source = owner != null ? owner.gameObject : gameObject;
             target.TakeDamage(baseDamage, source);
         }
 
-        // Knockback
+        // Knockback selalu dipaksa horizontal
         if (knockbackForce > 0f)
         {
-            Vector2 dir = ((Vector2)target.transform.position - hitPoint).normalized;
+            float arahX = 0f;
 
-            // Kalau arahnya aneh (misal overlap persis), fallback dari velocity panah
-            if (dir.sqrMagnitude < 0.0001f && rb != null && rb.velocity.sqrMagnitude > 0.0001f)
-                dir = rb.velocity.normalized;
+            if (rb != null && Mathf.Abs(rb.velocity.x) > 0.0001f)
+            {
+                arahX = Mathf.Sign(rb.velocity.x);
+            }
+            else if (owner != null)
+            {
+                arahX = owner.isFacingRight ? 1f : -1f;
+            }
+            else
+            {
+                arahX = target.transform.position.x >= transform.position.x ? 1f : -1f;
+            }
 
-            target.ApplyKnockback(dir, knockbackForce);
+            Vector2 arahDorong = new Vector2(arahX, 0f);
+            target.ApplyKnockback(arahDorong, knockbackForce);
         }
 
-        // Stun
         if (stunDuration > 0f)
         {
             target.ApplyStun(stunDuration);
