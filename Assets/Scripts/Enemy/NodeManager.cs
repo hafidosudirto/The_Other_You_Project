@@ -46,22 +46,20 @@ public class EnemyAI : MonoBehaviour
     [Tooltip("Matikan (False) agar Bow beradaptasi dengan persentase DDA.")]
     [SerializeField] private bool useBowBalancedBag = false;
 
-    // Variabel kunci untuk DDA: mengunci skill yang terpilih agar tidak terganti saat cooldown.
-    private int pendingBowSkillId = -1;
-
+    // [PERBAIKAN RANGE]: Nilai default dinaikkan drastis agar tidak ada lagi area deadzone
     [Tooltip("Radius maksimal enemy bow mulai merespons pemain.")]
-    [SerializeField] private float bowSenseRange = 8.5f;
+    [SerializeField] private float bowSenseRange = 15f;
 
     [Tooltip("Jarak default bow jika bag sedang kosong atau menggunakan DDA.")]
-    [SerializeField] private float bowDesiredRange = 5.25f;
+    [SerializeField] private float bowDesiredRange = 10f;
 
     [Tooltip("Kalau player terlalu dekat dari ini, enemy bow akan mundur.")]
-    [SerializeField] private float bowMinimumRange = 2.25f;
+    [SerializeField] private float bowMinimumRange = 5f;
 
     [Header("Sword Range Preset")]
     [SerializeField] private float swordDesiredRange = 1.8f;
 
-    [Tooltip("Radius deteksi ofensif sword. Nilai ini harus lebih besar dari attackRange agar sword mulai agresif sebelum benar-benar masuk jarak pukul.")]
+    [Tooltip("Radius deteksi ofensif sword.")]
     [SerializeField] private float swordSenseRange = 3.2f;
 
     [Header("Action Lock")]
@@ -70,7 +68,6 @@ public class EnemyAI : MonoBehaviour
     private WeightedRandomSelector offensiveTree;
     private int cachedProfileVersion = -1;
 
-    // Balanced bag untuk bow, hanya skill offensive.
     private readonly List<int> bowSkillBag = new List<int>();
     private int lastBowSkillId = -1;
 
@@ -190,20 +187,37 @@ public class EnemyAI : MonoBehaviour
     {
         if (!playerTransform) return;
 
-        float dx = playerTransform.position.x - transform.position.x;
-        desiredFacingRight = dx >= 0f;
+        if (isPerformingAction) return;
+
+        float velocityX = rb2d != null ? rb2d.velocity.x : 0f;
+
+        if (Mathf.Abs(velocityX) > 0.1f)
+        {
+            desiredFacingRight = velocityX > 0f;
+        }
+        else
+        {
+            float dx = playerTransform.position.x - transform.position.x;
+            desiredFacingRight = dx >= 0f;
+        }
     }
 
     private void ApplyFacing()
     {
         if (spriteRenderer == null) return;
-
         spriteRenderer.flipX = invertFlipX ? desiredFacingRight : !desiredFacingRight;
     }
 
     public void OnActionStart()
     {
         isPerformingAction = true;
+
+        if (playerTransform != null)
+        {
+            float dx = playerTransform.position.x - transform.position.x;
+            desiredFacingRight = dx >= 0f;
+            ApplyFacing();
+        }
 
         if (Movement != null)
             Movement.enabled = false;
@@ -287,36 +301,6 @@ public class EnemyAI : MonoBehaviour
         return null;
     }
 
-    private float GetPendingBowSkillRange()
-    {
-        int skillToEvaluate = -1;
-
-        if (useBowBalancedBag && bowSkillBag.Count > 0)
-        {
-            skillToEvaluate = bowSkillBag[0];
-        }
-        else if (!useBowBalancedBag && pendingBowSkillId != -1)
-        {
-            skillToEvaluate = pendingBowSkillId;
-        }
-
-        switch (skillToEvaluate)
-        {
-            case 0:
-                return Combat.quickShotBow != null ? Combat.quickShotBow.skillRange : bowDesiredRange;
-
-            case 1:
-                return Combat.piercingBow != null ? Combat.piercingBow.skillRange : bowDesiredRange;
-
-            case 2:
-                return Combat.fullDrawBow != null ? Combat.fullDrawBow.skillRange : bowDesiredRange;
-
-                // Concussive tidak dimasukkan karena murni reaktif.
-        }
-
-        return bowDesiredRange;
-    }
-
     private void ApplyMovementPresetForCurrentWeapon()
     {
         if (Movement == null) return;
@@ -324,10 +308,34 @@ public class EnemyAI : MonoBehaviour
         if (ResolveWeaponMode() == EnemyWeaponMode.Bow)
         {
             Movement.SetMovementMode(EnemyMovementFSM.CombatMovementMode.Bow);
-            Movement.SetMinimumCombatRange(bowMinimumRange);
 
-            // Pergerakan adaptif berdasarkan jarak ideal skill yang akan dikeluarkan.
-            Movement.SetDesiredRange(GetPendingBowSkillRange());
+            // [PERBAIKAN RANGE DINAMIS]: 
+            // Ambil batas jarak terjauh dan terdekat secara otomatis dari skill yang sedang dipakai
+            // Ini akan mencegah FSM terjebak di area deadlock
+            float dynamicDesiredRange = bowDesiredRange;
+            float dynamicMinRange = bowMinimumRange;
+
+            if (Combat != null)
+            {
+                if (Combat.quickShotBow != null)
+                {
+                    dynamicDesiredRange = Mathf.Max(dynamicDesiredRange, Combat.quickShotBow.skillRange);
+                    dynamicMinRange = Mathf.Max(dynamicMinRange, Combat.quickShotBow.minRange);
+                }
+                if (Combat.piercingBow != null)
+                {
+                    dynamicDesiredRange = Mathf.Max(dynamicDesiredRange, Combat.piercingBow.skillRange);
+                    dynamicMinRange = Mathf.Max(dynamicMinRange, Combat.piercingBow.minRange);
+                }
+                if (Combat.fullDrawBow != null)
+                {
+                    dynamicDesiredRange = Mathf.Max(dynamicDesiredRange, Combat.fullDrawBow.skillRange);
+                    dynamicMinRange = Mathf.Max(dynamicMinRange, Combat.fullDrawBow.minRange);
+                }
+            }
+
+            Movement.SetDesiredRange(dynamicDesiredRange);
+            Movement.SetMinimumCombatRange(dynamicMinRange);
         }
         else
         {
@@ -346,10 +354,6 @@ public class EnemyAI : MonoBehaviour
         if (ResolveWeaponMode() == EnemyWeaponMode.Bow)
             return distToPlayer <= bowSenseRange;
 
-        // REVISI:
-        // Sebelumnya sword memakai IsInAttackRange().
-        // Akibatnya attack tree sword baru berjalan ketika player sudah benar-benar masuk radius pukul.
-        // Sekarang sword memakai swordSenseRange agar mulai mengevaluasi serangan lebih awal.
         return distToPlayer <= swordSenseRange;
     }
 
@@ -357,7 +361,17 @@ public class EnemyAI : MonoBehaviour
     {
         if (ResolveWeaponMode() == EnemyWeaponMode.Bow)
         {
-            offensiveTree = null;
+            var bowNodes = new List<Node>
+            {
+                new BowQuickShotNode(this),
+                new BowPiercingShotNode(this),
+                new BowFullDrawNode(this)
+            };
+
+            offensiveTree = new WeightedRandomSelector(
+                bowNodes,
+                new List<float> { 34f, 33f, 33f }
+            );
             return;
         }
 
@@ -378,39 +392,36 @@ public class EnemyAI : MonoBehaviour
     {
         var dda = DDAController.Instance;
 
-        if (dda == null || adaptiveProfile == null)
+        if (dda == null || adaptiveProfile == null || offensiveTree == null)
             return;
 
         if (!force && cachedProfileVersion == dda.ProfileVersion)
             return;
 
         cachedProfileVersion = dda.ProfileVersion;
-
-        // Refresh Adaptive Profile secara global, baik Sword maupun Bow.
         adaptiveProfile.RefreshFromDDA();
 
-        // Update tree hanya untuk Sword.
-        if (ResolveWeaponMode() == EnemyWeaponMode.Sword && offensiveTree != null)
+        if (ResolveWeaponMode() == EnemyWeaponMode.Sword)
         {
-            IReadOnlyList<float> allWeights = adaptiveProfile.GetSwordSkillWeights();
-
-            if (allWeights != null && allWeights.Count >= 3)
+            IReadOnlyList<float> w = adaptiveProfile.GetSwordSkillWeights();
+            if (w != null && w.Count >= 3)
             {
-                float total =
-                    Mathf.Max(0f, allWeights[0]) +
-                    Mathf.Max(0f, allWeights[1]) +
-                    Mathf.Max(0f, allWeights[2]);
-
+                float total = Mathf.Max(0f, w[0]) + Mathf.Max(0f, w[1]) + Mathf.Max(0f, w[2]);
                 if (total > 0f)
                 {
-                    offensiveTree.SetWeights(
-                        new float[]
-                        {
-                            (allWeights[0] / total) * 100f,
-                            (allWeights[1] / total) * 100f,
-                            (allWeights[2] / total) * 100f
-                        }
-                    );
+                    offensiveTree.SetWeights(new float[] { (w[0] / total) * 100f, (w[1] / total) * 100f, (w[2] / total) * 100f });
+                }
+            }
+        }
+        else if (ResolveWeaponMode() == EnemyWeaponMode.Bow)
+        {
+            IReadOnlyList<float> w = adaptiveProfile.GetBowSkillWeights();
+            if (w != null && w.Count >= 3)
+            {
+                float total = Mathf.Max(0f, w[0]) + Mathf.Max(0f, w[1]) + Mathf.Max(0f, w[2]);
+                if (total > 0f)
+                {
+                    offensiveTree.SetWeights(new float[] { (w[0] / total) * 100f, (w[1] / total) * 100f, (w[2] / total) * 100f });
                 }
             }
         }
@@ -419,17 +430,13 @@ public class EnemyAI : MonoBehaviour
     private void RefillBowSkillBag()
     {
         bowSkillBag.Clear();
-
-        // Hanya skill offensive.
-        // Slot 3 atau Concussive tidak masuk tas karena murni reaktif.
-        bowSkillBag.Add(0); // Quick Shot
-        bowSkillBag.Add(1); // Piercing Shot
-        bowSkillBag.Add(2); // Full Draw
+        bowSkillBag.Add(0);
+        bowSkillBag.Add(1);
+        bowSkillBag.Add(2);
 
         for (int i = 0; i < bowSkillBag.Count; i++)
         {
             int j = Random.Range(i, bowSkillBag.Count);
-
             int temp = bowSkillBag[i];
             bowSkillBag[i] = bowSkillBag[j];
             bowSkillBag[j] = temp;
@@ -443,32 +450,14 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
-    // =========================================================
-    // MAPPING ID DDA
-    // 0 = Quick Shot
-    // 1 = Piercing Shot
-    // 2 = Full Draw
-    // =========================================================
     private bool CanUseBowSkillId(int skillId, float dist)
     {
         switch (skillId)
         {
-            case 0:
-                return Combat != null &&
-                       Combat.quickShotBow != null &&
-                       Combat.quickShotBow.CanTrigger(dist);
-
-            case 1:
-                return Combat != null &&
-                       Combat.piercingBow != null &&
-                       Combat.piercingBow.CanTrigger(dist);
-
-            case 2:
-                return Combat != null &&
-                       Combat.fullDrawBow != null &&
-                       Combat.fullDrawBow.CanTrigger(dist);
+            case 0: return Combat != null && Combat.quickShotBow != null && Combat.quickShotBow.CanTrigger(dist);
+            case 1: return Combat != null && Combat.piercingBow != null && Combat.piercingBow.CanTrigger(dist);
+            case 2: return Combat != null && Combat.fullDrawBow != null && Combat.fullDrawBow.CanTrigger(dist);
         }
-
         return false;
     }
 
@@ -476,84 +465,12 @@ public class EnemyAI : MonoBehaviour
     {
         switch (skillId)
         {
-            case 0:
-                Combat?.quickShotBow?.Trigger();
-                break;
-
-            case 1:
-                Combat?.piercingBow?.Trigger();
-                break;
-
-            case 2:
-                Combat?.fullDrawBow?.Trigger();
-                break;
+            case 0: Combat?.quickShotBow?.Trigger(); break;
+            case 1: Combat?.piercingBow?.Trigger(); break;
+            case 2: Combat?.fullDrawBow?.Trigger(); break;
         }
     }
 
-    // =========================================================
-    // DDA WEIGHTED BOW LOGIC
-    // =========================================================
-    private bool TryExecuteWeightedBowSkill()
-    {
-        if (Combat == null || playerTransform == null)
-            return false;
-
-        float dist = Vector2.Distance(transform.position, playerTransform.position);
-
-        // 1. Roll bobot DDA jika belum ada skill yang mengantre.
-        if (pendingBowSkillId == -1)
-        {
-            IReadOnlyList<float> bowWeights =
-                adaptiveProfile != null
-                    ? adaptiveProfile.GetBowSkillWeights()
-                    : new float[] { 25f, 25f, 25f, 25f };
-
-            // Hanya hitung total dari 3 skill offensive.
-            // Slot 0 = Quick Shot
-            // Slot 1 = Piercing Shot
-            // Slot 2 = Full Draw
-            // Slot 3 = Concussive Shot tidak dihitung karena murni reaktif.
-            float totalOffensiveWeight =
-                bowWeights[0] +
-                bowWeights[1] +
-                bowWeights[2];
-
-            if (totalOffensiveWeight <= 0f)
-                return false;
-
-            float roll = Random.Range(0f, totalOffensiveWeight);
-
-            if (roll <= bowWeights[0])
-                pendingBowSkillId = 0;
-            else if (roll <= bowWeights[0] + bowWeights[1])
-                pendingBowSkillId = 1;
-            else
-                pendingBowSkillId = 2;
-        }
-
-        // 2. Alignment vertikal.
-        if (Movement != null && Movement.useVerticalAlign)
-        {
-            float absDistY = Mathf.Abs(playerTransform.position.y - transform.position.y);
-
-            if (absDistY > Movement.verticalTolerance)
-                return false;
-        }
-
-        // 3. Tembak hanya jika skill yang terpilih dari DDA sudah siap.
-        if (CanUseBowSkillId(pendingBowSkillId, dist))
-        {
-            TriggerBowSkillId(pendingBowSkillId);
-            pendingBowSkillId = -1;
-            return true;
-        }
-
-        return false;
-    }
-
-    // =========================================================
-    // STRICT BOW BALANCED BAG LOGIC
-    // =========================================================
     private bool TryExecuteBalancedBowSkill()
     {
         if (Combat == null || playerTransform == null)
@@ -564,14 +481,6 @@ public class EnemyAI : MonoBehaviour
 
         int nextSkillId = bowSkillBag[0];
         float dist = Vector2.Distance(transform.position, playerTransform.position);
-
-        if (Movement != null && Movement.useVerticalAlign)
-        {
-            float absDistY = Mathf.Abs(playerTransform.position.y - transform.position.y);
-
-            if (absDistY > Movement.verticalTolerance)
-                return false;
-        }
 
         if (CanUseBowSkillId(nextSkillId, dist))
         {
@@ -587,17 +496,12 @@ public class EnemyAI : MonoBehaviour
     private bool ShouldEnterReactiveOnlyMode()
     {
         var dda = DDAController.Instance;
-
-        if (dda == null)
-            return false;
+        if (dda == null) return false;
 
         return dda.currentPlayerPlaystyle == PlayerPlaystyle.DefensiveDominant &&
                dda.GetCurrentDefenseRiposteWeight() >= 99f;
     }
 
-    // =========================================================
-    // EVALUASI SERANGAN
-    // =========================================================
     private void EvaluateAttackTree()
     {
         if (isPerformingAction || playerTransform == null)
@@ -605,30 +509,28 @@ public class EnemyAI : MonoBehaviour
 
         if (ResolveWeaponMode() == EnemyWeaponMode.Bow)
         {
-            // 1. Reaction trigger: cek apakah player terlalu dekat.
             if (Combat != null && Combat.CanConcussiveCurrentSituation)
             {
                 if (Combat.TryExecuteBowDefenseReaction())
                     return;
             }
-
-            // 2. Offense trigger: menembak biasa jika player berada dalam bowSenseRange.
-            if (ShouldEnterReactiveOnlyMode() || !IsInsideOffenseSenseRange())
-                return;
-
-            if (useBowBalancedBag)
-                TryExecuteBalancedBowSkill();
-            else
-                TryExecuteWeightedBowSkill();
-
-            return;
         }
 
-        // Area sword.
-        // Dengan swordSenseRange, attack tree sword mulai dievaluasi lebih awal.
-        // Node skill tetap boleh gagal sendiri apabila jarak aktual belum memenuhi syarat skill.
         if (ShouldEnterReactiveOnlyMode() || !IsInsideOffenseSenseRange())
             return;
+
+        if (Movement != null && Movement.useVerticalAlign)
+        {
+            float absDistY = Mathf.Abs(playerTransform.position.y - transform.position.y);
+            if (absDistY > Movement.verticalTolerance)
+                return;
+        }
+
+        if (ResolveWeaponMode() == EnemyWeaponMode.Bow && useBowBalancedBag)
+        {
+            TryExecuteBalancedBowSkill();
+            return;
+        }
 
         offensiveTree?.Evaluate();
     }

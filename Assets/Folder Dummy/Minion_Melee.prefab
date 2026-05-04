@@ -45,16 +45,11 @@ GameObject:
   - component: {fileID: 4007388749144626707}
   - component: {fileID: 5653449165881094903}
   - component: {fileID: 1603249717165998674}
-  - component: {fileID: 4429848067518251004}
   - component: {fileID: 6893955486669756002}
   - component: {fileID: 5434613646505759902}
-  - component: {fileID: 4065872477044497161}
-  - component: {fileID: 3098827453847523507}
-  - component: {fileID: 1238565138610006823}
-  - component: {fileID: 8169837083311072351}
-  - component: {fileID: 8598530904683464336}
+  - component: {fileID: 5307049993131140300}
   m_Layer: 3
-  m_Name: Enemy_W1_Sprite
+  m_Name: Minion_Melee
   m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -188,8 +183,8 @@ CapsuleCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0.18661523, y: -0.070768476}
-  m_Size: {x: 1.3570828, y: 2.9806268}
+  m_Offset: {x: 0.12, y: 0}
+  m_Size: {x: 0.96, y: 1.68}
   m_Direction: 0
 --- !u!114 &1603249717165998674
 MonoBehaviour:
@@ -218,34 +213,6 @@ MonoBehaviour:
   canRiposte: 1
   riposteWindow: 0.6
   staggerResistance: 1
---- !u!114 &4429848067518251004
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1718376399928103269}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a7dba363f7cbb4a4091317e87a6cdc10, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  playerTransform: {fileID: 0}
-  weaponMode: 0
-  adaptiveProfile: {fileID: 0}
-  spriteVisual: {fileID: 7686073481702737145}
-  spriteRenderer: {fileID: 8597872111708491915}
-  invertFlipX: 0
-  maxMoveSpeed: 3
-  attackRange: 1.8
-  attackRangeOffset: {x: 1.5, y: 0}
-  useBowBalancedBag: 0
-  bowSenseRange: 8.5
-  bowDesiredRange: 5.25
-  bowMinimumRange: 2.25
-  swordDesiredRange: 1.8
-  swordSenseRange: 3.2
-  isPerformingAction: 0
 --- !u!114 &6893955486669756002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -286,7 +253,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aabbbed7de27d284084e0d4b0d1e2015, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &4065872477044497161
+--- !u!114 &5307049993131140300
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -295,115 +262,36 @@ MonoBehaviour:
   m_GameObject: {fileID: 1718376399928103269}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ae57a7f8418bf7f4d949d1f5c30cb8cd, type: 3}
+  m_Script: {fileID: 11500000, guid: e7ea206f4aafb2e409b731aa3b90c8f6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  combatStyle: 0
-  weaponResponse: 1
-  normalizedSwordWeights:
-  - 25
-  - 25
-  - 25
-  - 25
-  normalizedBowWeights:
-  - 25
-  - 25
-  - 25
-  - 25
-  normalizedDashWeight: 0
-  normalizedRiposteWeight: 0
---- !u!114 &3098827453847523507
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1718376399928103269}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b5b2836228abbea489f46ced8296aa17, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  kind: 0
-  skillRange: 1.8
-  rangeTolerance: 0.15
-  windup: 0.15
-  activeTime: 0.1
-  recovery: 0.25
-  cooldown: 0.4
-  hitMask:
-    serializedVersion: 2
-    m_Bits: 64
-  damageMultiplier: 1
-  coneRadius: 2
-  coneAngle: 90
-  coneOffset: {x: 1.1, y: 0}
-  aoeRadius: 2
-  aoeTickInterval: 0.25
-  stanceDuration: 0.45
---- !u!114 &1238565138610006823
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1718376399928103269}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bcd6ea542ac92a34a88d6811389c8571, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  combat: {fileID: 8598530904683464336}
---- !u!114 &8169837083311072351
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1718376399928103269}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 07644a8cd7ac5ff4ba2d2105db363caf, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  dashSpeed: 6
-  dashDuration: 1
-  recoveryTime: 0.25
-  dashCooldown: 0.2
---- !u!114 &8598530904683464336
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1718376399928103269}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8adcbc455213a7d4d8bd32ee79ddf3bc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ai: {fileID: 4429848067518251004}
-  enemyDash: {fileID: 8169837083311072351}
-  playerSensor: {fileID: 0}
+  character: {fileID: 1603249717165998674}
+  player: {fileID: 0}
+  animator: {fileID: 3180929586462168031}
   skillRootSword: {fileID: 1295630744342105822}
-  skillRootBow: {fileID: 0}
-  _slashCombo: {fileID: 1557463422569850212}
-  _chargedStrike: {fileID: 8238309777232854303}
-  _whirlwind: {fileID: 3443164050013538122}
-  _riposte: {fileID: 4999943360712908657}
-  _quickShotBow: {fileID: 0}
-  _fullDrawBow: {fileID: 0}
-  _piercingBow: {fileID: 0}
-  _concussiveBow: {fileID: 0}
-  stats:
-    attack: 10
-  attackPowerOverride: 10
-  riposteCooldown: 0.75
-  concussiveCooldown: 1
-  lengahBusyDuration: 0.28
-  balancedLengahWeight: 45
-  offensiveLengahWeight: 20
-  defensiveLengahWeight: 0
+  slashCombo: {fileID: 1557463422569850212}
+  allowMovement: 1
+  moveSpeed: 3
+  stopDistance: 1.25
+  verticalAlignSpeed: 2.5
+  alignYToPlayer: 1
+  attackRange: 1.6
+  attackCooldown: 2
+  slashComboSlotIndex: 0
+  attackTokens: 3
+  idleBool: Idle
+  walkBool: Walk
+  slash1Bool: Slash1
+  slash2Bool: Slash2
+  slashTrigger: 
+  useSlashBool: 1
+  useSlashTrigger: 0
+  slash1AnimDuration: 0.45
+  autoPlaySlash2: 0
+  slash2Delay: 0.25
+  slash2AnimDuration: 0.45
+  fallbackBusyDuration: 0.7
+  showDebug: 1
 --- !u!1 &7264237687256263521
 GameObject:
   m_ObjectHideFlags: 0
@@ -516,9 +404,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1295630744342105822}
   - component: {fileID: 1557463422569850212}
-  - component: {fileID: 8238309777232854303}
-  - component: {fileID: 4999943360712908657}
-  - component: {fileID: 3443164050013538122}
   m_Layer: 3
   m_Name: SkillRoot_Sword
   m_TagString: Enemy
@@ -572,76 +457,6 @@ MonoBehaviour:
   gizmoColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   arcSegments: 20
   gizmoArcAngle: 60
---- !u!114 &8238309777232854303
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7955049090739457126}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6d01682e6c33ef34289a368f5335da08, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  attackRadius: 1.6
-  attackAngle: 120
-  damageMultiplier: 2
-  hitOffset: {x: 1.1, y: 0}
-  knockbackForce: 8
-  stunDuration: 0.4
-  windupTime: 0.5
-  activeTime: 0.1
-  recoveryTime: 0.5
-  cooldown: 0.6
-  hitMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
---- !u!114 &4999943360712908657
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7955049090739457126}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 59ea4e6bcef6eb942b825bcb77c43017, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  stanceDuration: 0.5
-  dashDistance: 2.5
-  dashSpeed: 10
-  hitRadius: 0.8
-  targetLayer:
-    serializedVersion: 2
-    m_Bits: 0
-  counterDamageMultiplier: 1.4
-  cooldown: 0.9
-  extraRangeTolerance: 0.25
-  gizmoShowTime: 0.06
-  gizmoColor: {r: 1, g: 0, b: 1, a: 1}
---- !u!114 &3443164050013538122
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7955049090739457126}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8e51dc04a48bea04fa20a42f3243279f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  radius: 2
-  duration: 1.5
-  damageMultiplier: 1.25
-  tickInterval: 0.25
-  cooldown: 0.8
-  hitMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  gizmoColor: {r: 0, g: 1, b: 1, a: 1}
 --- !u!1 &8000750785686306608
 GameObject:
   m_ObjectHideFlags: 0
@@ -671,8 +486,8 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0.1, y: 0, z: 0}
-  m_LocalScale: {x: 5.879, y: 5.879, z: 5.879}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 3, y: 3, z: 3}
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 1295630744342105822}
   m_Father: {fileID: 3298720581760886592}
