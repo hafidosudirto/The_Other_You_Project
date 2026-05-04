@@ -5,13 +5,13 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
 {
     [Header("Hit Settings")]
     public float attackRadius = 1.6f;
-    public float attackAngle = 100f;             
+    public float attackAngle = 100f;
     public float damageMultiplier = 2f;
     public Vector2 hitOffset = new Vector2(1.1f, 0f);
 
     [Header("Knockback (Stagger)")]
-    public float knockbackForce = 8f;           
-    public float stunDuration = 0.4f;             
+    public float knockbackForce = 8f;
+    public float stunDuration = 0.4f;
 
     [Header("Timing")]
     public float windupTime = 0.5f;
@@ -26,16 +26,33 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
 
     private EnemyAI ai;
     private EnemyCombatController combat;
+    private EnemyMovementFSM movementFSM;
     private CharacterBase selfStats;
 
     private bool busy = false;
     private float nextReadyTime = 0f;
 
+    private Coroutine activeRoutine;
+    private bool skillStartInvoked = false;
+    private bool movementLockedByThisSkill = false;
+
     private void Awake()
     {
         ai = GetComponentInParent<EnemyAI>();
         combat = GetComponentInParent<EnemyCombatController>();
+        movementFSM = GetComponentInParent<EnemyMovementFSM>();
         selfStats = GetComponentInParent<CharacterBase>();
+    }
+
+    private void OnDisable()
+    {
+        if (activeRoutine != null)
+        {
+            StopCoroutine(activeRoutine);
+            activeRoutine = null;
+        }
+
+        ForceEndSkillState();
     }
 
     public void Trigger()
@@ -43,7 +60,7 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
         if (busy) return;
         if (Time.time < nextReadyTime) return;
 
-        StartCoroutine(ChargeRoutine());
+        activeRoutine = StartCoroutine(ChargeRoutine());
     }
 
     private IEnumerator ChargeRoutine()
@@ -51,14 +68,12 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
         busy = true;
         nextReadyTime = Time.time + cooldown;
 
-        combat?.InvokeSkillStart();
+        BeginSkillState(GetEstimatedLockDuration());
 
-        // Windup anim (agar tidak ada momen "hit terasa jalan tapi animasi tidak")
         ai?.Animation?.SetCharging(true);
 
         yield return new WaitForSeconds(windupTime);
 
-        // Hit frame: matikan charging lalu tebas
         ai?.Animation?.SetCharging(false);
         ai?.Animation?.PlaySlash2();
 
@@ -67,7 +82,46 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
         yield return new WaitForSeconds(activeTime);
         yield return new WaitForSeconds(recoveryTime);
 
-        combat?.InvokeSkillEnd();
+        ForceEndSkillState();
+        activeRoutine = null;
+    }
+
+    private float GetEstimatedLockDuration()
+    {
+        return Mathf.Max(0.05f, windupTime + activeTime + recoveryTime + 0.1f);
+    }
+
+    private void BeginSkillState(float lockDuration)
+    {
+        movementLockedByThisSkill = false;
+        skillStartInvoked = false;
+
+        if (movementFSM != null)
+        {
+            movementFSM.LockExternal(lockDuration, true);
+            movementLockedByThisSkill = true;
+        }
+
+        combat?.InvokeSkillStart();
+        skillStartInvoked = true;
+    }
+
+    private void ForceEndSkillState()
+    {
+        ai?.Animation?.SetCharging(false);
+
+        if (skillStartInvoked)
+        {
+            combat?.InvokeSkillEnd();
+            skillStartInvoked = false;
+        }
+
+        if (movementLockedByThisSkill)
+        {
+            movementFSM?.UnlockExternal(true);
+            movementLockedByThisSkill = false;
+        }
+
         busy = false;
     }
 
@@ -75,7 +129,6 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
     {
         if (ai == null) return;
 
-        // Gunakan arah visual final dari EnemyAI (aman terhadap invertFlipX)
         int sign = ai.ForwardSign;
         Vector3 dir = ai.ForwardDir;
 
@@ -85,23 +138,18 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
 
         foreach (var h in hits)
         {
-            // Penting: ambil dari parent agar konsisten meski collider ada di child
             CharacterBase cb = h.GetComponentInParent<CharacterBase>();
             if (!cb || cb == selfStats) continue;
 
-            Vector2 toTarget = (cb.transform.position - origin);
+            Vector2 toTarget = cb.transform.position - origin;
             float angle = Vector2.Angle(dir, toTarget);
 
             if (angle > attackAngle * 0.5f) continue;
 
             float dmg = ai.AttackPower * damageMultiplier;
 
-            // Damage
             cb.TakeDamage(dmg, ai.gameObject);
 
-            // Knockback + stun
-            // Catatan: bila target sedang riposte stance, damage diparry dan idealnya tidak diberi stagger.
-            // Ini mencegah kasus "parry tetapi tetap terpental".
             if (!cb.isRiposteStance)
             {
                 Vector2 knockDir = toTarget.normalized;

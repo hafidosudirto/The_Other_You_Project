@@ -31,12 +31,12 @@ public class Enemy_Sword_Riposte : MonoBehaviour
 
     private EnemyAI ai;
     private EnemyCombatController combat;
+    private EnemyMovementFSM movementFSM;
     private CharacterBase selfStats;
 
     private bool busy = false;
     private float nextReadyTime = 0f;
 
-    // stance & dash state
     private bool isStanceActive = false;
     private bool isDashing = false;
     private float stanceTimer = 0f;
@@ -44,13 +44,15 @@ public class Enemy_Sword_Riposte : MonoBehaviour
     private Vector3 dashStart;
     private Vector3 dashTarget;
 
-    // Gizmo snapshot untuk lintasan dash
     private bool showDashLine = false;
     private Vector3 lastDashStart;
     private Vector3 lastDashTarget;
 
-    // Gate: counter hanya boleh terjadi jika ada serangan player selama stance.
     private bool playerAttackDetectedDuringStance = false;
+
+    private Coroutine activeRoutine;
+    private bool skillStartInvoked = false;
+    private bool movementLockedByThisSkill = false;
 
     public bool IsStanceActive => isStanceActive;
     public bool IsActive => busy;
@@ -59,7 +61,19 @@ public class Enemy_Sword_Riposte : MonoBehaviour
     {
         ai = GetComponentInParent<EnemyAI>();
         combat = GetComponentInParent<EnemyCombatController>();
+        movementFSM = GetComponentInParent<EnemyMovementFSM>();
         selfStats = GetComponentInParent<CharacterBase>();
+    }
+
+    private void OnDisable()
+    {
+        if (activeRoutine != null)
+        {
+            StopCoroutine(activeRoutine);
+            activeRoutine = null;
+        }
+
+        ForceEndSkillState();
     }
 
     public bool CanTrigger(float distanceToPlayer)
@@ -86,17 +100,15 @@ public class Enemy_Sword_Riposte : MonoBehaviour
         if (!CanTrigger(distanceToPlayer))
             return false;
 
-        StartCoroutine(RiposteRoutine());
+        activeRoutine = StartCoroutine(RiposteRoutine());
         return true;
     }
 
-    // API lama
     public void Trigger()
     {
         TryStartRiposte();
     }
 
-    // Dipanggil dari CharacterBase.TakeDamage ketika enemy sedang stance dan player menyerang
     public void NotifyPlayerAttackAttempt(GameObject attacker = null)
     {
         if (!isStanceActive) return;
@@ -124,7 +136,7 @@ public class Enemy_Sword_Riposte : MonoBehaviour
         }
 
         dashStart = ai.transform.position;
-        dashTarget = dashStart + dir.normalized * dashDistance;
+        dashTarget = dashStart + dir.normalized * Mathf.Abs(dashDistance);
 
         isDashing = true;
         isStanceActive = false;
@@ -138,7 +150,7 @@ public class Enemy_Sword_Riposte : MonoBehaviour
         busy = true;
         nextReadyTime = Time.time + cooldown;
 
-        combat?.InvokeSkillStart();
+        BeginSkillState(GetEstimatedLockDuration());
 
         isStanceActive = true;
         isDashing = false;
@@ -160,25 +172,63 @@ public class Enemy_Sword_Riposte : MonoBehaviour
             yield return null;
         }
 
-        // stance habis tanpa counter
         if (!isDashing)
         {
-            ai?.Animation?.SetRiposteReady(false);
-            isStanceActive = false;
-            playerAttackDetectedDuringStance = false;
-
-            combat?.InvokeSkillEnd();
-            busy = false;
+            ForceEndSkillState();
+            activeRoutine = null;
             yield break;
         }
 
-        // counter dash
         yield return DashForwardAndDamage();
 
+        ForceEndSkillState();
+        activeRoutine = null;
+    }
+
+    private float GetEstimatedLockDuration()
+    {
+        float safeDashSpeed = Mathf.Max(0.01f, dashSpeed);
+        float estimatedDashDuration = Mathf.Abs(dashDistance) / safeDashSpeed;
+
+        return Mathf.Max(0.05f, stanceDuration + estimatedDashDuration + 0.25f);
+    }
+
+    private void BeginSkillState(float lockDuration)
+    {
+        movementLockedByThisSkill = false;
+        skillStartInvoked = false;
+
+        if (movementFSM != null)
+        {
+            movementFSM.LockExternal(lockDuration, true);
+            movementLockedByThisSkill = true;
+        }
+
+        combat?.InvokeSkillStart();
+        skillStartInvoked = true;
+    }
+
+    private void ForceEndSkillState()
+    {
         isStanceActive = false;
+        isDashing = false;
+        stanceTimer = 0f;
         playerAttackDetectedDuringStance = false;
 
-        combat?.InvokeSkillEnd();
+        ai?.Animation?.SetRiposteReady(false);
+
+        if (skillStartInvoked)
+        {
+            combat?.InvokeSkillEnd();
+            skillStartInvoked = false;
+        }
+
+        if (movementLockedByThisSkill)
+        {
+            movementFSM?.UnlockExternal(true);
+            movementLockedByThisSkill = false;
+        }
+
         busy = false;
     }
 
@@ -193,13 +243,16 @@ public class Enemy_Sword_Riposte : MonoBehaviour
         lastDashStart = dashStart;
         lastDashTarget = dashTarget;
 
+        float safeDashSpeed = Mathf.Max(0.01f, dashSpeed);
+
         while (Vector3.Distance(ai.transform.position, dashTarget) > 0.05f)
         {
             ai.transform.position = Vector3.MoveTowards(
                 ai.transform.position,
                 dashTarget,
-                dashSpeed * Time.deltaTime
+                safeDashSpeed * Time.deltaTime
             );
+
             yield return null;
         }
 
@@ -216,7 +269,7 @@ public class Enemy_Sword_Riposte : MonoBehaviour
         Vector2 s = start;
         Vector2 e = end;
 
-        Vector2 dir = (e - s);
+        Vector2 dir = e - s;
         float dist = dir.magnitude;
         if (dist <= 0.0001f) return;
 
@@ -233,10 +286,17 @@ public class Enemy_Sword_Riposte : MonoBehaviour
         for (int i = 0; i < hits.Length; i++)
         {
             var h = hits[i];
+
+            if (h.collider == null)
+                continue;
+
             CharacterBase cb = h.collider.GetComponentInParent<CharacterBase>();
             if (cb == null || cb == selfStats) continue;
 
-            float baseAtk = (combat != null) ? combat.AttackPower : (selfStats != null ? selfStats.attack : 10f);
+            float baseAtk = (combat != null)
+                ? combat.AttackPower
+                : (selfStats != null ? selfStats.attack : 10f);
+
             cb.TakeDamage(baseAtk * counterDamageMultiplier, ai != null ? ai.gameObject : gameObject);
         }
     }

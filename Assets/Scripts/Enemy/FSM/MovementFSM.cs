@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 
+[DisallowMultipleComponent]
 public class EnemyMovementFSM : MonoBehaviour
 {
     private EnemyAI ai;
@@ -26,6 +27,10 @@ public class EnemyMovementFSM : MonoBehaviour
     [SerializeField] private Transform player;
     [SerializeField] private Rigidbody2D rb;
 
+    [Header("Movement Modules")]
+    [SerializeField] private EnemySwordMovement swordMovement;
+    [SerializeField] private EnemyBowMovement bowMovement;
+
     [Header("Movement Settings")]
     public float moveSpeed = 4f;
     public float accel = 40f;
@@ -39,24 +44,135 @@ public class EnemyMovementFSM : MonoBehaviour
     public float minimumCombatRange = 0f;
     public float rangeTolerance = 0.25f;
 
+    [Header("External Movement Lock")]
+    [SerializeField] private bool isExternallyLocked;
+    private float externalLockUntil = -999f;
+
+    [Header("Attack Movement Lock")]
+    [SerializeField] private bool isAttackMovementLocked;
+    [SerializeField] private float defaultAttackLockFailSafe = 0.6f;
+    private float attackLockUntil = -999f;
+
+    public bool IsExternallyLocked => isExternallyLocked;
+    public bool IsAttackMovementLocked => isAttackMovementLocked;
+    public bool IsMovementLocked => isExternallyLocked || isAttackMovementLocked;
+
     private void Awake()
     {
         ai = GetComponent<EnemyAI>();
-        if (rb == null) rb = GetComponent<Rigidbody2D>();
+
+        if (rb == null)
+            rb = GetComponent<Rigidbody2D>();
+
+        swordMovement = GetComponent<EnemySwordMovement>();
+        if (swordMovement == null)
+            swordMovement = gameObject.AddComponent<EnemySwordMovement>();
+
+        bowMovement = GetComponent<EnemyBowMovement>();
+        if (bowMovement == null)
+            bowMovement = gameObject.AddComponent<EnemyBowMovement>();
     }
 
     private void Start()
     {
-        if (player == null) player = GameObject.FindGameObjectWithTag("Player")?.transform;
+        if (player == null)
+            player = GameObject.FindGameObjectWithTag("Player")?.transform;
+
         currentState = MoveState.Idle;
     }
 
     public void Tick()
     {
-        if (player == null || rb == null) return;
+        RefreshMovementLocks();
+
+        if (IsMovementLocked)
+        {
+            StopMovementVelocity();
+            SwitchState(MoveState.Idle);
+            return;
+        }
+
+        if (player == null || rb == null)
+            return;
 
         UpdateState();
         RunState();
+    }
+
+    private void RefreshMovementLocks()
+    {
+        if (isExternallyLocked && Time.time >= externalLockUntil)
+        {
+            isExternallyLocked = false;
+            externalLockUntil = -999f;
+        }
+
+        if (isAttackMovementLocked && attackLockUntil > 0f && Time.time >= attackLockUntil)
+        {
+            isAttackMovementLocked = false;
+            attackLockUntil = -999f;
+            StopMovementVelocity();
+            SwitchState(MoveState.Idle);
+        }
+    }
+
+    public void LockExternal(float duration, bool stopVelocity = true)
+    {
+        isExternallyLocked = true;
+        externalLockUntil = Time.time + Mathf.Max(0f, duration);
+
+        if (stopVelocity)
+            StopMovementVelocity();
+
+        SwitchState(MoveState.Idle);
+    }
+
+    public void UnlockExternal(bool stopVelocity = true)
+    {
+        isExternallyLocked = false;
+        externalLockUntil = -999f;
+
+        if (stopVelocity)
+            StopMovementVelocity();
+
+        SwitchState(MoveState.Idle);
+    }
+
+    public void LockAttackMovement(float failSafeDuration = -1f, bool stopVelocity = true)
+    {
+        isAttackMovementLocked = true;
+
+        float safeDuration = failSafeDuration > 0f
+            ? failSafeDuration
+            : defaultAttackLockFailSafe;
+
+        attackLockUntil = Time.time + safeDuration;
+
+        if (stopVelocity)
+            StopMovementVelocity();
+
+        SwitchState(MoveState.Idle);
+    }
+
+    public void UnlockAttackMovement(bool stopVelocity = true)
+    {
+        isAttackMovementLocked = false;
+        attackLockUntil = -999f;
+
+        if (stopVelocity)
+            StopMovementVelocity();
+
+        SwitchState(MoveState.Idle);
+    }
+
+    public void NotifyAttackStarted(float failSafeDuration = -1f)
+    {
+        LockAttackMovement(failSafeDuration, true);
+    }
+
+    public void NotifyAttackEnded()
+    {
+        UnlockAttackMovement(true);
     }
 
     public void SetDesiredRange(float range)
@@ -82,14 +198,13 @@ public class EnemyMovementFSM : MonoBehaviour
 
     private void UpdateState()
     {
-        if (player == null) return;
+        if (player == null)
+            return;
 
         Vector2 toPlayer = player.position - transform.position;
         float absDistX = Mathf.Abs(toPlayer.x);
         float absDistY = Mathf.Abs(toPlayer.y);
 
-        // [PERBAIKAN JITTER]: HYSTERESIS
-        // Mencegah FSM bolak-balik state jika jarak berada persis di garis batas threshold.
         bool isRetreating = currentState == MoveState.Retreat;
         bool isChasing = currentState == MoveState.Chase;
         bool isAligning = currentState == MoveState.Aligning;
@@ -118,14 +233,8 @@ public class EnemyMovementFSM : MonoBehaviour
                 return;
             }
         }
-        else // SWORD
+        else
         {
-            // [REVISI AGRESIVITAS SWORD]
-            // Sebelumnya, sword selalu memprioritaskan vertical alignment.
-            // Akibatnya musuh sering terlihat berhenti atau lambat mengejar jika posisi Y belum sejajar.
-            //
-            // Sekarang, sword memprioritaskan chase horizontal terlebih dahulu.
-            // Alignment Y baru dilakukan setelah jarak X sudah cukup dekat.
             if (absDistX > chaseThreshold)
             {
                 SwitchState(MoveState.Chase);
@@ -147,120 +256,113 @@ public class EnemyMovementFSM : MonoBehaviour
         switch (currentState)
         {
             case MoveState.Idle:
-                rb.velocity = Vector2.Lerp(rb.velocity, Vector2.zero, Time.deltaTime * accel);
+                rb.velocity = Vector2.Lerp(
+                    rb.velocity,
+                    Vector2.zero,
+                    Time.deltaTime * accel
+                );
                 break;
 
             case MoveState.Aligning:
-                DoAlignManeuver();
+                if (movementMode == CombatMovementMode.Bow)
+                {
+                    bowMovement.Align(
+                        player,
+                        rb,
+                        moveSpeed,
+                        accel,
+                        verticalTolerance
+                    );
+                }
+                else
+                {
+                    swordMovement.Align(
+                        player,
+                        rb,
+                        moveSpeed,
+                        accel,
+                        verticalTolerance
+                    );
+                }
                 break;
 
             case MoveState.Chase:
                 if (movementMode == CombatMovementMode.Bow)
-                    DoChaseDiagonal();
+                {
+                    bowMovement.Chase(
+                        player,
+                        rb,
+                        moveSpeed,
+                        accel,
+                        verticalTolerance
+                    );
+                }
                 else
-                    DoChaseHorizontalOnly();
+                {
+                    swordMovement.Chase(
+                        player,
+                        rb,
+                        moveSpeed,
+                        accel
+                    );
+                }
                 break;
 
             case MoveState.Retreat:
                 if (movementMode == CombatMovementMode.Bow)
-                    DoRetreatDiagonal();
+                {
+                    bowMovement.Retreat(
+                        player,
+                        rb,
+                        moveSpeed,
+                        accel,
+                        verticalTolerance
+                    );
+                }
                 else
-                    DoRetreatHorizontalOnly();
+                {
+                    swordMovement.Retreat(
+                        player,
+                        rb,
+                        moveSpeed,
+                        accel
+                    );
+                }
                 break;
         }
     }
 
     private void SwitchState(MoveState newState)
     {
-        if (newState == currentState) return;
+        if (newState == currentState)
+            return;
+
         currentState = newState;
+    }
+
+    private void StopMovementVelocity()
+    {
+        if (rb != null)
+            rb.velocity = Vector2.zero;
     }
 
     public void StopImmediately()
     {
-        if (rb != null) rb.velocity = Vector2.zero;
+        StopMovementVelocity();
         SwitchState(MoveState.Idle);
     }
 
-    // ==========================================
-    // GERAK SWORD (Horizontal Only)
-    // ==========================================
-    private void DoAlignManeuver()
+    public void ForceClearAllMovementLocks(bool stopVelocity = true)
     {
-        float diffY = player.position.y - transform.position.y;
+        isExternallyLocked = false;
+        isAttackMovementLocked = false;
 
-        // [PERBAIKAN JITTER]: Smooth braking.
-        // Melambat perlahan saat mendekati target Y agar tidak overshoot.
-        float smoothMult = Mathf.Clamp01(Mathf.Abs(diffY) / (verticalTolerance * 2f));
-        float dirY = Mathf.Sign(diffY) * smoothMult;
+        externalLockUntil = -999f;
+        attackLockUntil = -999f;
 
-        rb.velocity = Vector2.Lerp(
-            rb.velocity,
-            new Vector2(0f, dirY * moveSpeed),
-            Time.deltaTime * accel
-        );
-    }
+        if (stopVelocity)
+            StopMovementVelocity();
 
-    private void DoChaseHorizontalOnly()
-    {
-        float dirX = Mathf.Sign(player.position.x - transform.position.x);
-
-        rb.velocity = Vector2.Lerp(
-            rb.velocity,
-            new Vector2(dirX * moveSpeed, 0f),
-            Time.deltaTime * accel
-        );
-    }
-
-    private void DoRetreatHorizontalOnly()
-    {
-        float dirX = -Mathf.Sign(player.position.x - transform.position.x);
-
-        rb.velocity = Vector2.Lerp(
-            rb.velocity,
-            new Vector2(dirX * moveSpeed, 0f),
-            Time.deltaTime * accel
-        );
-    }
-
-    // ==========================================
-    // GERAK DIAGONAL BOW (Henry LF2 Style)
-    // ==========================================
-    private void DoChaseDiagonal()
-    {
-        float diffX = player.position.x - transform.position.x;
-        float diffY = player.position.y - transform.position.y;
-
-        float dirX = Mathf.Sign(diffX);
-
-        // [PERBAIKAN JITTER]: Pengereman halus sumbu Y saat bergerak diagonal.
-        float smoothMultY = Mathf.Clamp01(Mathf.Abs(diffY) / (verticalTolerance * 2f));
-        float dirY = Mathf.Sign(diffY) * smoothMultY;
-
-        Vector2 targetVel = new Vector2(dirX, dirY).normalized * moveSpeed;
-
-        rb.velocity = Vector2.Lerp(
-            rb.velocity,
-            targetVel,
-            Time.deltaTime * accel
-        );
-    }
-
-    private void DoRetreatDiagonal()
-    {
-        float diffX = player.position.x - transform.position.x;
-        float diffY = player.position.y - transform.position.y;
-
-        float dirX = -Mathf.Sign(diffX);
-        float smoothMultY = Mathf.Clamp01(Mathf.Abs(diffY) / (verticalTolerance * 2f));
-        float dirY = Mathf.Sign(diffY) * smoothMultY;
-
-        Vector2 targetVel = new Vector2(dirX, dirY).normalized * moveSpeed;
-
-        rb.velocity = Vector2.Lerp(
-            rb.velocity,
-            targetVel,
-            Time.deltaTime * accel
-        );
+        SwitchState(MoveState.Idle);
     }
 }

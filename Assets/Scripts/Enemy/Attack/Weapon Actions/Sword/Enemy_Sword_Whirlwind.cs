@@ -18,16 +18,33 @@ public class Enemy_Sword_Whirlwind : MonoBehaviour
 
     private EnemyAI ai;
     private EnemyCombatController combat;
+    private EnemyMovementFSM movementFSM;
     private CharacterBase selfStats;
 
     private bool busy = false;
     private float nextReadyTime = 0f;
 
+    private Coroutine activeRoutine;
+    private bool skillStartInvoked = false;
+    private bool movementLockedByThisSkill = false;
+
     private void Awake()
     {
         ai = GetComponentInParent<EnemyAI>();
         combat = GetComponentInParent<EnemyCombatController>();
+        movementFSM = GetComponentInParent<EnemyMovementFSM>();
         selfStats = GetComponentInParent<CharacterBase>();
+    }
+
+    private void OnDisable()
+    {
+        if (activeRoutine != null)
+        {
+            StopCoroutine(activeRoutine);
+            activeRoutine = null;
+        }
+
+        ForceEndSkillState();
     }
 
     public void Trigger()
@@ -35,7 +52,7 @@ public class Enemy_Sword_Whirlwind : MonoBehaviour
         if (busy) return;
         if (Time.time < nextReadyTime) return;
 
-        StartCoroutine(WhirlwindRoutine());
+        activeRoutine = StartCoroutine(WhirlwindRoutine());
     }
 
     private IEnumerator WhirlwindRoutine()
@@ -43,9 +60,8 @@ public class Enemy_Sword_Whirlwind : MonoBehaviour
         busy = true;
         nextReadyTime = Time.time + cooldown;
 
-        combat?.InvokeSkillStart();
+        BeginSkillState(GetEstimatedLockDuration());
 
-        // Anim dimulai saat skill aktif
         ai?.Animation?.PlayWhirlwind();
 
         float elapsed = 0f;
@@ -58,7 +74,44 @@ public class Enemy_Sword_Whirlwind : MonoBehaviour
             elapsed += tick;
         }
 
-        combat?.InvokeSkillEnd();
+        ForceEndSkillState();
+        activeRoutine = null;
+    }
+
+    private float GetEstimatedLockDuration()
+    {
+        return Mathf.Max(0.05f, duration + 0.1f);
+    }
+
+    private void BeginSkillState(float lockDuration)
+    {
+        movementLockedByThisSkill = false;
+        skillStartInvoked = false;
+
+        if (movementFSM != null)
+        {
+            movementFSM.LockExternal(lockDuration, true);
+            movementLockedByThisSkill = true;
+        }
+
+        combat?.InvokeSkillStart();
+        skillStartInvoked = true;
+    }
+
+    private void ForceEndSkillState()
+    {
+        if (skillStartInvoked)
+        {
+            combat?.InvokeSkillEnd();
+            skillStartInvoked = false;
+        }
+
+        if (movementLockedByThisSkill)
+        {
+            movementFSM?.UnlockExternal(true);
+            movementLockedByThisSkill = false;
+        }
+
         busy = false;
     }
 
