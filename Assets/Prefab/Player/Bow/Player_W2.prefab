@@ -80,11 +80,11 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6006294142454943748}
+  - {fileID: 8526268752133191413}
   - {fileID: 5432282122991037403}
   - {fileID: 4010695762645510429}
   - {fileID: 7217759313951288377}
   - {fileID: 4198300544889380950}
-  - {fileID: 8526268752133191413}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!50 &4007388749144626707
@@ -135,6 +135,7 @@ MonoBehaviour:
   currentEnergy: 100
   regenPerSecond: 8
   useUnscaledTime: 0
+  energyRegenBlocked: 0
   isFacingRight: 1
   isStaggered: 0
   isRiposteStance: 0
@@ -353,8 +354,13 @@ MonoBehaviour:
   prefabPanah: {fileID: 1692899915983295771, guid: eda8816cfe96bca40ba183b8df7a9492, type: 3}
   pemain: {fileID: 3019785914136632114}
   animasiPemain: {fileID: 0}
+  facingSprite: {fileID: 0}
+  pakaiAnimationEvent: 1
+  batasWaktuMenungguEvent: 0.35
+  fallbackTembakJikaEventGagal: 0
   kecepatanPanah: 10
   durasiTerbang: 1.2
+  resetTrailSaatSpawn: 1
   damageQuickShot: 1
   dorongMundur: 1.5
   lumpuhSingkat: 0.1
@@ -362,6 +368,10 @@ MonoBehaviour:
   angkatSedikit: 0.4
   lengkungTurun: 6
   rotasiIkutArah: 1
+  pakaiTitikKakiUntukJatuh: 1
+  titikKaki: {fileID: 0}
+  offsetYJatuhDariTitikKaki: 0.04
+  paksaNancepKeTitikKakiSaatTimeout: 1
   lapisanTanah:
     serializedVersion: 2
     m_Bits: 0
@@ -371,13 +381,20 @@ MonoBehaviour:
   jarakRaycastTanah: 3
   jarakDekatTanahUntukMendarat: 0.18
   minimumNormalTanah: 0.45
-  offsetSaatJatuh: {x: 0, y: 0.03}
-  sudutSaatJatuh: -14
+  offsetSaatNancep: {x: 0, y: 0.065}
+  sudutNancep: 35
+  sudutMinimumNancep: 35
+  sudutMaksimumNancep: 40
+  matikanTrailSaatNancep: 1
+  cariTanahSetelahDurasiTerbang: 1
+  batasWaktuCariTanah: 0.45
   pengaliKecepatanSaatTurunAkhir: 0.45
-  waktuTerlihatSetelahJatuh: 0.25
+  paksaNancepJikaRaycastTanahDitemukan: 1
+  waktuTerlihatSetelahNancep: 0.8
   jedaSkill: 0.2
   lockSetelahTembak: 0.05
   biayaEnergi: 8
+  debugLog: 0
 --- !u!114 &8539281897314106846
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -399,6 +416,10 @@ MonoBehaviour:
   facingSprite: {fileID: 0}
   durasiChargePenuh: 1.2
   batasPiercingFallback: 0.5
+  kunciGerakSaatCharge: 1
+  pakaiAnimationEvent: 1
+  batasWaktuMenungguReleaseEvent: 0.45
+  fallbackTembakJikaEventGagal: 0
   kecepatanPanahMinimum: 8
   kecepatanPanahMaksimum: 18
   damageMinimum: 4
@@ -408,17 +429,22 @@ MonoBehaviour:
   lumpuhMinimum: 0.05
   lumpuhMaksimum: 0.15
   kecepatanPiercing: 20
-  piercingFullLurus: 1
-  umurPiercingLurus: 0.9
-  paksaPiercingHorizontal: 1
   damagePiercing: 10
   dorongMundurPiercing: 0
   lumpuhPiercing: 0
+  piercingFullLurus: 1
+  umurPiercingLurus: 0.9
+  paksaPiercingHorizontal: 1
   durasiTerbang: 0.55
+  resetTrailSaatSpawn: 1
   mulaiTurun: 0.09
   angkatSedikit: 0.4
   lengkungTurun: 7
   rotasiIkutArah: 1
+  pakaiTitikKakiUntukJatuh: 1
+  titikKaki: {fileID: 0}
+  offsetYJatuhDariTitikKaki: 0.04
+  paksaNancepKeTitikKakiSaatTimeout: 1
   lapisanTanah:
     serializedVersion: 2
     m_Bits: 256
@@ -428,17 +454,22 @@ MonoBehaviour:
   jarakRaycastTanah: 1.5
   jarakDekatTanahUntukMendarat: 0.06
   minimumNormalTanah: 0.602
-  offsetSaatJatuh: {x: 0, y: 0.06}
-  sudutSaatJatuh: 0.5
+  offsetSaatNancep: {x: 0, y: 0.05}
+  sudutNancepFullDraw: 25
+  sudutMinimumNancep: 15
+  sudutMaksimumNancep: 40
+  matikanTrailSaatNancep: 1
+  cariTanahSetelahDurasiTerbang: 1
   batasWaktuCariTanah: 0.4
   pengaliKecepatanSaatTurunAkhir: 0.8
-  titikKaki: {fileID: 0}
-  offsetYJatuhDariTitikKaki: 0.04
-  pakaiTitikKakiUntukJatuh: 1
-  waktuTerlihatSetelahJatuh: 0.8
+  paksaNancepJikaRaycastTanahDitemukan: 1
+  waktuTerlihatSetelahNancep: 0.8
   jedaSkill: 0.2
   lockSetelahTembak: 0.08
   biayaEnergi: 18
+  biayaEnergiFullCharge: 30
+  blokirRegenEnergiSelamaCasting: 1
+  debugLog: 0
 --- !u!114 &1067902324421283712
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -463,12 +494,17 @@ MonoBehaviour:
   batasMaksimalMenungguRelease: 0.4
   durasiMaksimalCast: 0.6
   gunakanBackDash: 1
-  jarakBackDash: 0.7
-  durasiBackDash: 0.14
-  hentikanVelocitySaatBackDash: 1
+  jarakBackDash: 2.5
+  durasiBackDash: 0.2
+  hentikanVelocitySaatBackDash: 0
   polaTembak: 1
   jumlahPanah: 3
   jarakVertikalLurus: 0.12
+  bonusVyAtas: 1.15
+  bonusVyTengah: 0
+  bonusVyBawah: -1.15
+  offsetSpawnSpreadTetap: 0
+  spreadTetapLurusSepertiPiercing: 1
   sudutKipas: 9
   offsetSpawnKipas: 0.06
   kecepatanPanah: 18
@@ -520,25 +556,62 @@ MonoBehaviour:
   hitAreaPrefab: {fileID: 7787539970225032193, guid: 0fce3b503735a724c907468f50083ae3, type: 3}
   player: {fileID: 3019785914136632114}
   anim: {fileID: 0}
-  damage: 10
-  knockback: 6
-  stun: 0.35
-  explosionRadius: 5
+  facingSprite: {fileID: 0}
+  visualRoot: {fileID: 0}
+  visualRenderers: []
+  titikKaki: {fileID: 0}
+  shadowPlayerBow: {fileID: 0}
+  jumpMode: 1
   jumpHeight: 2
   jumpUpTime: 0.5
   hoverTime: 0.3
   jumpDownTime: 0.3
-  delayBeforeShoot: 0.15
-  delayBeforeFall: 0.1
+  naikSedikitSebelumHilang: 0.22
+  durasiFadeHilang: 0.06
+  durasiTidakTerlihat: 0.04
+  durasiFadeMuncul: 0.08
+  fadeVisualSaatSpecialJump: 1
+  gunakanShadowPlayerBow: 1
+  matikanShadowSetelahSelesai: 1
+  pakaiAnimationEvent: 1
+  pakaiStartPopAnimationEvent: 1
+  startPopEventTimeout: 0.35
+  fallbackTahanBlinkDiTanah: 0.18
   releaseEventTimeout: 1
-  hitAreaOffset: {x: 1.2, y: -0.2}
+  delayBeforeFall: 0.1
+  arrowSpeed: 17
+  sudutTembakTurun: 30
+  arrowFlightTime: 0.75
+  resetTrailSaatSpawn: 1
+  mulaiTurun: 0.08
+  lengkungTurun: 7
+  rotasiIkutArah: 1
   groundMask:
     serializedVersion: 2
     m_Bits: 0
+  pakaiTitikKakiUntukJatuh: 1
+  offsetYJatuhDariTitikKaki: 0.04
+  jarakMinimumSebelumBolehJatuh: 0.2
+  tinggiRaycastTanah: 1
+  jarakRaycastTanah: 2.5
+  offsetSaatNancep: {x: 0, y: 0.05}
+  sudutNancep: 28
+  matikanColliderSaatNancep: 1
+  matikanTrailSaatNancep: 1
+  ledakkanSaatNancep: 1
+  delayLedakanSetelahNancep: 0.05
+  waktuTerlihatSetelahNancep: 0.25
+  damage: 10
+  knockback: 6
+  stun: 0.35
+  explosionRadius: 5
+  hitAreaOffset: {x: 1.2, y: -0.2}
   enableCameraBump: 1
   cameraBumpStrength: 0.1
   cameraBumpDuration: 0.12
+  jedaSkill: 1
   energyCost: 25
+  debugLog: 0
 --- !u!1 &5632209356851836178
 GameObject:
   m_ObjectHideFlags: 0
@@ -660,6 +733,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 891478525830658006}
+  spriteRenderer: {fileID: 3037485037298598079}
+  logMissingParameters: 0
+  resetBowTriggersOnEnable: 1
+  clearChargeFlagsOnEnable: 1
 --- !u!114 &5678272201553711083
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -674,9 +751,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   quickShot: {fileID: 5687928950400297159}
   fullDraw: {fileID: 8539281897314106846}
-  piercingShot: {fileID: 0}
   concussiveShot: {fileID: 5298149805424230708}
   spreadArrow: {fileID: 1067902324421283712}
+  piercingStandalone: {fileID: 0}
   debugEvent: 1
 --- !u!1 &6613141542649352582
 GameObject:
