@@ -1,87 +1,86 @@
 using System.Collections;
 using UnityEngine;
 
-public sealed class Enemy_Dash : MonoBehaviour
+[RequireComponent(typeof(Rigidbody2D))]
+public class Enemy_Dash : MonoBehaviour
 {
     [Header("Dash Settings")]
-    public float dashSpeed = 10f;
-    public float dashDuration = 0.15f;
-    public float dashCooldown = 0.50f;
+    [Tooltip("Kecepatan konstan saat melakukan dash maju.")]
+    [SerializeField] private float dashSpeed = 6f; 
 
-    [Header("References")]
-    [SerializeField] private Rigidbody2D rb;
-    [SerializeField] private Animator animator;
-    [SerializeField] private Transform player;
+    [Tooltip("Durasi waktu musuh melakukan dash (dalam detik).")]
+    [SerializeField] private float dashDuration = 1f;
 
-    [Header("Animator Trigger Name")]
-    [SerializeField] private string dashTrigger = "Dash";
+    [Tooltip("Waktu istirahat setelah dash agar musuh tidak langsung nempel lagi.")]
+    [SerializeField] private float recoveryTime = 0.25f;
 
-    private bool _isDashing;
-    private float _lastDashTime = -999f;
+    [Tooltip("Jeda waktu (cooldown) sebelum musuh bisa dash lagi.")]
+    [SerializeField] private float dashCooldown = 2f;
 
-    public float DashDuration => dashDuration;
+    private Rigidbody2D rb;
+    private EnemyAI ai;
+    private EnemyAnimation enemyAnim;
+
+    private bool isDashing = false;
+    private float lastDashTime = -99f;
+
+    // Pastikan durasi total terbaca oleh EnemyCombatController
+    public float DashDuration => dashDuration + recoveryTime;
 
     private void Awake()
     {
-        if (rb == null) rb = GetComponent<Rigidbody2D>();
-        if (animator == null) animator = GetComponentInChildren<Animator>();
+        rb = GetComponent<Rigidbody2D>();
+        ai = GetComponent<EnemyAI>();
+        enemyAnim = GetComponentInChildren<EnemyAnimation>(true);
     }
 
-    public void SetPlayer(Transform p) => player = p;
+    public void SetPlayer(Transform player) { }
 
     public bool TryDashAwayFromPlayer()
     {
-        if (rb == null || player == null) return false;
-        if (_isDashing) return false;
-        if (Time.time < _lastDashTime + dashCooldown) return false;
+        if (isDashing || Time.time < lastDashTime + dashCooldown)
+            return false;
 
-        StartCoroutine(DashRoutine());
+        if (ai != null && ai.isPerformingAction)
+            return false;
+
+        StartCoroutine(PerformDashRoutine());
         return true;
     }
 
-    private IEnumerator DashRoutine()
+    private IEnumerator PerformDashRoutine()
     {
-        _isDashing = true;
-        _lastDashTime = Time.time;
+        isDashing = true;
+        lastDashTime = Time.time;
 
-        Vector2 enemyPos = rb.position;
-        Vector2 playerPos = (Vector2)player.position;
+        if (ai != null) ai.OnActionStart();
+        if (enemyAnim != null) enemyAnim.PlayDash();
 
-        // Arah menjauh dari player (hanya sumbu X)
-        float directionX = enemyPos.x - playerPos.x;
+        // Dash MAJU lurus menirukan player
+        float directionX = ai != null ? ai.ForwardSign : 1f;
 
-        // Jika musuh tepat di posisi player (sangat jarang), default ke kanan
-        if (Mathf.Abs(directionX) < 0.0001f)
-        {
-            directionX = 1f;
-        }
-
-        // Normalisasi arah: 1 jika musuh di kanan player, -1 jika di kiri
-        Vector2 awayDirection = new Vector2(Mathf.Sign(directionX), 0f);
-
-        float distance = dashSpeed * dashDuration;
-        Vector2 targetPos = enemyPos + awayDirection * distance;
-
-        // Trigger animasi dash
-        if (animator != null) animator.SetTrigger(dashTrigger);
+        // [PERBAIKAN KUNCI]: Ubah jadi Kinematic agar tidak terhalang collider atau gesekan tanah
+        bool wasKinematic = rb.isKinematic;
+        rb.isKinematic = true;
 
         float timer = 0f;
-        rb.velocity = Vector2.zero;
-
-        // Dash menggunakan interpolasi dengan easing
         while (timer < dashDuration)
         {
-            yield return new WaitForFixedUpdate();
-            timer += Time.fixedDeltaTime;
+            // Karena kinematic, kita gerakkan menggunakan velocity, bukan addforce
+            rb.velocity = new Vector2(directionX * dashSpeed, 0f);
 
-            float t = Mathf.Clamp01(timer / dashDuration);
-            float eased = 1f - (1f - t) * (1f - t); // ease-out
-
-            Vector2 newPos = Vector2.Lerp(enemyPos, targetPos, eased);
-            rb.MovePosition(newPos);
+            timer += Time.deltaTime;
+            yield return null;
         }
 
+        // Rem mendadak dan kembalikan ke tipe semula
         rb.velocity = Vector2.zero;
-        _isDashing = false;
+        rb.isKinematic = wasKinematic;
+
+        // Jeda sejenak
+        yield return new WaitForSeconds(recoveryTime);
+
+        isDashing = false;
+        if (ai != null) ai.OnActionEnd();
     }
 }

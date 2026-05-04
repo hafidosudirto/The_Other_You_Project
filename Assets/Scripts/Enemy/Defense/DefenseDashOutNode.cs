@@ -1,16 +1,13 @@
-using System.Collections;
-using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class DefenseDashOutNode : BaseDefenseNode
 {
-    private float dashDistance = 3.0f;
+    private Enemy_Dash enemyDash;
 
     public DefenseDashOutNode(EnemyAI ai) : base(ai)
     {
-        cooldown = 2.0f;     // dash out lebih lama cooldown
-        failChance = 0.10f;  // dash cukup dapat diandalkan
+        cooldown = 2.0f;
+        failChance = 0.10f;
     }
 
     public override NodeState Evaluate()
@@ -21,23 +18,31 @@ public class DefenseDashOutNode : BaseDefenseNode
             return state;
         }
 
-        // Tentukan arah menjauh dari player
-        Vector3 dir = (ai.transform.position.x < ai.playerTransform.position.x)
-            ? Vector3.left : Vector3.right;
+        if (ai == null || ai.playerTransform == null)
+        {
+            state = NodeState.Failure;
+            return state;
+        }
 
-        ai.Movement.StopImmediately();
-        ai.transform.position += dir * dashDistance;
+        if (enemyDash == null)
+            enemyDash = ai.GetComponent<Enemy_Dash>();
 
-        MarkUsed(); // VERY IMPORTANT
+        if (enemyDash == null)
+            enemyDash = ai.gameObject.AddComponent<Enemy_Dash>();
+
+        enemyDash.SetPlayer(ai.playerTransform);
+
+        bool dashStarted = enemyDash.TryDashAwayFromPlayer();
+
+        if (!dashStarted)
+        {
+            state = NodeState.Failure;
+            return state;
+        }
+
+        MarkUsed();
+
         state = NodeState.Success;
         return state;
     }
 }
-
-
-
-
-
-
-
-

@@ -18,16 +18,15 @@ public class EnemyDeathHandler : MonoBehaviour
         if (processed) return;
         processed = true;
 
+        // Perbaikan CS0117: Cari komponen aktif di scene jika belum di-set
         if (stageManager == null)
-            stageManager = StageManager.Instance;
+            stageManager = FindObjectOfType<StageManager>();
 
+        // Perbaikan CS1061: Gunakan method OnEnemyDied() sesuai dengan StageManager
         if (stageManager != null)
-            stageManager.OnEnemyDefeated();
+            stageManager.OnEnemyDied();
 
         // destroy enemy setelah sedikit delay (biar animasi death bisa jalan kalau ada)
         Destroy(gameObject, 1.0f);
     }
 }
-
-
-

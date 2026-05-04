@@ -41,15 +41,18 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
 
     private EnemyAI ai;
     private EnemyCombatController combat;
+    private EnemyMovementFSM movementFSM;
     private CharacterBase selfStats;
 
     private bool busy = false;
     private float nextReadyTime = 0f;
 
-    // gizmo window
+    private Coroutine activeRoutine;
+    private bool skillStartInvoked = false;
+    private bool movementLockedByThisSkill = false;
+
     private bool showHitArc = false;
 
-    // snapshot gizmo
     private Vector3 lastOrigin;
     private Vector3 lastDir;
     private float lastRadius;
@@ -59,7 +62,20 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
     {
         ai = GetComponentInParent<EnemyAI>();
         combat = GetComponentInParent<EnemyCombatController>();
+        movementFSM = GetComponentInParent<EnemyMovementFSM>();
         selfStats = GetComponentInParent<CharacterBase>();
+    }
+
+    private void OnDisable()
+    {
+        if (activeRoutine != null)
+        {
+            StopCoroutine(activeRoutine);
+            activeRoutine = null;
+        }
+
+        ForceEndSkillState();
+        showHitArc = false;
     }
 
     public void Trigger()
@@ -67,7 +83,7 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
         if (busy) return;
         if (Time.time < nextReadyTime) return;
 
-        StartCoroutine(ComboRoutine());
+        activeRoutine = StartCoroutine(ComboRoutine());
     }
 
     private IEnumerator ComboRoutine()
@@ -75,16 +91,14 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
         busy = true;
         nextReadyTime = Time.time + cooldown;
 
-        combat?.InvokeSkillStart();
+        BeginSkillState(GetEstimatedLockDuration());
 
-        // ===== HIT 1 =====
         ai?.Animation?.PlaySlash1();
         yield return new WaitForSeconds(windupTime);
 
         PerformSlash(ai != null ? ai.AttackPower : 10f);
         yield return new WaitForSeconds(activeTime);
 
-        // ===== HIT 2 (opsional) =====
         bool canChain = false;
         if (ai != null && ai.playerTransform != null)
         {
@@ -99,15 +113,52 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
             ai?.Animation?.PlaySlash2();
             yield return new WaitForSeconds(windupTime * 0.85f);
 
-            // sedikit variasi damage untuk feel combo
             PerformSlash((ai != null ? ai.AttackPower : 10f) * 1.05f);
             yield return new WaitForSeconds(activeTime);
         }
 
-        // ===== RECOVERY =====
         yield return new WaitForSeconds(recoveryTime);
 
-        combat?.InvokeSkillEnd();
+        ForceEndSkillState();
+        activeRoutine = null;
+    }
+
+    private float GetEstimatedLockDuration()
+    {
+        float hit1Duration = windupTime + activeTime;
+        float possibleHit2Duration = chainExtraDelay + (windupTime * 0.85f) + activeTime;
+        return Mathf.Max(0.05f, hit1Duration + possibleHit2Duration + recoveryTime + 0.1f);
+    }
+
+    private void BeginSkillState(float lockDuration)
+    {
+        movementLockedByThisSkill = false;
+        skillStartInvoked = false;
+
+        if (movementFSM != null)
+        {
+            movementFSM.LockExternal(lockDuration, true);
+            movementLockedByThisSkill = true;
+        }
+
+        combat?.InvokeSkillStart();
+        skillStartInvoked = true;
+    }
+
+    private void ForceEndSkillState()
+    {
+        if (skillStartInvoked)
+        {
+            combat?.InvokeSkillEnd();
+            skillStartInvoked = false;
+        }
+
+        if (movementLockedByThisSkill)
+        {
+            movementFSM?.UnlockExternal(true);
+            movementLockedByThisSkill = false;
+        }
+
         busy = false;
     }
 
@@ -118,7 +169,6 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
         int sign = ai.ForwardSign;
         Vector3 dir = ai.ForwardDir;
 
-        // Close-contact fix: saat menempel, pusat hit didekatkan ke pivot
         float mul = 1f;
         if (centerAtPivotWhenClose && ai.playerTransform != null)
         {
@@ -129,7 +179,6 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
 
         Vector3 origin = ai.transform.position + new Vector3(hitOffset.x * sign * mul, hitOffset.y, 0f);
 
-        // snapshot untuk gizmo sector kecil (1/5 atau 1/6)
         lastOrigin = origin;
         lastDir = dir;
         lastRadius = attackRadius;
@@ -145,7 +194,6 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
             Vector2 toTarget = cb.transform.position - origin;
             float angle = Vector2.Angle(dir, toTarget);
 
-            // Damage tetap memakai attackAngle (gameplay), gizmo memakai gizmoArcAngle (visual)
             if (angle <= attackAngle * 0.5f)
                 cb.TakeDamage(damage, ai.gameObject);
         }
