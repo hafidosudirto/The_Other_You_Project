@@ -33,7 +33,7 @@ public enum SwordSkillSlot
 public enum BowSkillSlot
 {
     QuickShot = 0,
-    PiercingShot = 1,
+    SpreadArrow = 1,
     FullDraw = 2,
     ConcussiveShot = 3
 }
@@ -52,14 +52,6 @@ public class DataTracker : MonoBehaviour
     private readonly int[] swordSkillCounts = new int[4];
     private readonly int[] bowSkillCounts = new int[4];
 
-    // =========================================================
-    // REAL-TIME PLAYER SKILL DEBUG UI
-    // Catatan penting:
-    // - Data ini bukan hasil DDA.
-    // - Data ini hanya mencatat skill yang benar-benar dikeluarkan player pada stage berjalan.
-    // - Data ini tidak ikut direset oleh FinalizeStageData().
-    // - Reset debug dilakukan saat masuk ke stage berikutnya melalui ResetSkillDebugData().
-    // =========================================================
     [Header("Real-Time Player Skill Debug UI - Sword")]
     [SerializeField] private TMP_Text swordSkillDebugText;
     [SerializeField] private GameObject swordSkillDebugPanel;
@@ -234,7 +226,9 @@ public class DataTracker : MonoBehaviour
     }
 
     public void RecordBowQuickShot() => RecordBowSkill(BowSkillSlot.QuickShot);
-    public void RecordBowPiercingShot() => RecordBowSkill(BowSkillSlot.PiercingShot);
+
+    public void RecordBowSpreadArrow() => RecordBowSkill(BowSkillSlot.SpreadArrow);
+
     public void RecordBowFullDraw() => RecordBowSkill(BowSkillSlot.FullDraw);
 
     public void RecordBowConcussiveShot()
@@ -245,7 +239,7 @@ public class DataTracker : MonoBehaviour
         bowUsageCount++;
 
         bowConcussiveCount++;
-        bowSkillCounts[3]++;
+        bowSkillCounts[(int)BowSkillSlot.ConcussiveShot]++;
 
         RecordBowSkillForDebug(BowSkillSlot.ConcussiveShot);
 
@@ -255,6 +249,10 @@ public class DataTracker : MonoBehaviour
             $"BowConcussiveTotal={bowConcussiveCount}"
         );
     }
+
+    // Alias supaya referensi lama tidak langsung membuat compile error.
+    // Secara data, Piercing lama sekarang diarahkan ke SpreadArrow.
+    public void RecordBowPiercingShot() => RecordBowSpreadArrow();
 
     private void AddPlaystyleCount(PlayerActionType actionType)
     {
@@ -395,7 +393,7 @@ public class DataTracker : MonoBehaviour
     {
         return
             $"{bowSkillDebugTitle}\n" +
-            "QuickShot | PiercingShot | FullDraw | ConcussiveShot\n" +
+            "QuickShot | SpreadArrow | FullDraw | ConcussiveShot\n" +
             $"{FormatPercentRow(debugBowSkillCounts)}\n" +
             $"{FormatCountRow(debugBowSkillCounts)}";
     }
