@@ -45,7 +45,6 @@ GameObject:
   - component: {fileID: 4007388749144626707}
   - component: {fileID: 5653449165881094903}
   - component: {fileID: 1603249717165998674}
-  - component: {fileID: 6893955486669756002}
   - component: {fileID: 5434613646505759902}
   - component: {fileID: 5307049993131140300}
   m_Layer: 3
@@ -207,40 +206,13 @@ MonoBehaviour:
   currentEnergy: 100
   regenPerSecond: 8
   useUnscaledTime: 0
+  energyRegenBlocked: 0
   isFacingRight: 1
   isStaggered: 0
   isRiposteStance: 0
   canRiposte: 1
   riposteWindow: 0.6
   staggerResistance: 1
---- !u!114 &6893955486669756002
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1718376399928103269}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2e6c004dcf5722445860911ee4520cbb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  currentState: 0
-  movementMode: 0
-  player: {fileID: 0}
-  rb: {fileID: 0}
-  swordMovement: {fileID: 0}
-  bowMovement: {fileID: 0}
-  moveSpeed: 3
-  accel: 10
-  useVerticalAlign: 1
-  verticalTolerance: 0.2
-  desiredRange: 1.5
-  minimumCombatRange: 0
-  rangeTolerance: 0.25
-  isExternallyLocked: 0
-  isAttackMovementLocked: 0
-  defaultAttackLockFailSafe: 0.6
 --- !u!114 &5434613646505759902
 MonoBehaviour:
   m_ObjectHideFlags: 0

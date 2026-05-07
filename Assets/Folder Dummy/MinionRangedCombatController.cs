@@ -16,6 +16,13 @@ public class MinionRangedCombatController : MonoBehaviour
     [Header("Single Ranged Skill")]
     [SerializeField] private Enemy_Bow_QuickShot quickShot;
 
+    [Header("Projectile Assignment")]
+    [Tooltip("Isi dengan prefab projectile/arrow untuk Minion Bow. Field ini akan dikirim otomatis ke Enemy_Bow_QuickShot.")]
+    [SerializeField] private GameObject projectilePrefab;
+
+    [Tooltip("Jika aktif, controller mencoba membaca projectile dari Enemy_Bow_QuickShot bila field Projectile Prefab masih kosong.")]
+    [SerializeField] private bool pullProjectileFromQuickShotIfEmpty = true;
+
     [Header("Movement / Range")]
     [SerializeField] private bool allowMovement = true;
     [SerializeField] private float minimumRange = 3.5f;
@@ -31,13 +38,9 @@ public class MinionRangedCombatController : MonoBehaviour
     [Header("Stage Token")]
     [SerializeField] private int attackTokens = 3;
 
-    [Header("Animation Parameters")]
-    [SerializeField] private string idleBool = "Idle";
-    [SerializeField] private string walkBool = "Walk";
+    [Header("Animation Parameters - Minion Bow Only")]
+    [SerializeField] private string moveSpeedFloat = "MoveSpeed";
     [SerializeField] private string quickShotBool = "QuickShot";
-    [SerializeField] private string quickShotTrigger = "";
-    [SerializeField] private bool useQuickShotBool = true;
-    [SerializeField] private bool useQuickShotTrigger = false;
 
     [Header("Animation Timing")]
     [SerializeField] private float quickShotAnimDuration = 0.45f;
@@ -55,16 +58,23 @@ public class MinionRangedCombatController : MonoBehaviour
     public bool IsBusy => skillBusyCounter > 0 || Time.time < lockedUntil;
     public bool IsNotBusy => !IsBusy;
 
+    private static readonly string[] ProjectileMemberNames =
+    {
+        "projectilePrefab",
+        "projectile",
+        "arrowPrefab",
+        "arrowProjectile",
+        "arrowProjectilePrefab",
+        "projectileObject",
+        "projectileGameObject",
+        "prefabProjectile",
+        "quickShotProjectile",
+        "quickShotProjectilePrefab"
+    };
+
     private void Awake()
     {
-        if (character == null)
-            character = GetComponent<CharacterBase>();
-
-        if (animator == null)
-            animator = GetComponentInChildren<Animator>(true);
-
-        AutoAssignPlayer();
-        AutoAssignQuickShot();
+        AutoAssignReferences();
     }
 
 #if UNITY_EDITOR
@@ -72,38 +82,17 @@ public class MinionRangedCombatController : MonoBehaviour
     {
         if (!Application.isPlaying)
         {
-            if (character == null)
-                character = GetComponent<CharacterBase>();
-
-            if (animator == null)
-                animator = GetComponentInChildren<Animator>(true);
-
-            AutoAssignQuickShot();
+            AutoAssignReferences();
         }
     }
 #endif
-
-    public void InitializeStageEnemy(CharacterBase stageCharacter, int stageAttackTokens)
-    {
-        if (stageCharacter != null)
-            character = stageCharacter;
-
-        attackTokens = Mathf.Max(0, stageAttackTokens);
-
-        if (showDebug)
-        {
-            Debug.Log(
-                $"[MINION RANGED INIT] {name} token: {attackTokens}, " +
-                $"attack: {(character != null ? character.attack : 0f)}"
-            );
-        }
-    }
 
     private void Update()
     {
         if (player == null)
         {
             AutoAssignPlayer();
+            SetMoveAnimation(false);
             return;
         }
 
@@ -132,9 +121,46 @@ public class MinionRangedCombatController : MonoBehaviour
         }
     }
 
+    public void InitializeStageEnemy(CharacterBase stageCharacter, int stageAttackTokens)
+    {
+        if (stageCharacter != null)
+            character = stageCharacter;
+
+        attackTokens = Mathf.Max(0, stageAttackTokens);
+
+        if (showDebug)
+        {
+            Debug.Log(
+                $"[MINION RANGED INIT] {name} token: {attackTokens}, " +
+                $"attack: {(character != null ? character.attack : 0f)}"
+            );
+        }
+    }
+
+    private void AutoAssignReferences()
+    {
+        if (character == null)
+            character = GetComponent<CharacterBase>();
+
+        if (animator == null)
+            animator = GetComponentInChildren<Animator>(true);
+
+        AutoAssignPlayer();
+        AutoAssignQuickShot();
+
+        if (pullProjectileFromQuickShotIfEmpty && projectilePrefab == null)
+            TryPullProjectileFromQuickShot(false);
+
+        AssignProjectileToQuickShot(false);
+    }
+
     private void AutoAssignPlayer()
     {
+        if (player != null)
+            return;
+
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+
         if (playerObj != null)
             player = playerObj.transform;
     }
@@ -159,8 +185,216 @@ public class MinionRangedCombatController : MonoBehaviour
             quickShot = GetComponentInChildren<Enemy_Bow_QuickShot>(true);
     }
 
+    [ContextMenu("Assign Projectile To QuickShot")]
+    public void AssignProjectileToQuickShotFromInspector()
+    {
+        AutoAssignQuickShot();
+
+        if (pullProjectileFromQuickShotIfEmpty && projectilePrefab == null)
+            TryPullProjectileFromQuickShot(true);
+
+        AssignProjectileToQuickShot(true);
+    }
+
+    private bool AssignProjectileToQuickShot(bool logResult)
+    {
+        if (quickShot == null)
+            AutoAssignQuickShot();
+
+        if (quickShot == null)
+        {
+            if (logResult || showDebug)
+                Debug.LogWarning($"[MINION RANGED] {name} gagal assign projectile karena Enemy_Bow_QuickShot belum ditemukan.", this);
+
+            return false;
+        }
+
+        if (projectilePrefab == null)
+        {
+            if (logResult || showDebug)
+                Debug.LogWarning($"[MINION RANGED] {name} belum memiliki Projectile Prefab.", this);
+
+            return false;
+        }
+
+        bool assigned = false;
+
+        assigned |= TryInvokeBoolOrVoid(quickShot, "SetProjectilePrefab", projectilePrefab);
+        assigned |= TryInvokeBoolOrVoid(quickShot, "SetProjectile", projectilePrefab);
+        assigned |= TryInvokeBoolOrVoid(quickShot, "SetArrowPrefab", projectilePrefab);
+        assigned |= TryInvokeBoolOrVoid(quickShot, "SetArrowProjectile", projectilePrefab);
+        assigned |= TryInvokeBoolOrVoid(quickShot, "AssignProjectilePrefab", projectilePrefab);
+        assigned |= TryInvokeBoolOrVoid(quickShot, "AssignProjectile", projectilePrefab);
+
+        assigned |= TrySetProjectileMemberByName(quickShot, projectilePrefab);
+
+        if (assigned)
+        {
+            if (logResult || showDebug)
+            {
+                Debug.Log(
+                    $"[MINION RANGED] {name} berhasil assign projectile '{projectilePrefab.name}' ke Enemy_Bow_QuickShot.",
+                    this
+                );
+            }
+        }
+        else
+        {
+            Debug.LogWarning(
+                $"[MINION RANGED] {name} gagal assign projectile. " +
+                $"Tambahkan method SetProjectilePrefab(GameObject) atau field projectilePrefab pada Enemy_Bow_QuickShot.",
+                this
+            );
+        }
+
+        return assigned;
+    }
+
+    private bool TryPullProjectileFromQuickShot(bool logResult)
+    {
+        if (quickShot == null)
+            AutoAssignQuickShot();
+
+        if (quickShot == null)
+            return false;
+
+        Type type = quickShot.GetType();
+        BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+        foreach (string memberName in ProjectileMemberNames)
+        {
+            FieldInfo field = type.GetField(memberName, flags);
+
+            if (field != null)
+            {
+                object value = field.GetValue(quickShot);
+                GameObject pulled = ExtractGameObject(value);
+
+                if (pulled != null)
+                {
+                    projectilePrefab = pulled;
+
+                    if (logResult || showDebug)
+                    {
+                        Debug.Log(
+                            $"[MINION RANGED] Projectile diambil dari field '{memberName}' pada Enemy_Bow_QuickShot: {projectilePrefab.name}.",
+                            this
+                        );
+                    }
+
+                    return true;
+                }
+            }
+
+            PropertyInfo property = type.GetProperty(memberName, flags);
+
+            if (property != null && property.CanRead)
+            {
+                object value = property.GetValue(quickShot, null);
+                GameObject pulled = ExtractGameObject(value);
+
+                if (pulled != null)
+                {
+                    projectilePrefab = pulled;
+
+                    if (logResult || showDebug)
+                    {
+                        Debug.Log(
+                            $"[MINION RANGED] Projectile diambil dari property '{memberName}' pada Enemy_Bow_QuickShot: {projectilePrefab.name}.",
+                            this
+                        );
+                    }
+
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private GameObject ExtractGameObject(object value)
+    {
+        if (value == null)
+            return null;
+
+        if (value is GameObject gameObjectValue)
+            return gameObjectValue;
+
+        if (value is Component componentValue)
+            return componentValue.gameObject;
+
+        return null;
+    }
+
+    private bool TrySetProjectileMemberByName(MonoBehaviour target, GameObject projectile)
+    {
+        if (target == null || projectile == null)
+            return false;
+
+        bool assigned = false;
+        Type type = target.GetType();
+        BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+        foreach (string memberName in ProjectileMemberNames)
+        {
+            FieldInfo field = type.GetField(memberName, flags);
+
+            if (field != null && !field.IsInitOnly)
+            {
+                object value = ConvertProjectileValue(field.FieldType, projectile);
+
+                if (value != null)
+                {
+                    field.SetValue(target, value);
+                    assigned = true;
+                }
+            }
+
+            PropertyInfo property = type.GetProperty(memberName, flags);
+
+            if (property != null && property.CanWrite)
+            {
+                object value = ConvertProjectileValue(property.PropertyType, projectile);
+
+                if (value != null)
+                {
+                    property.SetValue(target, value, null);
+                    assigned = true;
+                }
+            }
+        }
+
+        return assigned;
+    }
+
+    private object ConvertProjectileValue(Type targetType, GameObject projectile)
+    {
+        if (targetType == null || projectile == null)
+            return null;
+
+        if (targetType.IsAssignableFrom(typeof(GameObject)))
+            return projectile;
+
+        if (targetType == typeof(Transform))
+            return projectile.transform;
+
+        if (typeof(Component).IsAssignableFrom(targetType))
+        {
+            Component component = projectile.GetComponent(targetType);
+
+            if (component != null)
+                return component;
+        }
+
+        return null;
+    }
+
     private bool MaintainBowDistance(float distance)
     {
+        if (player == null)
+            return false;
+
         float actualMoveSpeed = moveSpeed;
 
         if (character != null && character.moveSpeed > 0f)
@@ -226,8 +460,13 @@ public class MinionRangedCombatController : MonoBehaviour
 
         if (quickShot == null)
         {
-            Debug.LogWarning($"[MINION RANGED] {name} tidak menemukan Enemy_Bow_QuickShot.");
-            return;
+            AutoAssignQuickShot();
+
+            if (quickShot == null)
+            {
+                Debug.LogWarning($"[MINION RANGED] {name} tidak menemukan Enemy_Bow_QuickShot.");
+                return;
+            }
         }
 
         if (!CanTriggerSkill(quickShot, distance))
@@ -250,6 +489,7 @@ public class MinionRangedCombatController : MonoBehaviour
                 $"Cek nama method pada Enemy_Bow_QuickShot."
             );
 
+            ResetQuickShotAnimation();
             return;
         }
 
@@ -271,6 +511,8 @@ public class MinionRangedCombatController : MonoBehaviour
     {
         if (quickShot == null || character == null)
             return;
+
+        AssignProjectileToQuickShot(false);
 
         TryInvokeBoolOrVoid(quickShot, "SetPlayer", player);
         TryInvokeBoolOrVoid(quickShot, "SetTarget", player);
@@ -294,11 +536,8 @@ public class MinionRangedCombatController : MonoBehaviour
 
         ResetQuickShotAnimation();
 
-        if (useQuickShotBool && !string.IsNullOrEmpty(quickShotBool))
+        if (!string.IsNullOrEmpty(quickShotBool))
             animator.SetBool(quickShotBool, true);
-
-        if (useQuickShotTrigger && !string.IsNullOrEmpty(quickShotTrigger))
-            animator.SetTrigger(quickShotTrigger);
 
         CancelInvoke(nameof(ResetQuickShotAnimation));
         Invoke(nameof(ResetQuickShotAnimation), quickShotAnimDuration);
@@ -318,11 +557,8 @@ public class MinionRangedCombatController : MonoBehaviour
         if (animator == null)
             return;
 
-        if (!string.IsNullOrEmpty(walkBool))
-            animator.SetBool(walkBool, isMoving);
-
-        if (!string.IsNullOrEmpty(idleBool))
-            animator.SetBool(idleBool, !isMoving && !IsBusy);
+        if (!string.IsNullOrEmpty(moveSpeedFloat))
+            animator.SetFloat(moveSpeedFloat, isMoving ? 1f : 0f);
     }
 
     private void ConsumeAttackToken()
@@ -332,6 +568,9 @@ public class MinionRangedCombatController : MonoBehaviour
 
     private bool InvokeQuickShot()
     {
+        if (quickShot == null)
+            return false;
+
         if (TryInvokeBoolOrVoid(quickShot, "Trigger"))
             return true;
 
@@ -396,7 +635,9 @@ public class MinionRangedCombatController : MonoBehaviour
         if (method == null)
             return false;
 
-        object result = method.Invoke(target, args);
+        object[] convertedArgs = ConvertArguments(method, args);
+
+        object result = method.Invoke(target, convertedArgs);
 
         if (method.ReturnType == typeof(bool))
             return (bool)result;
@@ -427,11 +668,17 @@ public class MinionRangedCombatController : MonoBehaviour
                 if (args[i] == null)
                     continue;
 
-                if (!parameters[i].ParameterType.IsAssignableFrom(args[i].GetType()))
-                {
-                    match = false;
-                    break;
-                }
+                Type parameterType = parameters[i].ParameterType;
+                Type argumentType = args[i].GetType();
+
+                if (parameterType.IsAssignableFrom(argumentType))
+                    continue;
+
+                if (IsNumericType(parameterType) && IsNumericType(argumentType))
+                    continue;
+
+                match = false;
+                break;
             }
 
             if (match)
@@ -439,6 +686,55 @@ public class MinionRangedCombatController : MonoBehaviour
         }
 
         return null;
+    }
+
+    private object[] ConvertArguments(MethodInfo method, object[] args)
+    {
+        ParameterInfo[] parameters = method.GetParameters();
+        object[] convertedArgs = new object[args.Length];
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i] == null)
+            {
+                convertedArgs[i] = null;
+                continue;
+            }
+
+            Type parameterType = parameters[i].ParameterType;
+            Type argumentType = args[i].GetType();
+
+            if (parameterType.IsAssignableFrom(argumentType))
+            {
+                convertedArgs[i] = args[i];
+                continue;
+            }
+
+            if (IsNumericType(parameterType) && IsNumericType(argumentType))
+            {
+                convertedArgs[i] = Convert.ChangeType(args[i], parameterType);
+                continue;
+            }
+
+            convertedArgs[i] = args[i];
+        }
+
+        return convertedArgs;
+    }
+
+    private bool IsNumericType(Type type)
+    {
+        return type == typeof(byte) ||
+               type == typeof(sbyte) ||
+               type == typeof(short) ||
+               type == typeof(ushort) ||
+               type == typeof(int) ||
+               type == typeof(uint) ||
+               type == typeof(long) ||
+               type == typeof(ulong) ||
+               type == typeof(float) ||
+               type == typeof(double) ||
+               type == typeof(decimal);
     }
 
     private Transform FindChildRecursive(Transform root, string targetName)
