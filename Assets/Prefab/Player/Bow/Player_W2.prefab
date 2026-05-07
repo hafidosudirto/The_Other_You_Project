@@ -323,14 +323,14 @@ MonoBehaviour:
     actionType: 0
     weaponType: 2
     dValue: 1
-  - slotName: Piercing Shot
-    skillBehaviour: {fileID: 0}
-    actionType: 0
+  - slotName: Spread Arrow
+    skillBehaviour: {fileID: 1067902324421283712}
+    actionType: 1
     weaponType: 2
     dValue: 1
   - slotName: Concussive Shot
     skillBehaviour: {fileID: 5298149805424230708}
-    actionType: 0
+    actionType: 1
     weaponType: 2
     dValue: 1
   owner: {fileID: 0}

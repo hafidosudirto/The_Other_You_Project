@@ -614,6 +614,8 @@ public class Bow_SpreadArrow : MonoBehaviour, ISkill, IEnergySkill
 
     private void TembakkanFormasiPanah()
     {
+        CatatDataSpreadArrow();
+
         List<DataPanah> formasi = BangunFormasiPanah();
         float arah = AmbilArahHadap();
 
@@ -1018,6 +1020,19 @@ public class Bow_SpreadArrow : MonoBehaviour, ISkill, IEnergySkill
             return pemilikEnergi.isFacingRight ? 1f : -1f;
 
         return 1f;
+    }
+
+    private void CatatDataSpreadArrow()
+    {
+        DataTracker tracker = DataTracker.Instance;
+
+        if (tracker == null)
+        {
+            Debug.LogWarning("[Bow_SpreadArrow] DataTracker.Instance belum tersedia. SpreadArrow tidak tercatat di debug UI.", this);
+            return;
+        }
+
+        tracker.RecordBowSpreadArrow();
     }
 
     private bool CobaKurangiEnergi()

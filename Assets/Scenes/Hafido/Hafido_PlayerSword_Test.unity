@@ -192,7 +192,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &287869130
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -217,6 +217,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f7fce31fd51c9834e9adf3b60c416059, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  swordSkillDebugText: {fileID: 0}
+  swordSkillDebugPanel: {fileID: 0}
+  showSwordSkillDebugPanel: 1
+  swordSkillDebugTitle: SWORD SKILL DEBUG
+  bowSkillDebugText: {fileID: 0}
+  bowSkillDebugPanel: {fileID: 0}
+  showBowSkillDebugPanel: 1
+  bowSkillDebugTitle: BOW SKILL DEBUG
   playerTransform: {fileID: 50061054}
   enemyTransform: {fileID: 7686073481702737145, guid: 5ac3b8af5f0075e4db0d8d669fd9126b, type: 3}
   distanceCheckInterval: 0.1
@@ -249,11 +257,31 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70a5707e5ff26f24ba568ca053f237ed, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameplaySceneName: Sprite_SwordEnemyAI
-  enemyPrefab: {fileID: 1718376399928103269, guid: 5ac3b8af5f0075e4db0d8d669fd9126b, type: 3}
-  spawnPoint: {fileID: 1433441250}
-  enemyHpBar: {fileID: 0}
-  hpBarOffset: {x: 0, y: 1.5, z: 0}
+  currentState: 0
+  playerTransform: {fileID: 0}
+  nextStagePlayerStartPoint: {fileID: 0}
+  fallbackPlayerStartX: -8
+  rightTransitionX: 18
+  meleeMinionPrefab: {fileID: 0}
+  rangeMinionPrefab: {fileID: 0}
+  minionSpawnPoints: []
+  bossPrefabSword: {fileID: 0}
+  bossPrefabBow: {fileID: 0}
+  bossSpawnPoint: {fileID: 0}
+  startingStageNumber: 0
+  baseSpawnToken: 2
+  spawnTokenIncreasePerStage: 1
+  statAmplifyPerStage: 0.1
+  baseMinionAttackToken: 3
+  minionAttackTokenIncreasePerStage: 2
+  dominantVariantRatio: 0.6
+  finalizeDataBeforeBoss: 1
+  finalizeDataAfterBoss: 1
+  resetDDAAndDataTrackerOnStageCleared: 1
+  blackScreenCanvasGroup: {fileID: 0}
+  blackScreenFadeDuration: 0.5
+  blackScreenHoldDuration: 0.5
+  minionSpawnDelayOnStageStart: 2
 --- !u!95 &305586858 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 7112847830760851485, guid: ce054ee026d254547908bf4f689bb853, type: 3}
@@ -859,5 +887,5 @@ SceneRoots:
   - {fileID: 1965485387}
   - {fileID: 1080740568}
   - {fileID: 2036243241}
-  - {fileID: 287869132}
   - {fileID: 1301516589}
+  - {fileID: 287869132}

@@ -379,10 +379,24 @@ public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill
             damagePanah.SetStats(damageQuickShot, dorongMundur, lumpuhSingkat, false, false);
         }
 
+        CatatDataQuickShot();
+
         if (debugLog)
             Debug.Log("[Bow_QuickShot] Panah ditembakkan. Arah: " + arah, this);
 
         StartCoroutine(RoutinePanah(rb, panahObj, arah));
+    }
+    private void CatatDataQuickShot()
+    {
+        DataTracker tracker = DataTracker.Instance;
+
+        if (tracker == null)
+        {
+            Debug.LogWarning("[Bow_QuickShot] DataTracker.Instance belum tersedia. QuickShot tidak tercatat di debug UI.", this);
+            return;
+        }
+
+        tracker.RecordBowQuickShot();
     }
 
     private IEnumerator RoutinePanah(Rigidbody2D rb, GameObject panahObj, float arah)

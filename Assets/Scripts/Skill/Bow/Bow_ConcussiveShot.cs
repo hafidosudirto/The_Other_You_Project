@@ -473,6 +473,8 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
             FireVisualArrow();
         else
             SpawnHitAreaDirect();
+
+        NotifyDataTrackerConcussiveShot();
     }
 
     private void FireVisualArrow()
