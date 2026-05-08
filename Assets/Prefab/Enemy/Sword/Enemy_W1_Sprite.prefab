@@ -45,14 +45,14 @@ GameObject:
   - component: {fileID: 4007388749144626707}
   - component: {fileID: 5653449165881094903}
   - component: {fileID: 1603249717165998674}
-  - component: {fileID: 4429848067518251004}
+  - component: {fileID: 8282321821440918329}
   - component: {fileID: 6893955486669756002}
   - component: {fileID: 5434613646505759902}
   - component: {fileID: 4065872477044497161}
-  - component: {fileID: 3098827453847523507}
   - component: {fileID: 1238565138610006823}
   - component: {fileID: 8169837083311072351}
   - component: {fileID: 8598530904683464336}
+  - component: {fileID: 7020024099164491776}
   m_Layer: 3
   m_Name: Enemy_W1_Sprite
   m_TagString: Enemy
@@ -137,7 +137,7 @@ Rigidbody2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1718376399928103269}
-  m_BodyType: 1
+  m_BodyType: 0
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
@@ -212,13 +212,14 @@ MonoBehaviour:
   currentEnergy: 100
   regenPerSecond: 8
   useUnscaledTime: 0
+  energyRegenBlocked: 0
   isFacingRight: 1
   isStaggered: 0
   isRiposteStance: 0
   canRiposte: 1
   riposteWindow: 0.6
   staggerResistance: 1
---- !u!114 &4429848067518251004
+--- !u!114 &8282321821440918329
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -227,24 +228,18 @@ MonoBehaviour:
   m_GameObject: {fileID: 1718376399928103269}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a7dba363f7cbb4a4091317e87a6cdc10, type: 3}
+  m_Script: {fileID: 11500000, guid: 34c0cf68b22cb0f4c8c33063a359622e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   playerTransform: {fileID: 0}
-  weaponMode: 0
-  adaptiveProfile: {fileID: 0}
-  spriteVisual: {fileID: 7686073481702737145}
+  weaponMode: 1
+  AttackPower: 10
+  attackRange: 2
+  adaptiveProfile: {fileID: 4065872477044497161}
+  spriteVisual: {fileID: 3298720581760886592}
   spriteRenderer: {fileID: 8597872111708491915}
   invertFlipX: 0
   maxMoveSpeed: 3
-  attackRange: 1.8
-  attackRangeOffset: {x: 1.5, y: 0}
-  useBowBalancedBag: 0
-  bowSenseRange: 8.5
-  bowDesiredRange: 5.25
-  bowMinimumRange: 2.25
-  swordDesiredRange: 1.8
-  swordSenseRange: 3.2
   isPerformingAction: 0
 --- !u!114 &6893955486669756002
 MonoBehaviour:
@@ -312,35 +307,6 @@ MonoBehaviour:
   - 25
   normalizedDashWeight: 0
   normalizedRiposteWeight: 0
---- !u!114 &3098827453847523507
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1718376399928103269}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b5b2836228abbea489f46ced8296aa17, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  kind: 0
-  skillRange: 1.8
-  rangeTolerance: 0.15
-  windup: 0.15
-  activeTime: 0.1
-  recovery: 0.25
-  cooldown: 0.4
-  hitMask:
-    serializedVersion: 2
-    m_Bits: 64
-  damageMultiplier: 1
-  coneRadius: 2
-  coneAngle: 90
-  coneOffset: {x: 1.1, y: 0}
-  aoeRadius: 2
-  aoeTickInterval: 0.25
-  stanceDuration: 0.45
 --- !u!114 &1238565138610006823
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -382,7 +348,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8adcbc455213a7d4d8bd32ee79ddf3bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ai: {fileID: 4429848067518251004}
+  ai: {fileID: 8282321821440918329}
   enemyDash: {fileID: 8169837083311072351}
   playerSensor: {fileID: 0}
   skillRootSword: {fileID: 1295630744342105822}
@@ -404,6 +370,21 @@ MonoBehaviour:
   balancedLengahWeight: 45
   offensiveLengahWeight: 20
   defensiveLengahWeight: 0
+--- !u!114 &7020024099164491776
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1718376399928103269}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ffc72cbddc3fad4d97c641979db50b6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  attackRange: 1.8
+  swordSenseRange: 2.5
+  attackRangeOffset: {x: 0, y: 0}
 --- !u!1 &7264237687256263521
 GameObject:
   m_ObjectHideFlags: 0

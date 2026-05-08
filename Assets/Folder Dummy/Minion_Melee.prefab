@@ -237,16 +237,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e7ea206f4aafb2e409b731aa3b90c8f6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  currentState: 0
   character: {fileID: 1603249717165998674}
   player: {fileID: 0}
   animator: {fileID: 3180929586462168031}
   skillRootSword: {fileID: 1295630744342105822}
   slashCombo: {fileID: 1557463422569850212}
-  allowMovement: 1
+  allowMovement: 0
   moveSpeed: 3
-  stopDistance: 1.25
-  verticalAlignSpeed: 2.5
-  alignYToPlayer: 1
+  orbitRadius: 2.5
+  separationRadius: 1.2
+  separationWeight: 2.5
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 0
   attackRange: 1.6
   attackCooldown: 2
   slashComboSlotIndex: 0

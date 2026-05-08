@@ -6,6 +6,7 @@ public class EnemyAnimation : MonoBehaviour
     [Header("References")]
     public Animator animator;
     private SpriteRenderer sr;
+    private NodeManager nodeManager;
 
     [Header("Debug")]
     [SerializeField] private bool warnMissingAnimatorParameter = true;
@@ -14,6 +15,8 @@ public class EnemyAnimation : MonoBehaviour
     // HASH PARAMETERS
     // =========================
     private static readonly int HashMoveSpeed = Animator.StringToHash("MoveSpeed");
+
+    // Bow
     private static readonly int HashQuickShot = Animator.StringToHash("QuickShot");
     private static readonly int HashIsCharging = Animator.StringToHash("IsCharging");
     private static readonly int HashChargeRelease = Animator.StringToHash("ChargeRelease");
@@ -21,7 +24,7 @@ public class EnemyAnimation : MonoBehaviour
     private static readonly int HashPiercing = Animator.StringToHash("Piercing");
     private static readonly int HashConcussive = Animator.StringToHash("Concussive");
 
-    // Sword / kompatibilitas lama
+    // Sword
     private static readonly int HashSlash1 = Animator.StringToHash("Slash1");
     private static readonly int HashSlash2 = Animator.StringToHash("Slash2");
     private static readonly int HashDash = Animator.StringToHash("Dash");
@@ -37,6 +40,7 @@ public class EnemyAnimation : MonoBehaviour
             animator = GetComponentInChildren<Animator>(true);
 
         sr = GetComponentInChildren<SpriteRenderer>(true);
+        nodeManager = GetComponentInParent<NodeManager>();
 
         if (sr == null)
             Debug.LogError($"[EnemyAnimation] SpriteRenderer tidak ditemukan di {gameObject.name}", this);
@@ -65,7 +69,7 @@ public class EnemyAnimation : MonoBehaviour
         if (animator == null)
             return;
 
-        ResetBowTriggers();
+        ResetAllTriggers();
         SetTriggerIfExists(HashQuickShot, "QuickShot");
     }
 
@@ -92,15 +96,17 @@ public class EnemyAnimation : MonoBehaviour
         if (animator == null)
             return;
 
-        ResetBowTriggers();
+        ResetAllTriggers();
         SetTriggerIfExists(HashSpreadArrow, "SpreadArrow");
     }
 
-    // Kompatibilitas sementara:
-    // semua pemanggilan Piercing lama diarahkan ke SpreadArrow.
     public void PlayPiercingShot()
     {
-        PlaySpreadArrow();
+        if (animator == null)
+            return;
+
+        ResetAllTriggers();
+        SetTriggerIfExists(HashPiercing, "Piercing");
     }
 
     public void PlayConcussiveShot()
@@ -108,24 +114,12 @@ public class EnemyAnimation : MonoBehaviour
         if (animator == null)
             return;
 
-        ResetBowTriggers();
+        ResetAllTriggers();
         SetTriggerIfExists(HashConcussive, "Concussive");
     }
 
-    private void ResetBowTriggers()
-    {
-        if (animator == null)
-            return;
-
-        ResetTriggerIfExists(HashQuickShot, "QuickShot");
-        ResetTriggerIfExists(HashChargeRelease, "ChargeRelease");
-        ResetTriggerIfExists(HashSpreadArrow, "SpreadArrow");
-        ResetTriggerIfExists(HashPiercing, "Piercing");
-        ResetTriggerIfExists(HashConcussive, "Concussive");
-    }
-
     // =========================
-    // SWORD / KOMPATIBILITAS LAMA
+    // SWORD
     // =========================
 
     public void SetCharging(bool value)
@@ -135,6 +129,10 @@ public class EnemyAnimation : MonoBehaviour
 
     public void PlayDash()
     {
+        if (animator == null)
+            return;
+
+        ResetAllTriggers();
         SetTriggerIfExists(HashDash, "Dash");
     }
 
@@ -143,7 +141,7 @@ public class EnemyAnimation : MonoBehaviour
         if (animator == null)
             return;
 
-        ResetTriggerIfExists(HashSlash1, "Slash1");
+        ResetAllTriggers();
         SetTriggerIfExists(HashSlash1, "Slash1");
     }
 
@@ -152,12 +150,16 @@ public class EnemyAnimation : MonoBehaviour
         if (animator == null)
             return;
 
-        ResetTriggerIfExists(HashSlash2, "Slash2");
+        ResetAllTriggers();
         SetTriggerIfExists(HashSlash2, "Slash2");
     }
 
     public void PlayWhirlwind()
     {
+        if (animator == null)
+            return;
+
+        ResetAllTriggers();
         SetTriggerIfExists(HashWhirlwind, "Whirlwind");
     }
 
@@ -171,8 +173,36 @@ public class EnemyAnimation : MonoBehaviour
         if (animator == null)
             return;
 
-        ResetTriggerIfExists(HashRiposteCounter, "RiposteCounter");
+        ResetAllTriggers();
         SetTriggerIfExists(HashRiposteCounter, "RiposteCounter");
+    }
+
+    // =========================
+    // UTILITY & ANIMATION EVENTS
+    // =========================
+
+    private void ResetAllTriggers()
+    {
+        if (animator == null)
+            return;
+
+        ResetTriggerIfExists(HashQuickShot, "QuickShot");
+        ResetTriggerIfExists(HashChargeRelease, "ChargeRelease");
+        ResetTriggerIfExists(HashSpreadArrow, "SpreadArrow");
+        ResetTriggerIfExists(HashPiercing, "Piercing");
+        ResetTriggerIfExists(HashConcussive, "Concussive");
+
+        ResetTriggerIfExists(HashSlash1, "Slash1");
+        ResetTriggerIfExists(HashSlash2, "Slash2");
+        ResetTriggerIfExists(HashDash, "Dash");
+        ResetTriggerIfExists(HashWhirlwind, "Whirlwind");
+        ResetTriggerIfExists(HashRiposteCounter, "RiposteCounter");
+    }
+
+    public void EndCurrentAction()
+    {
+        if (nodeManager != null)
+            nodeManager.OnActionEnd();
     }
 
     // =========================

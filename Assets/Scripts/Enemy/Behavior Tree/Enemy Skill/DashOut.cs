@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class DashOutNode : Node
 {
-    private EnemyAI ai;
+    private NodeManager ai;
 
     private float dashTime = 0.20f;
     private float speed = 12f;
@@ -13,7 +13,7 @@ public class DashOutNode : Node
     private bool started;
     private int dir;
 
-    public DashOutNode(EnemyAI enemy)
+    public DashOutNode(NodeManager enemy)
     {
         ai = enemy;
     }

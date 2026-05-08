@@ -4,9 +4,9 @@ using UnityEngine;
 
 public class IsInAttackRangeNode : Node
 {
-    private EnemyAI ai;
+    private NodeManager ai;
 
-    public IsInAttackRangeNode(EnemyAI enemy)
+    public IsInAttackRangeNode(NodeManager enemy)
     {
         ai = enemy;
     }

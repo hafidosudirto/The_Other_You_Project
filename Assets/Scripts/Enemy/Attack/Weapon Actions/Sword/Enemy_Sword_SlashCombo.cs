@@ -39,7 +39,7 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
     [Tooltip("Sudut gizmo (derajat)")]
     public float gizmoArcAngle = 60f;
 
-    private EnemyAI ai;
+    private NodeManager ai;
     private EnemyCombatController combat;
     private EnemyMovementFSM movementFSM;
     private CharacterBase selfStats;
@@ -60,7 +60,7 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
 
     private void Awake()
     {
-        ai = GetComponentInParent<EnemyAI>();
+        ai = GetComponentInParent<NodeManager>();
         combat = GetComponentInParent<EnemyCombatController>();
         movementFSM = GetComponentInParent<EnemyMovementFSM>();
         selfStats = GetComponentInParent<CharacterBase>();

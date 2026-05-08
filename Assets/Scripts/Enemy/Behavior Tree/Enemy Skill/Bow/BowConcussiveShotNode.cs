@@ -2,9 +2,9 @@ using UnityEngine;
 
 public class BowConcussiveShotNode : Node
 {
-    private readonly EnemyAI ai;
+    private readonly NodeManager ai;
 
-    public BowConcussiveShotNode(EnemyAI ai)
+    public BowConcussiveShotNode(NodeManager ai)
     {
         this.ai = ai;
     }

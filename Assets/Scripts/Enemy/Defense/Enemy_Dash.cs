@@ -18,7 +18,7 @@ public class Enemy_Dash : MonoBehaviour
     [SerializeField] private float dashCooldown = 2f;
 
     private Rigidbody2D rb;
-    private EnemyAI ai;
+    private NodeManager ai;
     private EnemyAnimation enemyAnim;
 
     private bool isDashing = false;
@@ -30,7 +30,7 @@ public class Enemy_Dash : MonoBehaviour
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
-        ai = GetComponent<EnemyAI>();
+        ai = GetComponent<NodeManager>();
         enemyAnim = GetComponentInChildren<EnemyAnimation>(true);
     }
 

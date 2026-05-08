@@ -4,7 +4,7 @@ public class DefenseDashOutNode : BaseDefenseNode
 {
     private Enemy_Dash enemyDash;
 
-    public DefenseDashOutNode(EnemyAI ai) : base(ai)
+    public DefenseDashOutNode(NodeManager ai) : base(ai)
     {
         cooldown = 2.0f;
         failChance = 0.10f;

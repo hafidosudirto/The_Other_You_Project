@@ -4,13 +4,13 @@ using UnityEngine;
 
 public class SwordSlashComboNode : Node
 {
-    private EnemyAI ai;
+    private NodeManager ai;
     private float timer;
 
     private float cdMin = 0.8f;
     private float cdMax = 1.25f;
 
-    public SwordSlashComboNode(EnemyAI enemy)
+    public SwordSlashComboNode(NodeManager enemy)
     {
         ai = enemy;
         ResetCD();
@@ -42,4 +42,3 @@ public class SwordSlashComboNode : Node
         return NodeState.Success;
     }
 }
-

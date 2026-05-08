@@ -4,9 +4,9 @@ using UnityEngine;
 
 public class IsNotBusyNode : Node
 {
-    private EnemyAI ai;
+    private NodeManager ai;
 
-    public IsNotBusyNode(EnemyAI ai)
+    public IsNotBusyNode(NodeManager ai)
     {
         this.ai = ai;
     }

@@ -36,7 +36,7 @@ public class Enemy_Bow_QuickShot : MonoBehaviour, ISkill
 
     public bool IsActive => isCasting;
 
-    private EnemyAI ai;
+    private NodeManager ai;
     private EnemyCombatController combat;
     private EnemyAnimation enemyAnim;
     private CharacterBase owner;
@@ -49,7 +49,7 @@ public class Enemy_Bow_QuickShot : MonoBehaviour, ISkill
 
     private void Awake()
     {
-        ai = GetComponentInParent<EnemyAI>();
+        ai = GetComponentInParent<NodeManager>();
         combat = GetComponentInParent<EnemyCombatController>();
         owner = GetComponentInParent<CharacterBase>();
         ownerRb = GetComponentInParent<Rigidbody2D>();
