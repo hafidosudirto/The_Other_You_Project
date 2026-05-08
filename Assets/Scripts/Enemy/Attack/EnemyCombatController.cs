@@ -8,17 +8,20 @@ public sealed class EnemyCombatStatsData
     public float attack = 10f;
 }
 
-[RequireComponent(typeof(EnemyAI))]
+[RequireComponent(typeof(NodeManager))]
 public sealed class EnemyCombatController : MonoBehaviour
 {
     [Header("Core References")]
-    [SerializeField] private EnemyAI ai;
+
+    [SerializeField] private NodeManager ai;
+
     [SerializeField] private Enemy_Dash enemyDash;
     [SerializeField] private PlayerAttackSensor playerSensor;
 
     [Header("Skill Roots")]
     [SerializeField] private Transform skillRootSword;
     [SerializeField] private Transform skillRootBow;
+
 
     [Header("Sword Skills - Auto / Manual Assign")]
     [SerializeField] private Enemy_Sword_SlashCombo _slashCombo;
@@ -115,7 +118,7 @@ public sealed class EnemyCombatController : MonoBehaviour
 
     private void Awake()
     {
-        if (ai == null) ai = GetComponent<EnemyAI>();
+        if (ai == null) ai = GetComponent<NodeManager>();
         if (enemyDash == null) enemyDash = GetComponent<Enemy_Dash>();
         if (playerSensor == null) playerSensor = FindObjectOfType<PlayerAttackSensor>();
         if (stats == null) stats = new EnemyCombatStatsData();
@@ -129,7 +132,7 @@ public sealed class EnemyCombatController : MonoBehaviour
     {
         if (!Application.isPlaying)
         {
-            if (ai == null) ai = GetComponent<EnemyAI>();
+            if (ai == null) ai = GetComponent<NodeManager>();
             if (enemyDash == null) enemyDash = GetComponent<Enemy_Dash>();
             AutoAssignAllSkills();
         }

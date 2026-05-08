@@ -2,10 +2,10 @@ using UnityEngine;
 
 public class ExecuteSkillNode : Node
 {
-    private EnemyAI ai;
+    private NodeManager ai;
     private Enemy_SkillBase skill;
 
-    public ExecuteSkillNode(EnemyAI ai, Enemy_SkillBase skill)
+    public ExecuteSkillNode(NodeManager ai, Enemy_SkillBase skill)
     {
         this.ai = ai;
         this.skill = skill;

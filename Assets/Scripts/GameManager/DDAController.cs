@@ -45,7 +45,6 @@ public class DDAController : MonoBehaviour
 
     // =========================================================
     // DEFENSE PROFILE
-    // (Hanya untuk Dash & Riposte. Concussive sekarang pindah ke Bow)
     // =========================================================
     private float defenseDashWeight = 0f;
     private float defenseRiposteWeight = 0f;
@@ -74,7 +73,6 @@ public class DDAController : MonoBehaviour
 
     // =========================================================
     // FINAL PROFILE UPDATE
-    // Menerima 10 Parameter dari DataTracker
     // =========================================================
     public void UpdatePlayerProfile(
         int offensive,
@@ -86,7 +84,7 @@ public class DDAController : MonoBehaviour
         int[] bowSkillCounts,
         int dashCount,
         int riposteCount,
-        int concussiveCount) // Parameter tetap diterima agar DataTracker tidak error
+        int concussiveCount)
     {
         // 1. Analisis playstyle
         if (offensive > defensive)
@@ -152,7 +150,7 @@ public class DDAController : MonoBehaviour
     }
 
     // =========================================================
-    // NORMALIZATION MEMORY FIX
+    // NORMALIZATION MEMORY FIX (REVISI DESIGNER)
     // =========================================================
     private void NormalizeSwordSkillWeights(int[] counts)
     {
@@ -162,8 +160,13 @@ public class DDAController : MonoBehaviour
         for (int i = 0; i < counts.Length; i++)
             total += Mathf.Max(0, counts[i]);
 
-        // Jika tidak ada data, simpan memori dari stage sebelumnya
-        if (total <= 0) return;
+        // [PERBAIKAN DDA]: Jika tidak ada serangan pedang sama sekali di stage ini,
+        // reset persentase ke default (seimbang), BUKAN menyimpan memori stage lama.
+        if (total <= 0)
+        {
+            swordSkillWeights = new float[] { 25f, 25f, 25f, 25f };
+            return;
+        }
 
         for (int i = 0; i < counts.Length; i++)
             swordSkillWeights[i] = (Mathf.Max(0, counts[i]) / (float)total) * 100f;
@@ -171,15 +174,19 @@ public class DDAController : MonoBehaviour
 
     private void NormalizeBowSkillWeights(int[] counts)
     {
-        // Cek struktur array baru (4 slot)
         if (counts == null || counts.Length != 4) return;
 
         int total = 0;
         for (int i = 0; i < counts.Length; i++)
             total += Mathf.Max(0, counts[i]);
 
-        // Jika tidak ada data panah, simpan memori
-        if (total <= 0) return;
+        // [PERBAIKAN DDA]: Reset persentase ke default jika tidak ada penggunaan panah
+        if (total <= 0)
+        {
+            bowSkillWeights = new float[] { 25f, 25f, 25f, 25f };
+            hasBowSkillProfile = false;
+            return;
+        }
 
         hasBowSkillProfile = true;
 
@@ -194,7 +201,14 @@ public class DDAController : MonoBehaviour
 
         int total = dashCount + riposteCount;
 
-        if (total <= 0) return;
+        // JIKA PLAYER TIDAK DASH, RESET KE 0
+        if (total <= 0)
+        {
+            defenseDashWeight = 0f;
+            defenseRiposteWeight = 0f;
+            hasDefenseProfile = false;
+            return;
+        }
 
         hasDefenseProfile = true;
         defenseDashWeight = (dashCount / (float)total) * 100f;
@@ -202,7 +216,7 @@ public class DDAController : MonoBehaviour
     }
 
     // =========================================================
-    // WEAPON DOMINANCE
+    // WEAPON DOMINANCE & RESET
     // =========================================================
     private WeaponType AnalyzeDominantWeapon()
     {
@@ -227,5 +241,24 @@ public class DDAController : MonoBehaviour
         swordCount = 0;
         bowCount = 0;
         gauntletCount = 0;
+    }
+
+    public void ResetDDA()
+    {
+        currentPlayerPlaystyle = PlayerPlaystyle.Balanced;
+        currentPlayerDominantWeapon = WeaponType.None;
+
+        swordSkillWeights = new float[] { 25f, 25f, 25f, 25f };
+        bowSkillWeights = new float[] { 25f, 25f, 25f, 25f };
+
+        defenseDashWeight = 0f;
+        defenseRiposteWeight = 0f;
+
+        hasBowSkillProfile = false;
+        hasDefenseProfile = false;
+
+        ResetWeaponAnalysis();
+
+        Debug.Log("[DDA] Semua bobot dan profil DDA telah direset untuk stage berikutnya.");
     }
 }

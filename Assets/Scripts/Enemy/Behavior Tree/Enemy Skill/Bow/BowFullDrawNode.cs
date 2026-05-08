@@ -2,9 +2,9 @@ using UnityEngine;
 
 public class BowFullDrawNode : Node
 {
-    private readonly EnemyAI ai;
+    private readonly NodeManager ai;
 
-    public BowFullDrawNode(EnemyAI ai)
+    public BowFullDrawNode(NodeManager ai)
     {
         this.ai = ai;
     }

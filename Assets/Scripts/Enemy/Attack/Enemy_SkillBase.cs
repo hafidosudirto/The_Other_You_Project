@@ -51,14 +51,14 @@ public class Enemy_SkillBase : MonoBehaviour
 
     private float nextReadyTime = 0f;
 
-    private EnemyAI ai;
+    private NodeManager ai;
     private EnemyCombatController combat;
     private CharacterBase selfStats;
 
     private void Awake()
     {
         // Penting: skill biasanya ada di child; ambil referensi dari parent/root. :contentReference[oaicite:1]{index=1}
-        ai = GetComponentInParent<EnemyAI>();
+        ai = GetComponentInParent<NodeManager>();
         combat = GetComponentInParent<EnemyCombatController>();
         selfStats = GetComponentInParent<CharacterBase>();
     }

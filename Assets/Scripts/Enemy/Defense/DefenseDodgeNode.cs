@@ -7,7 +7,7 @@ public class DefenseDodgeNode : BaseDefenseNode
 {
     private float dodgeDistance = 1.3f;
 
-    public DefenseDodgeNode(EnemyAI ai) : base(ai)
+    public DefenseDodgeNode(NodeManager ai) : base(ai)
     {
         cooldown = 0.9f;
         failChance = 0.20f;

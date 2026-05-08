@@ -44,7 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 342aaa80c00f12b4f83f56b5e026356f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enemyAI: {fileID: 8273877875982860227}
+  enemyAI: {fileID: 8282321821440918329}
   owner: {fileID: 679016720296936666}
   mirrorLocalPositionX: 1
   mirrorLocalScaleX: 0
@@ -60,11 +60,12 @@ GameObject:
   - component: {fileID: 4007388749144626707}
   - component: {fileID: 2394147951062621979}
   - component: {fileID: 679016720296936666}
-  - component: {fileID: 8273877875982860227}
+  - component: {fileID: 8282321821440918329}
   - component: {fileID: 3060324101768364948}
   - component: {fileID: 3416067351600877366}
   - component: {fileID: 4495831448187383308}
   - component: {fileID: 4721237734604726269}
+  - component: {fileID: 3598047057717131649}
   m_Layer: 3
   m_Name: Enemy_Bow
   m_TagString: Enemy
@@ -82,7 +83,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.5, y: 1.5, z: 1.5}
+  m_LocalScale: {x: 1.3, y: 1.3, z: 1.3}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 6006294142454943748}
@@ -175,13 +176,14 @@ MonoBehaviour:
   currentEnergy: 100
   regenPerSecond: 8
   useUnscaledTime: 0
+  energyRegenBlocked: 0
   isFacingRight: 1
   isStaggered: 0
   isRiposteStance: 0
   canRiposte: 1
   riposteWindow: 0.6
   staggerResistance: 1
---- !u!114 &8273877875982860227
+--- !u!114 &8282321821440918329
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -190,23 +192,18 @@ MonoBehaviour:
   m_GameObject: {fileID: 1718376399928103269}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a7dba363f7cbb4a4091317e87a6cdc10, type: 3}
+  m_Script: {fileID: 11500000, guid: 34c0cf68b22cb0f4c8c33063a359622e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   playerTransform: {fileID: 0}
-  weaponMode: 0
-  adaptiveProfile: {fileID: 0}
-  spriteVisual: {fileID: 7686073481702737145}
+  weaponMode: 2
+  AttackPower: 10
+  attackRange: 2
+  adaptiveProfile: {fileID: 4721237734604726269}
+  spriteVisual: {fileID: 6006294142454943748}
   spriteRenderer: {fileID: 4184288291677543696}
   invertFlipX: 0
   maxMoveSpeed: 3
-  attackRange: 1.8
-  attackRangeOffset: {x: 1, y: 0}
-  useBowBalancedBag: 0
-  bowSenseRange: 11
-  bowDesiredRange: 7.5
-  bowMinimumRange: 3.75
-  swordDesiredRange: 1.8
   isPerformingAction: 0
 --- !u!114 &3060324101768364948
 MonoBehaviour:
@@ -224,6 +221,8 @@ MonoBehaviour:
   movementMode: 0
   player: {fileID: 0}
   rb: {fileID: 0}
+  swordMovement: {fileID: 0}
+  bowMovement: {fileID: 0}
   moveSpeed: 4
   accel: 40
   useVerticalAlign: 1
@@ -231,6 +230,9 @@ MonoBehaviour:
   desiredRange: 1.5
   minimumCombatRange: 0
   rangeTolerance: 0.25
+  isExternallyLocked: 0
+  isAttackMovementLocked: 0
+  defaultAttackLockFailSafe: 0.6
 --- !u!114 &3416067351600877366
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -255,7 +257,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8adcbc455213a7d4d8bd32ee79ddf3bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ai: {fileID: 8273877875982860227}
+  ai: {fileID: 8282321821440918329}
   enemyDash: {fileID: 0}
   playerSensor: {fileID: 0}
   skillRootSword: {fileID: 0}
@@ -300,6 +302,24 @@ MonoBehaviour:
   - 34
   - 33
   - 33
+  normalizedDashWeight: 0
+  normalizedRiposteWeight: 0
+--- !u!114 &3598047057717131649
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1718376399928103269}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a180770ab9134934db7f058bfb1fd355, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  attackRange: 8
+  bowSenseRange: 10
+  attackRangeOffset: {x: 0, y: 0}
+  useBowBalancedBag: 1
 --- !u!1 &3047793432696247020
 GameObject:
   m_ObjectHideFlags: 0
@@ -344,7 +364,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 342aaa80c00f12b4f83f56b5e026356f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enemyAI: {fileID: 8273877875982860227}
+  enemyAI: {fileID: 8282321821440918329}
   owner: {fileID: 679016720296936666}
   mirrorLocalPositionX: 1
   mirrorLocalScaleX: 0
@@ -425,8 +445,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8d4163fae4ea20246b705f18249281bd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  minRange: 1.5
-  skillRange: 5
+  minRange: 2
+  skillRange: 9
   rangeTolerance: 0.2
   firePoint: {fileID: 5432282122991037403}
   arrowPrefab: {fileID: 1692899915983295771, guid: eda8816cfe96bca40ba183b8df7a9492, type: 3}
@@ -455,7 +475,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   minRange: 3.5
-  skillRange: 8
+  skillRange: 12
   rangeTolerance: 0.25
   firePoint: {fileID: 5432282122991037403}
   arrowPrefab: {fileID: 1692899915983295771, guid: eda8816cfe96bca40ba183b8df7a9492, type: 3}
@@ -486,7 +506,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   minRange: 2.5
-  skillRange: 7
+  skillRange: 10.5
   rangeTolerance: 0.2
   arrowPrefab: {fileID: 1692899915983295771, guid: 3b1b1c55802ed8a4eaa8a5643eabafb0, type: 3}
   arrowSpawnPoint: {fileID: 5432282122991037403}
@@ -510,7 +530,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   minRange: 0
-  skillRange: 3.25
+  skillRange: 4
   rangeTolerance: 0.2
   useArrowVisual: 0
   firePoint: {fileID: 4010695762645510429}
@@ -715,7 +735,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: -0.47}
   m_SizeDelta: {x: 265.9343, y: -26.0597}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!223 &8409694188457163318
