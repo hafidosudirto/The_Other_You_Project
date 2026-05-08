@@ -16,7 +16,7 @@ public class Enemy_Sword_Whirlwind : MonoBehaviour
     [Header("Gizmos")]
     public Color gizmoColor = Color.cyan;
 
-    private EnemyAI ai;
+    private NodeManager ai;
     private EnemyCombatController combat;
     private EnemyMovementFSM movementFSM;
     private CharacterBase selfStats;
@@ -30,7 +30,7 @@ public class Enemy_Sword_Whirlwind : MonoBehaviour
 
     private void Awake()
     {
-        ai = GetComponentInParent<EnemyAI>();
+        ai = GetComponentInParent<NodeManager>();
         combat = GetComponentInParent<EnemyCombatController>();
         movementFSM = GetComponentInParent<EnemyMovementFSM>();
         selfStats = GetComponentInParent<CharacterBase>();
@@ -136,7 +136,7 @@ public class Enemy_Sword_Whirlwind : MonoBehaviour
         if (!Application.isPlaying) return;
         if (!busy) return;
 
-        if (ai == null) ai = GetComponentInParent<EnemyAI>();
+        if (ai == null) ai = GetComponentInParent<NodeManager>();
         if (ai == null) return;
 
         Gizmos.color = gizmoColor;

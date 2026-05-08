@@ -4,10 +4,10 @@ using UnityEngine;
 
 public class CanDashOutNode : Node
 {
-    private EnemyAI ai;
+    private NodeManager ai;
     private float ratio = 0.75f;
 
-    public CanDashOutNode(EnemyAI enemy)
+    public CanDashOutNode(NodeManager enemy)
     {
         ai = enemy;
     }
@@ -17,7 +17,7 @@ public class CanDashOutNode : Node
         if (!ai || !ai.playerTransform) return NodeState.Failure;
 
         float dist = Vector2.Distance(ai.transform.position, ai.playerTransform.position);
-        float triggerDist = ai.attackRange * ratio;
+        float triggerDist = ai.Combat.AttackPower * ratio;
 
         bool should = dist < triggerDist;
 

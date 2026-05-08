@@ -184,16 +184,17 @@ public class StageManager : MonoBehaviour
         }
 
         InitializeCharacterBaseStats(character, statMultiplier);
-        InitializeStageCombatController(enemy, character, attackTokens);
+
+        // Inisialisasi minion dengan token dan isBoss = false
+        InitializeStageCombatController(enemy, character, attackTokens, false);
         InitializeDeathHandler(enemy);
 
         activeEnemiesCount++;
 
         Debug.Log(
-            $"[STAGE MANAGER] Spawn enemy: {enemy.name} | " +
+            $"[STAGE MANAGER] Spawn minion: {enemy.name} | " +
             $"HP: {character.currentHP}/{character.maxHP} | " +
             $"Attack: {character.attack} | " +
-            $"Defense: {character.defense} | " +
             $"MoveSpeed: {character.moveSpeed} | " +
             $"Token: {attackTokens}"
         );
@@ -214,27 +215,25 @@ public class StageManager : MonoBehaviour
         character.moveSpeed *= statMultiplier;
     }
 
-    private void InitializeStageCombatController(GameObject enemy, CharacterBase character, int attackTokens)
+    // --- REVISI: Fungsi inisialisasi AI baru menggunakan parameter isBoss ---
+    private void InitializeStageCombatController(GameObject enemy, CharacterBase character, int attackTokens, bool isBoss = false)
     {
         if (enemy == null || character == null)
             return;
 
-        MinionMeleeCombatController meleeController = enemy.GetComponent<MinionMeleeCombatController>();
-        if (meleeController != null)
-        {
-            meleeController.InitializeStageEnemy(character, attackTokens);
-        }
+        // Mencari NodeManager (sistem AI yang baru) sebagai pusat kontrol
+        NodeManager nodeManager = enemy.GetComponent<NodeManager>();
 
-        MinionRangedCombatController rangedController = enemy.GetComponent<MinionRangedCombatController>();
-        if (rangedController != null)
+        if (nodeManager != null)
         {
-            rangedController.InitializeStageEnemy(character, attackTokens);
+            // Lempar data token, stat, dan status boss ke NodeManager
+            nodeManager.InitializeStageEnemy(character, attackTokens, isBoss);
         }
-
-        if (meleeController == null && rangedController == null)
+        else
         {
+            // Peringatan jika musuh masih belum memakai sistem baru
             Debug.LogWarning(
-                $"[STAGE MANAGER] {enemy.name} tidak memiliki MinionMeleeCombatController atau MinionRangedCombatController."
+                $"[STAGE MANAGER] {enemy.name} tidak memiliki NodeManager. Normalisasi DDA gagal diterapkan."
             );
         }
     }
@@ -351,6 +350,10 @@ public class StageManager : MonoBehaviour
             InitializeCharacterBaseStats(bossCharacter, statMultiplier);
         }
 
+        // --- REVISI: Inisialisasi AI Boss tanpa batasan token ---
+        // Memberikan nilai token 999 sebagai pengaman dan set isBoss = true
+        InitializeStageCombatController(boss, bossCharacter, 999, true);
+
         EnemyDeathHandler deathHandler = boss.GetComponent<EnemyDeathHandler>();
         if (deathHandler != null)
         {
@@ -364,7 +367,7 @@ public class StageManager : MonoBehaviour
         activeEnemiesCount++;
         currentState = StageState.FightingBoss;
 
-        Debug.Log("BOSS MUNCUL!");
+        Debug.Log("BOSS MUNCUL TANPA BATASAN TOKEN!");
     }
 
     private void CheckStageTransition()

@@ -3,7 +3,7 @@
 [DisallowMultipleComponent]
 public class EnemyMovementFSM : MonoBehaviour
 {
-    private EnemyAI ai;
+    private NodeManager ai;
 
     public enum CombatMovementMode
     {
@@ -59,7 +59,7 @@ public class EnemyMovementFSM : MonoBehaviour
 
     private void Awake()
     {
-        ai = GetComponent<EnemyAI>();
+        ai = GetComponent<NodeManager>();
 
         if (rb == null)
             rb = GetComponent<Rigidbody2D>();

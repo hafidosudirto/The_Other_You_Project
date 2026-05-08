@@ -1695,7 +1695,7 @@ MonoBehaviour:
   fallbackPlayerStartX: -8
   rightTransitionX: 18
   meleeMinionPrefab: {fileID: 1718376399928103269, guid: f3f782b177d59d94684484553f938357, type: 3}
-  rangeMinionPrefab: {fileID: 1718376399928103269, guid: 19a6832f674715a4e8ec2c82fdc04fa4, type: 3}
+  rangeMinionPrefab: {fileID: 0}
   minionSpawnPoints:
   - {fileID: 68743060}
   - {fileID: 1486041230}
@@ -1944,6 +1944,7 @@ MonoBehaviour:
   target: {fileID: 50061050}
   mainFillImage: {fileID: 1442744145}
   lagFillImage: {fileID: 505994966}
+  energyText: {fileID: 0}
   lagCatchUpSpeed: 0.6
   lagDelay: 0.5
 --- !u!222 &1985292000

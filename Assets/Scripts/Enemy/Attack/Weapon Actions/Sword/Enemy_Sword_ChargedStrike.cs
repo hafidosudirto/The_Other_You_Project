@@ -24,7 +24,7 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
     [Header("Mask")]
     public LayerMask hitMask;
 
-    private EnemyAI ai;
+    private NodeManager ai;
     private EnemyCombatController combat;
     private EnemyMovementFSM movementFSM;
     private CharacterBase selfStats;
@@ -38,7 +38,7 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
 
     private void Awake()
     {
-        ai = GetComponentInParent<EnemyAI>();
+        ai = GetComponentInParent<NodeManager>();
         combat = GetComponentInParent<EnemyCombatController>();
         movementFSM = GetComponentInParent<EnemyMovementFSM>();
         selfStats = GetComponentInParent<CharacterBase>();

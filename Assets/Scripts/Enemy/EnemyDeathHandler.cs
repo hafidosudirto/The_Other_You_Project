@@ -18,15 +18,30 @@ public class EnemyDeathHandler : MonoBehaviour
         if (processed) return;
         processed = true;
 
-        // Perbaikan CS0117: Cari komponen aktif di scene jika belum di-set
+        // 1. Matikan otak AI (NodeManager) agar musuh berhenti bergerak/menyerang
+        NodeManager nodeManager = GetComponent<NodeManager>();
+        if (nodeManager != null)
+            nodeManager.enabled = false;
+
+        // 2. Matikan pergerakan physics
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        if (rb != null)
+            rb.velocity = Vector2.zero;
+
+        // 3. Matikan collider agar mayat tidak menghalangi jalan / dipukul lagi
+        Collider2D coll = GetComponent<Collider2D>();
+        if (coll != null)
+            coll.enabled = false;
+
+        // Cari stage manager jika terlewat di-set
         if (stageManager == null)
             stageManager = FindObjectOfType<StageManager>();
 
-        // Perbaikan CS1061: Gunakan method OnEnemyDied() sesuai dengan StageManager
+        // Laporkan kematian ke StageManager untuk memicu kemunculan Boss
         if (stageManager != null)
             stageManager.OnEnemyDied();
 
-        // destroy enemy setelah sedikit delay (biar animasi death bisa jalan kalau ada)
+        // Destroy enemy setelah sedikit delay (agar animasi death selesai)
         Destroy(gameObject, 1.0f);
     }
 }

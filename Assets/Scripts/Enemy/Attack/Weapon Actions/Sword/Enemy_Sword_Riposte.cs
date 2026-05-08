@@ -29,7 +29,7 @@ public class Enemy_Sword_Riposte : MonoBehaviour
     public float gizmoShowTime = 0.06f;
     public Color gizmoColor = Color.magenta;
 
-    private EnemyAI ai;
+    private NodeManager ai;
     private EnemyCombatController combat;
     private EnemyMovementFSM movementFSM;
     private CharacterBase selfStats;
@@ -59,7 +59,7 @@ public class Enemy_Sword_Riposte : MonoBehaviour
 
     private void Awake()
     {
-        ai = GetComponentInParent<EnemyAI>();
+        ai = GetComponentInParent<NodeManager>();
         combat = GetComponentInParent<EnemyCombatController>();
         movementFSM = GetComponentInParent<EnemyMovementFSM>();
         selfStats = GetComponentInParent<CharacterBase>();

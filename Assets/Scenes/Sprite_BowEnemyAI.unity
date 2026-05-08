@@ -423,7 +423,7 @@ PrefabInstance:
     - target: {fileID: 4872637968134560614, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: piercingShot
       value: 
-      objectReference: {fileID: 1011456516}
+      objectReference: {fileID: 0}
     - target: {fileID: 4872637968134560614, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: concussiveShot
       value: 
@@ -551,7 +551,7 @@ PrefabInstance:
     - target: {fileID: 5820430128038870224, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: slots.Array.data[2].skillBehaviour
       value: 
-      objectReference: {fileID: 1011456516}
+      objectReference: {fileID: 0}
     - target: {fileID: 5820430128038870224, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: slots.Array.data[3].skillBehaviour
       value: 
@@ -915,17 +915,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac4999ed8402d7d44b2d50b12f52a2de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &1011456516 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 8946112701794968598, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
-  m_PrefabInstance: {fileID: 443342431}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3853a5305b90b0c4cbf6d2de9b060444, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &1011456517 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8539281897314106846, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
@@ -1002,12 +991,12 @@ MonoBehaviour:
   fallbackPlayerStartX: -8
   rightTransitionX: 18
   meleeMinionPrefab: {fileID: 1718376399928103269, guid: f3f782b177d59d94684484553f938357, type: 3}
-  rangeMinionPrefab: {fileID: 1718376399928103269, guid: 19a6832f674715a4e8ec2c82fdc04fa4, type: 3}
+  rangeMinionPrefab: {fileID: 0}
   minionSpawnPoints:
   - {fileID: 138138426}
   - {fileID: 1554954589}
-  bossPrefabSword: {fileID: 1718376399928103269, guid: 31cdc560879ab6041935da80e59b4b70, type: 3}
-  bossPrefabBow: {fileID: 1718376399928103269, guid: 5ac3b8af5f0075e4db0d8d669fd9126b, type: 3}
+  bossPrefabSword: {fileID: 1718376399928103269, guid: 5ac3b8af5f0075e4db0d8d669fd9126b, type: 3}
+  bossPrefabBow: {fileID: 1718376399928103269, guid: 31cdc560879ab6041935da80e59b4b70, type: 3}
   bossSpawnPoint: {fileID: 352206441}
   startingStageNumber: 0
   baseSpawnToken: 2
@@ -1018,6 +1007,11 @@ MonoBehaviour:
   dominantVariantRatio: 0.6
   finalizeDataBeforeBoss: 1
   finalizeDataAfterBoss: 1
+  resetDDAAndDataTrackerOnStageCleared: 1
+  blackScreenCanvasGroup: {fileID: 0}
+  blackScreenFadeDuration: 0.5
+  blackScreenHoldDuration: 0.5
+  minionSpawnDelayOnStageStart: 2
 --- !u!114 &1234914217
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1030,6 +1024,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f7fce31fd51c9834e9adf3b60c416059, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  swordSkillDebugText: {fileID: 0}
+  swordSkillDebugPanel: {fileID: 0}
+  showSwordSkillDebugPanel: 1
+  swordSkillDebugTitle: SWORD SKILL DEBUG
+  bowSkillDebugText: {fileID: 0}
+  bowSkillDebugPanel: {fileID: 0}
+  showBowSkillDebugPanel: 1
+  bowSkillDebugTitle: BOW SKILL DEBUG
   playerTransform: {fileID: 0}
   enemyTransform: {fileID: 7686073481702737145, guid: 5ac3b8af5f0075e4db0d8d669fd9126b, type: 3}
   distanceCheckInterval: 0.1

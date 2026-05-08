@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class DefenseParryNode : BaseDefenseNode
 {
-    public DefenseParryNode(EnemyAI ai) : base(ai)
+    public DefenseParryNode(NodeManager ai) : base(ai)
     {
         cooldown = 1.0f;
         failChance = 0.35f;   // parry lebih sulit, sering gagal

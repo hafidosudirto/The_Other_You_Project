@@ -2,9 +2,9 @@ using UnityEngine;
 
 public class BowPiercingShotNode : Node
 {
-    private readonly EnemyAI ai;
+    private readonly NodeManager ai;
 
-    public BowPiercingShotNode(EnemyAI ai)
+    public BowPiercingShotNode(NodeManager ai)
     {
         this.ai = ai;
     }

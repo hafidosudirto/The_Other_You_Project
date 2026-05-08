@@ -2,10 +2,10 @@ using UnityEngine;
 
 public class ChooseSkillNode : Node
 {
-    private readonly EnemyAI ai;
+    private readonly NodeManager ai;
     private readonly IEnemySkill skill;
 
-    public ChooseSkillNode(EnemyAI ai, IEnemySkill skill)
+    public ChooseSkillNode(NodeManager ai, IEnemySkill skill)
     {
         this.ai = ai;
         this.skill = skill;

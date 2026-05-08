@@ -5,6 +5,7 @@ public class EnemyAnimation : MonoBehaviour
     [Header("References")]
     public Animator animator;
     private SpriteRenderer sr;
+    private NodeManager nodeManager;
 
     // =========================
     // HASH PARAMETERS
@@ -31,6 +32,9 @@ public class EnemyAnimation : MonoBehaviour
 
         sr = GetComponentInChildren<SpriteRenderer>(true);
 
+        // Mengambil referensi NodeManager (berada di object yang sama atau parent)
+        nodeManager = GetComponentInParent<NodeManager>();
+
         if (sr == null)
             Debug.LogError($"[EnemyAnimation] SpriteRenderer tidak ditemukan di {gameObject.name}");
 
@@ -56,15 +60,13 @@ public class EnemyAnimation : MonoBehaviour
     public void PlayQuickShot()
     {
         if (animator == null) return;
-
-        ResetBowTriggers();
+        ResetAllTriggers();
         animator.SetTrigger(HashQuickShot);
     }
 
     public void TriggerBowChargeStart()
     {
         if (animator == null) return;
-
         animator.ResetTrigger(HashChargeRelease);
         animator.SetBool(HashIsCharging, true);
     }
@@ -72,7 +74,6 @@ public class EnemyAnimation : MonoBehaviour
     public void TriggerBowChargeRelease()
     {
         if (animator == null) return;
-
         animator.SetBool(HashIsCharging, false);
         animator.SetTrigger(HashChargeRelease);
     }
@@ -80,27 +81,15 @@ public class EnemyAnimation : MonoBehaviour
     public void PlayPiercingShot()
     {
         if (animator == null) return;
-
-        ResetBowTriggers();
+        ResetAllTriggers();
         animator.SetTrigger(HashPiercing);
     }
 
     public void PlayConcussiveShot()
     {
         if (animator == null) return;
-
-        ResetBowTriggers();
+        ResetAllTriggers();
         animator.SetTrigger(HashConcussive);
-    }
-
-    private void ResetBowTriggers()
-    {
-        if (animator == null) return;
-
-        animator.ResetTrigger(HashQuickShot);
-        animator.ResetTrigger(HashChargeRelease);
-        animator.ResetTrigger(HashPiercing);
-        animator.ResetTrigger(HashConcussive);
     }
 
     // =========================
@@ -114,28 +103,30 @@ public class EnemyAnimation : MonoBehaviour
 
     public void PlayDash()
     {
-        if (animator != null)
-            animator.SetTrigger(HashDash);
+        if (animator == null) return;
+        ResetAllTriggers();
+        animator.SetTrigger(HashDash);
     }
 
     public void PlaySlash1()
     {
         if (animator == null) return;
-        animator.ResetTrigger(HashSlash1);
+        ResetAllTriggers();
         animator.SetTrigger(HashSlash1);
     }
 
     public void PlaySlash2()
     {
         if (animator == null) return;
-        animator.ResetTrigger(HashSlash2);
+        ResetAllTriggers();
         animator.SetTrigger(HashSlash2);
     }
 
     public void PlayWhirlwind()
     {
-        if (animator != null)
-            animator.SetTrigger(HashWhirlwind);
+        if (animator == null) return;
+        ResetAllTriggers();
+        animator.SetTrigger(HashWhirlwind);
     }
 
     public void SetRiposteReady(bool isReady)
@@ -147,8 +138,42 @@ public class EnemyAnimation : MonoBehaviour
     public void TriggerRiposteCounter()
     {
         if (animator == null) return;
-
-        animator.ResetTrigger(HashRiposteCounter);
+        ResetAllTriggers();
         animator.SetTrigger(HashRiposteCounter);
+    }
+
+    // =========================
+    // UTILITY & ANIMATION EVENTS
+    // =========================
+
+    /// <summary>
+    /// Mencegah trigger menumpuk dan menyebabkan animasi nyangkut di aksi sebelumnya
+    /// </summary>
+    private void ResetAllTriggers()
+    {
+        if (animator == null) return;
+
+        animator.ResetTrigger(HashQuickShot);
+        animator.ResetTrigger(HashChargeRelease);
+        animator.ResetTrigger(HashPiercing);
+        animator.ResetTrigger(HashConcussive);
+        animator.ResetTrigger(HashSlash1);
+        animator.ResetTrigger(HashSlash2);
+        animator.ResetTrigger(HashDash);
+        animator.ResetTrigger(HashWhirlwind);
+        animator.ResetTrigger(HashRiposteCounter);
+    }
+
+    /// <summary>
+    /// Panggil fungsi ini melalui fitur "Animation Event" di frame terakhir 
+    /// pada setiap klip animasi serangan (Slash, Shot, dll) di tab Animation Unity.
+    /// Ini memastikan AI kembali berpikir setelah selesai mengayunkan senjata.
+    /// </summary>
+    public void EndCurrentAction()
+    {
+        if (nodeManager != null)
+        {
+            nodeManager.OnActionEnd();
+        }
     }
 }
