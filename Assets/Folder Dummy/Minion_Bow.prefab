@@ -60,9 +60,7 @@ GameObject:
   - component: {fileID: 4007388749144626707}
   - component: {fileID: 2394147951062621979}
   - component: {fileID: 679016720296936666}
-  - component: {fileID: 3060324101768364948}
   - component: {fileID: 3416067351600877366}
-  - component: {fileID: 4721237734604726269}
   - component: {fileID: 143298134385876908}
   m_Layer: 3
   m_Name: Minion_Bow
@@ -174,40 +172,13 @@ MonoBehaviour:
   currentEnergy: 100
   regenPerSecond: 8
   useUnscaledTime: 0
+  energyRegenBlocked: 0
   isFacingRight: 1
   isStaggered: 0
   isRiposteStance: 0
   canRiposte: 1
   riposteWindow: 0.6
   staggerResistance: 1
---- !u!114 &3060324101768364948
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1718376399928103269}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2e6c004dcf5722445860911ee4520cbb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  currentState: 0
-  movementMode: 0
-  player: {fileID: 0}
-  rb: {fileID: 0}
-  swordMovement: {fileID: 0}
-  bowMovement: {fileID: 0}
-  moveSpeed: 4
-  accel: 40
-  useVerticalAlign: 1
-  verticalTolerance: 0.2
-  desiredRange: 1.5
-  minimumCombatRange: 0
-  rangeTolerance: 0.25
-  isExternallyLocked: 0
-  isAttackMovementLocked: 0
-  defaultAttackLockFailSafe: 0.6
 --- !u!114 &3416067351600877366
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -220,31 +191,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aabbbed7de27d284084e0d4b0d1e2015, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &4721237734604726269
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1718376399928103269}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ae57a7f8418bf7f4d949d1f5c30cb8cd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  combatStyle: 0
-  weaponResponse: 0
-  normalizedSwordWeights:
-  - 25
-  - 25
-  - 25
-  - 25
-  normalizedBowWeights:
-  - 34
-  - 33
-  - 33
-  normalizedDashWeight: 0
-  normalizedRiposteWeight: 0
 --- !u!114 &143298134385876908
 MonoBehaviour:
   m_ObjectHideFlags: 0
