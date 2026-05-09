@@ -1887,7 +1887,7 @@ Transform:
   m_GameObject: {fileID: 894654932}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 20, y: 0, z: 0}
+  m_LocalPosition: {x: 25, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2057,8 +2057,8 @@ MonoBehaviour:
   nextStagePlayerStartPoint: {fileID: 1880915624}
   fallbackPlayerStartX: -8
   rightTransitionX: 18
-  meleeMinionPrefab: {fileID: 1718376399928103269, guid: f3f782b177d59d94684484553f938357, type: 3}
-  rangeMinionPrefab: {fileID: 1718376399928103269, guid: 19a6832f674715a4e8ec2c82fdc04fa4, type: 3}
+  meleeMinionPrefab: {fileID: 4509274736977115155, guid: 3f024f814d5040d439008106d80e715f, type: 3}
+  rangeMinionPrefab: {fileID: 4509274736977115155, guid: 3f024f814d5040d439008106d80e715f, type: 3}
   minionSpawnPoints:
   - {fileID: 1210760789}
   - {fileID: 361345001}
@@ -2066,6 +2066,11 @@ MonoBehaviour:
   bossPrefabSword: {fileID: 1718376399928103269, guid: 5ac3b8af5f0075e4db0d8d669fd9126b, type: 3}
   bossPrefabBow: {fileID: 1718376399928103269, guid: 31cdc560879ab6041935da80e59b4b70, type: 3}
   bossSpawnPoint: {fileID: 894654933}
+  forceBowBossForDebug: 1
+  allowSwordFallbackIfBowMissing: 1
+  allowBowFallbackIfSwordMissing: 1
+  allowBossSpawnWithoutCharacterBase: 1
+  verboseBossSpawnLog: 1
   startingStageNumber: 0
   baseSpawnToken: 2
   spawnTokenIncreasePerStage: 1
@@ -2079,7 +2084,7 @@ MonoBehaviour:
   blackScreenCanvasGroup: {fileID: 2081029041}
   blackScreenFadeDuration: 0.5
   blackScreenHoldDuration: 0.5
-  minionSpawnDelayOnStageStart: 2
+  minionSpawnDelayOnStageStart: 1
 --- !u!114 &1234914217
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2094,11 +2099,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   swordSkillDebugText: {fileID: 838361485}
   swordSkillDebugPanel: {fileID: 66791167}
-  showSwordSkillDebugPanel: 1
+  showSwordSkillDebugPanel: 0
   swordSkillDebugTitle: SWORD SKILL DEBUG
   bowSkillDebugText: {fileID: 493434219}
   bowSkillDebugPanel: {fileID: 416677782}
-  showBowSkillDebugPanel: 1
+  showBowSkillDebugPanel: 0
   bowSkillDebugTitle: BOW SKILL DEBUG
   playerTransform: {fileID: 443342433}
   enemyTransform: {fileID: 7686073481702737145, guid: 5ac3b8af5f0075e4db0d8d669fd9126b, type: 3}
