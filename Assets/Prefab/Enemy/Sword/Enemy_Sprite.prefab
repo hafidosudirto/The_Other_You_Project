@@ -120,13 +120,12 @@ GameObject:
   - component: {fileID: 5122134424042166058}
   - component: {fileID: 2052822714715028514}
   - component: {fileID: 5359626163882833092}
-  - component: {fileID: 1086179907554398002}
   - component: {fileID: 4353981017561823223}
   - component: {fileID: 6813095118437529301}
-  - component: {fileID: 7803747701172082177}
   - component: {fileID: 1502198954398462381}
   - component: {fileID: 9041065562584109706}
   - component: {fileID: -8518000673835487079}
+  - component: {fileID: 6984645747945944984}
   m_Layer: 6
   m_Name: Enemy_Sprite
   m_TagString: Enemy
@@ -282,27 +281,17 @@ MonoBehaviour:
   attack: 10
   defense: 5
   moveSpeed: 5
+  maxEnergy: 100
+  currentEnergy: 100
+  regenPerSecond: 8
+  useUnscaledTime: 0
+  energyRegenBlocked: 0
   isFacingRight: 1
   isStaggered: 0
   isRiposteStance: 0
   canRiposte: 1
   riposteWindow: 0.6
   staggerResistance: 1
---- !u!114 &1086179907554398002
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5064894054005846412}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a7dba363f7cbb4a4091317e87a6cdc10, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  playerTransform: {fileID: 0}
-  attackRange: 1.8
-  isPerformingAction: 1
 --- !u!114 &4353981017561823223
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -315,11 +304,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8adcbc455213a7d4d8bd32ee79ddf3bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  stats: {fileID: 5359626163882833092}
-  slashCombo: {fileID: 1392461539216142586}
-  whirlwind: {fileID: 0}
-  chargedStrike: {fileID: 0}
-  riposte: {fileID: 0}
+  ai: {fileID: 6984645747945944984}
+  enemyDash: {fileID: 0}
+  playerSensor: {fileID: 0}
+  skillRootSword: {fileID: 3246913269677445972}
+  skillRootBow: {fileID: 0}
+  _slashCombo: {fileID: 1392461539216142586}
+  _chargedStrike: {fileID: 0}
+  _whirlwind: {fileID: 0}
+  _riposte: {fileID: 0}
+  _quickShotBow: {fileID: 0}
+  _fullDrawBow: {fileID: 0}
+  _piercingBow: {fileID: 0}
+  _concussiveBow: {fileID: 0}
+  stats:
+    attack: 10
+  attackPowerOverride: 10
+  riposteCooldown: 0.75
+  concussiveCooldown: 1
+  lengahBusyDuration: 0.28
+  balancedLengahWeight: 45
+  offensiveLengahWeight: 20
+  defensiveLengahWeight: 0
 --- !u!114 &6813095118437529301
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -333,25 +339,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 3210910517440788112}
---- !u!114 &7803747701172082177
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5064894054005846412}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 654c9d779108be34fab5ff69fe87ab3d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  enemyFSM: {fileID: 1502198954398462381}
-  enemyAI: {fileID: 1086179907554398002}
-  slashCombo: {fileID: 1392461539216142586}
-  whirlwind: {fileID: 0}
-  riposte: {fileID: 0}
-  chargedStrike: {fileID: 0}
-  isPerformingSkill: 0
+  warnMissingAnimatorParameter: 1
 --- !u!114 &1502198954398462381
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -365,10 +353,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   currentState: 0
-  moveSpeed: 3
-  retreatSpeed: 3.5
-  chaseSpeed: 3.2
+  movementMode: 0
   player: {fileID: 0}
+  rb: {fileID: 0}
+  swordMovement: {fileID: 0}
+  bowMovement: {fileID: 0}
+  moveSpeed: 3
+  accel: 40
+  useVerticalAlign: 1
+  verticalTolerance: 0.2
+  desiredRange: 1.5
+  minimumCombatRange: 0
+  rangeTolerance: 0.25
+  isExternallyLocked: 0
+  isAttackMovementLocked: 0
+  defaultAttackLockFailSafe: 0.6
 --- !u!114 &9041065562584109706
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -395,6 +394,42 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   combatStyle: 0
   weaponResponse: 1
+  normalizedSwordWeights:
+  - 25
+  - 25
+  - 25
+  - 25
+  normalizedBowWeights:
+  - 25
+  - 25
+  - 25
+  - 25
+  normalizedDashWeight: 0
+  normalizedRiposteWeight: 0
+--- !u!114 &6984645747945944984
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5064894054005846412}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34c0cf68b22cb0f4c8c33063a359622e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerTransform: {fileID: 0}
+  weaponMode: 0
+  AttackPower: 10
+  attackRange: 2
+  adaptiveProfile: {fileID: 0}
+  spriteVisual: {fileID: 0}
+  spriteRenderer: {fileID: 0}
+  invertFlipX: 0
+  maxMoveSpeed: 3
+  isPerformingAction: 0
+  attackTokens: 3
+  isBoss: 0
 --- !u!1 &5697421084168328864
 GameObject:
   m_ObjectHideFlags: 0
@@ -473,9 +508,19 @@ MonoBehaviour:
   attackRadius: 1.5
   attackAngle: 90
   hitOffset: {x: 0.6, y: 0}
+  chainChance: 0.6
+  chainExtraDelay: 0.12
+  centerAtPivotWhenClose: 1
+  pivotCenterDistance: 0.55
+  closeOffsetMultiplier: 0.15
   windupTime: 0.15
   activeTime: 0.05
   recoveryTime: 0.4
+  cooldown: 0.25
   hitMask:
     serializedVersion: 2
     m_Bits: 0
+  gizmoShowTime: 0.06
+  gizmoColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  arcSegments: 20
+  gizmoArcAngle: 60

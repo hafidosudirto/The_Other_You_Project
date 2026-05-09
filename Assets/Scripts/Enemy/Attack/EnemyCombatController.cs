@@ -32,7 +32,7 @@ public sealed class EnemyCombatController : MonoBehaviour
     [Header("Bow Skills - Auto / Manual Assign")]
     [SerializeField] private Enemy_Bow_QuickShot _quickShotBow;
     [SerializeField] private Enemy_Bow_FullDraw _fullDrawBow;
-    [SerializeField] private Enemy_Bow_PiercingShot _piercingBow;
+    [SerializeField] private Enemy_Bow_SpreadArrow _SpreadArrow;
     [SerializeField] private Enemy_Bow_ConcussiveShot _concussiveBow;
 
     [Header("Legacy Stats Compatibility")]
@@ -73,14 +73,14 @@ public sealed class EnemyCombatController : MonoBehaviour
 
     public Enemy_Bow_QuickShot quickShotBow => _quickShotBow;
     public Enemy_Bow_FullDraw fullDrawBow => _fullDrawBow;
-    public Enemy_Bow_PiercingShot piercingBow => _piercingBow;
+    public Enemy_Bow_SpreadArrow spreadArrowBow => _SpreadArrow;
     public Enemy_Bow_ConcussiveShot concussiveBow => _concussiveBow;
 
     public bool HasSwordSkills =>
         _slashCombo != null || _chargedStrike != null || _whirlwind != null || _riposte != null;
 
     public bool HasBowSkills =>
-        _quickShotBow != null || _fullDrawBow != null || _piercingBow != null || _concussiveBow != null;
+        _quickShotBow != null || _fullDrawBow != null || _SpreadArrow != null || _concussiveBow != null;
 
     public float AttackPower => stats != null ? Mathf.Max(0f, stats.attack) : Mathf.Max(0f, attackPowerOverride);
 
@@ -164,7 +164,7 @@ public sealed class EnemyCombatController : MonoBehaviour
         skillRootBow = root;
         if (_quickShotBow == null) _quickShotBow = root.GetComponentInChildren<Enemy_Bow_QuickShot>(true);
         if (_fullDrawBow == null) _fullDrawBow = root.GetComponentInChildren<Enemy_Bow_FullDraw>(true);
-        if (_piercingBow == null) _piercingBow = root.GetComponentInChildren<Enemy_Bow_PiercingShot>(true);
+        if (_SpreadArrow == null) _SpreadArrow = root.GetComponentInChildren<Enemy_Bow_SpreadArrow>(true);
         if (_concussiveBow == null) _concussiveBow = root.GetComponentInChildren<Enemy_Bow_ConcussiveShot>(true);
     }
 

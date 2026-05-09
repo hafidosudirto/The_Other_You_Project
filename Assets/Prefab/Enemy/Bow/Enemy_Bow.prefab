@@ -66,6 +66,7 @@ GameObject:
   - component: {fileID: 4495831448187383308}
   - component: {fileID: 4721237734604726269}
   - component: {fileID: 3598047057717131649}
+  - component: {fileID: 100781069933673451}
   m_Layer: 3
   m_Name: Enemy_Bow
   m_TagString: Enemy
@@ -198,13 +199,20 @@ MonoBehaviour:
   playerTransform: {fileID: 0}
   weaponMode: 2
   AttackPower: 10
-  attackRange: 2
+  attackRange: 8
   adaptiveProfile: {fileID: 4721237734604726269}
   spriteVisual: {fileID: 6006294142454943748}
   spriteRenderer: {fileID: 4184288291677543696}
   invertFlipX: 0
-  maxMoveSpeed: 3
+  sideViewWalkUsesHorizontalSpeedOnly: 1
+  bowDesiredRangeMultiplier: 0.75
+  bowMinimumRangeMultiplier: 0.35
+  bowRangeTolerance: 0.5
+  swordDesiredRangeMultiplier: 0.85
+  swordRangeTolerance: 0.25
   isPerformingAction: 0
+  attackTokens: 999
+  isBoss: 1
 --- !u!114 &3060324101768364948
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -268,7 +276,7 @@ MonoBehaviour:
   _riposte: {fileID: 0}
   _quickShotBow: {fileID: 1822752424171837785}
   _fullDrawBow: {fileID: 7446648338375621929}
-  _piercingBow: {fileID: 1087065354804197097}
+  _piercingBow: {fileID: 0}
   _concussiveBow: {fileID: 3805940983556006463}
   stats:
     attack: 10
@@ -292,16 +300,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   combatStyle: 0
-  weaponResponse: 0
+  weaponResponse: 2
   normalizedSwordWeights:
   - 25
   - 25
   - 25
   - 25
   normalizedBowWeights:
-  - 34
-  - 33
-  - 33
+  - 25
+  - 25
+  - 25
+  - 25
   normalizedDashWeight: 0
   normalizedRiposteWeight: 0
 --- !u!114 &3598047057717131649
@@ -319,7 +328,26 @@ MonoBehaviour:
   attackRange: 8
   bowSenseRange: 10
   attackRangeOffset: {x: 0, y: 0}
-  useBowBalancedBag: 1
+  forceHighestDDAWeight: 1
+  deterministicThreshold: 50
+  showDDADebugLog: 1
+  fallbackQuickWeight: 25
+  fallbackPiercingWeight: 25
+  fallbackFullDrawWeight: 25
+  fallbackConcussiveWeight: 25
+--- !u!114 &100781069933673451
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1718376399928103269}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bcd6ea542ac92a34a88d6811389c8571, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  combat: {fileID: 4495831448187383308}
 --- !u!1 &3047793432696247020
 GameObject:
   m_ObjectHideFlags: 0
@@ -380,7 +408,6 @@ GameObject:
   - component: {fileID: 550422330841610161}
   - component: {fileID: 1822752424171837785}
   - component: {fileID: 7446648338375621929}
-  - component: {fileID: 1087065354804197097}
   - component: {fileID: 3805940983556006463}
   m_Layer: 3
   m_Name: SkillRoot_Bow
@@ -493,30 +520,6 @@ MonoBehaviour:
   cooldown: 0.8
   postReleaseLock: 0.08
   releaseTimeout: 0.7
---- !u!114 &1087065354804197097
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3692325758305768845}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8e663fc7b123a2e4e8d3f3a0379799cb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  minRange: 2.5
-  skillRange: 10.5
-  rangeTolerance: 0.2
-  arrowPrefab: {fileID: 1692899915983295771, guid: 3b1b1c55802ed8a4eaa8a5643eabafb0, type: 3}
-  arrowSpawnPoint: {fileID: 5432282122991037403}
-  facingSprite: {fileID: 0}
-  shootCooldown: 0.8
-  shootSpeed: 14
-  destroyAfter: 2.5
-  damage: 10
-  postShotLock: 0.08
-  releaseTimeout: 0.65
 --- !u!114 &3805940983556006463
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -684,8 +687,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   quickShot: {fileID: 1822752424171837785}
   fullDraw: {fileID: 7446648338375621929}
-  piercingShot: {fileID: 1087065354804197097}
+  spreadArrow: {fileID: 0}
   concussiveShot: {fileID: 3805940983556006463}
+  allowPiercingAsSpreadFallback: 1
+  autoAssignOnAwake: 1
+  debugEvent: 1
+  warningIfMissing: 1
 --- !u!114 &4636523973762786944
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -699,6 +706,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 891478525830658006}
+  warnMissingAnimatorParameter: 1
 --- !u!1 &8509301020242139796
 GameObject:
   m_ObjectHideFlags: 0

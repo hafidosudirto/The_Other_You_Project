@@ -54,7 +54,7 @@ GameObject:
   - component: {fileID: 8598530904683464336}
   - component: {fileID: 7020024099164491776}
   m_Layer: 3
-  m_Name: Enemy_W1_Sprite
+  m_Name: Enemy_Sword
   m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -241,6 +241,8 @@ MonoBehaviour:
   invertFlipX: 0
   maxMoveSpeed: 3
   isPerformingAction: 0
+  attackTokens: 999
+  isBoss: 1
 --- !u!114 &6893955486669756002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -421,7 +423,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 1.79}
   m_SizeDelta: {x: 265.9343, y: -26.0597}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!223 &3245866393493251498
@@ -744,6 +746,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 3180929586462168031}
+  warnMissingAnimatorParameter: 1
 --- !u!1001 &4465779769779001524
 PrefabInstance:
   m_ObjectHideFlags: 0

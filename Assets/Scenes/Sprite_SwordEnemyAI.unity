@@ -1459,7 +1459,7 @@ MonoBehaviour:
   fallbackPlayerStartX: -8
   rightTransitionX: 18
   meleeMinionPrefab: {fileID: 1718376399928103269, guid: f3f782b177d59d94684484553f938357, type: 3}
-  rangeMinionPrefab: {fileID: 0}
+  rangeMinionPrefab: {fileID: 1718376399928103269, guid: f3f782b177d59d94684484553f938357, type: 3}
   minionSpawnPoints:
   - {fileID: 68743060}
   - {fileID: 1486041230}

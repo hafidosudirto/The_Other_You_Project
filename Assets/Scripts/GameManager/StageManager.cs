@@ -34,6 +34,22 @@ public class StageManager : MonoBehaviour
     public GameObject bossPrefabBow;
     public Transform bossSpawnPoint;
 
+    [Header("Boss Spawn Debug")]
+    [Tooltip("Aktifkan sementara bila ingin memaksa boss bow keluar tanpa menunggu hasil DDA.")]
+    [SerializeField] private bool forceBowBossForDebug = false;
+
+    [Tooltip("Jika DDA memilih Bow tetapi prefab bow kosong, StageManager boleh memakai boss sword agar stage tidak macet.")]
+    [SerializeField] private bool allowSwordFallbackIfBowMissing = true;
+
+    [Tooltip("Jika DDA memilih Sword tetapi prefab sword kosong, StageManager boleh memakai boss bow agar stage tidak macet.")]
+    [SerializeField] private bool allowBowFallbackIfSwordMissing = true;
+
+    [Tooltip("Biarkan boss tetap spawn walaupun CharacterBase tidak ditemukan. Ini membantu debugging prefab boss.")]
+    [SerializeField] private bool allowBossSpawnWithoutCharacterBase = true;
+
+    [Tooltip("Tampilkan log rinci agar penyebab boss tidak muncul terlihat jelas di Console.")]
+    [SerializeField] private bool verboseBossSpawnLog = true;
+
     [Header("Progression Formula")]
     public int startingStageNumber = 0;
     public int baseSpawnToken = 2;
@@ -61,15 +77,33 @@ public class StageManager : MonoBehaviour
     [Header("Stage Start Delay")]
     [SerializeField] private float minionSpawnDelayOnStageStart = 2f;
 
+    [Header("Enemy Tracking Recovery")]
+    [Tooltip("Aktifkan agar StageManager tetap dapat mendeteksi musuh mati walaupun EnemyDeathHandler/OnEnemyDied tidak terpanggil.")]
+    [SerializeField] private bool useEnemyTrackingWatchdog = true;
+
+    [Tooltip("Jeda pemeriksaan ulang daftar musuh aktif. Nilai kecil membantu debugging spawn boss.")]
+    [SerializeField] private float enemyTrackingCheckInterval = 0.25f;
+
+    [Tooltip("Jika CharacterBase.currentHP <= 0, musuh dianggap sudah mati walaupun objek belum Destroy karena masih memainkan animasi mati.")]
+    [SerializeField] private bool treatZeroHpAsDead = true;
+
+    [Tooltip("Pasang komponen tracker runtime pada setiap musuh yang di-spawn StageManager.")]
+    [SerializeField] private bool attachRuntimeEnemyTracker = true;
+
     private int currentStage;
     private int activeEnemiesCount = 0;
     private bool isChangingStage = false;
+    private bool isTransitioningToBoss = false;
+    private readonly List<GameObject> trackedEnemies = new List<GameObject>();
+    private float nextEnemyTrackingCheckTime = 0f;
+    private bool suppressEnemyTrackerCallbacks = false;
 
     private void Start()
     {
         currentStage = startingStageNumber;
         activeEnemiesCount = 0;
         isChangingStage = false;
+        isTransitioningToBoss = false;
 
         SetBlackScreenInstant(0f, false);
 
@@ -79,13 +113,19 @@ public class StageManager : MonoBehaviour
     private void Update()
     {
         CheckStageTransition();
+        UpdateEnemyTrackingWatchdog();
     }
 
     private void StartStage()
     {
         Debug.Log("--- MEMULAI STAGE " + GetDisplayedStageNumber() + " ---");
 
+        activeEnemiesCount = 0;
+        isTransitioningToBoss = false;
+        trackedEnemies.Clear();
+        nextEnemyTrackingCheckTime = 0f;
         currentState = StageState.SpawningMinions;
+
         StartCoroutine(SpawnMinionWave());
     }
 
@@ -110,6 +150,9 @@ public class StageManager : MonoBehaviour
         int minionAttackTokens = baseMinionAttackToken + (minionAttackTokenIncreasePerStage * currentStage);
         float statMultiplier = 1f + (statAmplifyPerStage * currentStage);
 
+        totalMinions = Mathf.Max(0, totalMinions);
+        statMultiplier = Mathf.Max(0.01f, statMultiplier);
+
         int meleeCount = 0;
         int rangeCount = 0;
 
@@ -132,9 +175,10 @@ public class StageManager : MonoBehaviour
         }
 
         Debug.Log(
-            $"Spawn: {totalMinions} Minions " +
+            $"[STAGE MANAGER] Spawn: {totalMinions} Minions " +
             $"({meleeCount} Melee, {rangeCount} Range). " +
-            $"Token: {minionAttackTokens}. Stat Mult: {statMultiplier}x"
+            $"Token: {minionAttackTokens}. Stat Mult: {statMultiplier}x. " +
+            $"Playstyle DDA: {playerPlaystyle}"
         );
 
         for (int i = 0; i < meleeCount; i++)
@@ -148,6 +192,23 @@ public class StageManager : MonoBehaviour
         }
 
         currentState = StageState.FightingMinions;
+        ReconcileTrackedEnemies(true);
+
+        Debug.Log(
+            $"[STAGE MANAGER] Wave minion selesai dibuat. " +
+            $"Enemy aktif yang terdaftar: {activeEnemiesCount}. State: {currentState}"
+        );
+
+        if (activeEnemiesCount <= 0)
+        {
+            Debug.LogWarning(
+                "[STAGE MANAGER] Tidak ada minion aktif setelah wave dibuat. " +
+                "StageManager langsung mencoba transisi ke boss."
+            );
+
+            StartBossTransitionIfNeeded();
+        }
+
         yield return null;
     }
 
@@ -166,17 +227,24 @@ public class StageManager : MonoBehaviour
         }
 
         Transform spawnPoint = minionSpawnPoints[UnityEngine.Random.Range(0, minionSpawnPoints.Count)];
-        GameObject enemy = Instantiate(prefab, spawnPoint.position, Quaternion.identity);
+        if (spawnPoint == null)
+        {
+            Debug.LogWarning("[STAGE MANAGER] Salah satu minion spawn point bernilai null.");
+            return;
+        }
 
-        enemy.tag = "Enemy";
-        SetLayerRecursively(enemy, LayerMask.NameToLayer("Enemy"));
+        GameObject enemy = Instantiate(prefab, spawnPoint.position, Quaternion.identity);
+        enemy.SetActive(true);
+
+        PrepareSpawnedEnemyObject(enemy);
 
         CharacterBase character = enemy.GetComponent<CharacterBase>();
 
         if (character == null)
         {
             Debug.LogWarning(
-                $"[STAGE MANAGER] Prefab {prefab.name} tidak memiliki CharacterBase atau turunan Enemy.cs."
+                $"[STAGE MANAGER] Prefab minion {prefab.name} tidak memiliki CharacterBase atau turunan Enemy.cs. " +
+                "Objek minion dihancurkan agar penghitung stage tidak macet."
             );
 
             Destroy(enemy);
@@ -185,18 +253,17 @@ public class StageManager : MonoBehaviour
 
         InitializeCharacterBaseStats(character, statMultiplier);
 
-        // Inisialisasi minion dengan token dan isBoss = false
         InitializeStageCombatController(enemy, character, attackTokens, false);
         InitializeDeathHandler(enemy);
-
-        activeEnemiesCount++;
+        RegisterSpawnedEnemy(enemy);
 
         Debug.Log(
             $"[STAGE MANAGER] Spawn minion: {enemy.name} | " +
             $"HP: {character.currentHP}/{character.maxHP} | " +
             $"Attack: {character.attack} | " +
             $"MoveSpeed: {character.moveSpeed} | " +
-            $"Token: {attackTokens}"
+            $"Token: {attackTokens} | " +
+            $"Enemy aktif: {activeEnemiesCount}"
         );
     }
 
@@ -215,25 +282,35 @@ public class StageManager : MonoBehaviour
         character.moveSpeed *= statMultiplier;
     }
 
-    // --- REVISI: Fungsi inisialisasi AI baru menggunakan parameter isBoss ---
     private void InitializeStageCombatController(GameObject enemy, CharacterBase character, int attackTokens, bool isBoss = false)
     {
-        if (enemy == null || character == null)
+        if (enemy == null)
             return;
 
-        // Mencari NodeManager (sistem AI yang baru) sebagai pusat kontrol
+        if (character == null)
+        {
+            Debug.LogWarning(
+                $"[STAGE MANAGER] {enemy.name} tidak memiliki CharacterBase. " +
+                "StageManager tetap mencoba menginisialisasi AI agar objek tidak gagal spawn diam-diam."
+            );
+        }
+
         NodeManager nodeManager = enemy.GetComponent<NodeManager>();
+        MinionMeleeController meleeMinion = enemy.GetComponent<MinionMeleeController>();
 
         if (nodeManager != null)
         {
-            // Lempar data token, stat, dan status boss ke NodeManager
             nodeManager.InitializeStageEnemy(character, attackTokens, isBoss);
+        }
+        else if (meleeMinion != null)
+        {
+            meleeMinion.InitializeStageEnemy(character, attackTokens, isBoss);
         }
         else
         {
-            // Peringatan jika musuh masih belum memakai sistem baru
             Debug.LogWarning(
-                $"[STAGE MANAGER] {enemy.name} tidak memiliki NodeManager. Normalisasi DDA gagal diterapkan."
+                $"[STAGE MANAGER] {enemy.name} tidak memiliki sistem AI " +
+                "(NodeManager atau MinionMeleeController). Normalisasi DDA gagal diterapkan."
             );
         }
     }
@@ -258,6 +335,15 @@ public class StageManager : MonoBehaviour
         }
     }
 
+    private void PrepareSpawnedEnemyObject(GameObject enemy)
+    {
+        if (enemy == null)
+            return;
+
+        enemy.tag = "Enemy";
+        SetLayerRecursively(enemy, LayerMask.NameToLayer("Enemy"));
+    }
+
     private void SetLayerRecursively(GameObject obj, int layer)
     {
         if (obj == null)
@@ -279,95 +365,404 @@ public class StageManager : MonoBehaviour
 
     public void OnEnemyDied()
     {
-        activeEnemiesCount--;
+        Debug.Log(
+            $"[STAGE MANAGER] OnEnemyDied terpanggil. " +
+            $"Sebelum rekonsiliasi: {activeEnemiesCount}. State: {currentState}. " +
+            $"Sedang transisi boss: {isTransitioningToBoss}"
+        );
 
-        if (activeEnemiesCount <= 0)
+        int before = activeEnemiesCount;
+        int removedByReconcile = ReconcileTrackedEnemies(true);
+
+        // Fallback untuk kasus EnemyDeathHandler memanggil OnEnemyDied(), tetapi objek musuh belum Destroy
+        // dan currentHP belum sempat terbaca <= 0 pada frame yang sama.
+        if (removedByReconcile <= 0 && before > 0)
         {
-            activeEnemiesCount = 0;
-
-            if (currentState == StageState.FightingMinions)
-            {
-                StartCoroutine(TransitionToBoss());
-            }
-            else if (currentState == StageState.FightingBoss)
-            {
-                if (finalizeDataAfterBoss)
-                {
-                    Debug.Log("DDA Data Difinalisasi Setelah Boss");
-                }
-
-                currentState = StageState.StageCleared;
-
-                if (resetDDAAndDataTrackerOnStageCleared)
-                {
-                    ResetDDAAndDataTracker();
-                }
-
-                Debug.Log("STAGE CLEAR! DDA dan DataTracker direset. Berjalanlah ke kanan untuk lanjut.");
-            }
+            activeEnemiesCount = Mathf.Max(0, before - 1);
+            Debug.LogWarning(
+                $"[STAGE MANAGER] OnEnemyDied tidak menemukan objek yang bisa dihapus dari tracker. " +
+                $"Menggunakan fallback decrement: {before} -> {activeEnemiesCount}."
+            );
         }
+
+        TryAdvanceStageAfterEnemyCountChanged("OnEnemyDied");
+    }
+
+    private void StartBossTransitionIfNeeded()
+    {
+        if (isTransitioningToBoss)
+        {
+            Debug.Log("[STAGE MANAGER] Transisi ke boss sudah berjalan. Pemanggilan ganda diabaikan.");
+            return;
+        }
+
+        isTransitioningToBoss = true;
+        StartCoroutine(TransitionToBoss());
     }
 
     private IEnumerator TransitionToBoss()
     {
+        Debug.Log("[STAGE MANAGER] TransitionToBoss() dimulai.");
+
         if (finalizeDataBeforeBoss)
         {
-            Debug.Log("DDA Data Difinalisasi Sebelum Boss");
+            Debug.Log("[STAGE MANAGER] DDA Data Difinalisasi Sebelum Boss.");
 
             if (DataTracker.Instance != null)
             {
-                DataTracker.Instance.FinalizeStageData();
+                try
+                {
+                    DataTracker.Instance.FinalizeStageData();
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError(
+                        "[STAGE MANAGER] Exception saat DataTracker.FinalizeStageData(). " +
+                        "Boss tetap akan dicoba untuk di-spawn.\n" + ex
+                    );
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[STAGE MANAGER] DataTracker.Instance null. FinalizeStageData dilewati.");
             }
         }
 
         yield return new WaitForSeconds(1f);
 
-        string dominantWeapon = GetDominantWeaponFromDDA();
-        GameObject bossToSpawn = dominantWeapon == "Bow" ? bossPrefabBow : bossPrefabSword;
-        float statMultiplier = 1f + (statAmplifyPerStage * currentStage);
+        string dominantWeapon;
+        bool usedFallback;
+        GameObject bossToSpawn = ResolveBossPrefab(out dominantWeapon, out usedFallback);
+        float statMultiplier = Mathf.Max(0.01f, 1f + (statAmplifyPerStage * currentStage));
 
-        Debug.Log($"Boss membaca DDA: Menirukan senjata dominan player yaitu {dominantWeapon}");
+        if (verboseBossSpawnLog)
+        {
+            Debug.Log(
+                $"[STAGE MANAGER] Hasil pemilihan boss | " +
+                $"DominantWeapon: {dominantWeapon} | " +
+                $"ForceBowDebug: {forceBowBossForDebug} | " +
+                $"UsedFallback: {usedFallback} | " +
+                $"BossSword: {(bossPrefabSword != null ? bossPrefabSword.name : "NULL")} | " +
+                $"BossBow: {(bossPrefabBow != null ? bossPrefabBow.name : "NULL")} | " +
+                $"Selected: {(bossToSpawn != null ? bossToSpawn.name : "NULL")}"
+            );
+        }
 
         if (bossToSpawn == null)
         {
-            Debug.LogWarning("[STAGE MANAGER] Boss prefab belum diisi.");
+            Debug.LogError(
+                "[STAGE MANAGER] Boss tidak bisa di-spawn karena bossPrefabSword dan bossPrefabBow tidak tersedia. " +
+                "Isi referensi prefab boss pada Inspector StageManager."
+            );
+
+            isTransitioningToBoss = false;
             yield break;
         }
 
         if (bossSpawnPoint == null)
         {
-            Debug.LogWarning("[STAGE MANAGER] Boss spawn point belum diisi.");
+            Debug.LogError(
+                "[STAGE MANAGER] Boss tidak bisa di-spawn karena bossSpawnPoint belum diisi pada Inspector StageManager."
+            );
+
+            isTransitioningToBoss = false;
             yield break;
         }
 
-        GameObject boss = Instantiate(bossToSpawn, bossSpawnPoint.position, Quaternion.identity);
-        boss.tag = "Enemy";
-        SetLayerRecursively(boss, LayerMask.NameToLayer("Enemy"));
+        Debug.Log(
+            $"[STAGE MANAGER] Mencoba spawn boss prefab: {bossToSpawn.name} | " +
+            $"PrefabActiveSelf: {bossToSpawn.activeSelf} | " +
+            $"SpawnPoint: {bossSpawnPoint.position} | " +
+            $"StatMultiplier: {statMultiplier}"
+        );
+
+        GameObject boss = null;
+
+        try
+        {
+            boss = Instantiate(bossToSpawn, bossSpawnPoint.position, Quaternion.identity);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("[STAGE MANAGER] Exception saat Instantiate boss.\n" + ex);
+            isTransitioningToBoss = false;
+            yield break;
+        }
+
+        if (boss == null)
+        {
+            Debug.LogError("[STAGE MANAGER] Instantiate boss menghasilkan null.");
+            isTransitioningToBoss = false;
+            yield break;
+        }
+
+        boss.SetActive(true);
+        PrepareSpawnedEnemyObject(boss);
 
         CharacterBase bossCharacter = boss.GetComponent<CharacterBase>();
         if (bossCharacter != null)
         {
             InitializeCharacterBaseStats(bossCharacter, statMultiplier);
         }
-
-        // --- REVISI: Inisialisasi AI Boss tanpa batasan token ---
-        // Memberikan nilai token 999 sebagai pengaman dan set isBoss = true
-        InitializeStageCombatController(boss, bossCharacter, 999, true);
-
-        EnemyDeathHandler deathHandler = boss.GetComponent<EnemyDeathHandler>();
-        if (deathHandler != null)
+        else
         {
-            deathHandler.Init(this);
+            Debug.LogWarning(
+                $"[STAGE MANAGER] Boss {boss.name} tidak memiliki CharacterBase atau turunan Enemy.cs. " +
+                "Periksa prefab boss bow."
+            );
+
+            if (!allowBossSpawnWithoutCharacterBase)
+            {
+                Debug.LogError(
+                    "[STAGE MANAGER] allowBossSpawnWithoutCharacterBase = false. Boss dihancurkan agar stage tidak berada pada state tidak valid."
+                );
+
+                Destroy(boss);
+                isTransitioningToBoss = false;
+                yield break;
+            }
+        }
+
+        InitializeStageCombatController(boss, bossCharacter, 999, true);
+        InitializeDeathHandler(boss);
+
+        trackedEnemies.Clear();
+        RegisterSpawnedEnemy(boss);
+        currentState = StageState.FightingBoss;
+        isTransitioningToBoss = false;
+
+        Debug.Log(
+            $"[STAGE MANAGER] BOSS MUNCUL | " +
+            $"Nama: {boss.name} | " +
+            $"ActiveSelf: {boss.activeSelf} | " +
+            $"ActiveInHierarchy: {boss.activeInHierarchy} | " +
+            $"State: {currentState} | " +
+            $"Enemy aktif: {activeEnemiesCount}"
+        );
+    }
+
+    private GameObject ResolveBossPrefab(out string dominantWeapon, out bool usedFallback)
+    {
+        usedFallback = false;
+
+        dominantWeapon = forceBowBossForDebug ? "Bow" : GetDominantWeaponFromDDA();
+
+        GameObject selectedBoss = dominantWeapon == "Bow" ? bossPrefabBow : bossPrefabSword;
+
+        if (selectedBoss != null)
+            return selectedBoss;
+
+        if (dominantWeapon == "Bow")
+        {
+            Debug.LogWarning("[STAGE MANAGER] DDA memilih Bow, tetapi bossPrefabBow null.");
+
+            if (allowSwordFallbackIfBowMissing && bossPrefabSword != null)
+            {
+                usedFallback = true;
+                return bossPrefabSword;
+            }
         }
         else
         {
-            Debug.LogWarning("[STAGE MANAGER] Boss tidak memiliki EnemyDeathHandler.");
+            Debug.LogWarning("[STAGE MANAGER] DDA memilih Sword, tetapi bossPrefabSword null.");
+
+            if (allowBowFallbackIfSwordMissing && bossPrefabBow != null)
+            {
+                usedFallback = true;
+                return bossPrefabBow;
+            }
         }
 
-        activeEnemiesCount++;
-        currentState = StageState.FightingBoss;
+        return null;
+    }
 
-        Debug.Log("BOSS MUNCUL TANPA BATASAN TOKEN!");
+    private void HandleBossDefeated()
+    {
+        if (finalizeDataAfterBoss)
+        {
+            Debug.Log("[STAGE MANAGER] DDA Data Difinalisasi Setelah Boss.");
+        }
+
+        currentState = StageState.StageCleared;
+        isTransitioningToBoss = false;
+        trackedEnemies.Clear();
+        activeEnemiesCount = 0;
+
+        if (resetDDAAndDataTrackerOnStageCleared)
+        {
+            ResetDDAAndDataTracker();
+        }
+
+        Debug.Log("[STAGE MANAGER] STAGE CLEAR! DDA dan DataTracker direset. Berjalanlah ke kanan untuk lanjut.");
+    }
+
+    private void RegisterSpawnedEnemy(GameObject enemy)
+    {
+        if (enemy == null)
+            return;
+
+        if (!trackedEnemies.Contains(enemy))
+            trackedEnemies.Add(enemy);
+
+        activeEnemiesCount = trackedEnemies.Count;
+
+        if (attachRuntimeEnemyTracker)
+        {
+            StageSpawnedEnemyTracker tracker = enemy.GetComponent<StageSpawnedEnemyTracker>();
+            if (tracker == null)
+                tracker = enemy.AddComponent<StageSpawnedEnemyTracker>();
+
+            tracker.Bind(this);
+        }
+
+        Debug.Log(
+            $"[STAGE MANAGER] Tracker musuh ditambahkan: {enemy.name}. " +
+            $"Total tracked enemy: {trackedEnemies.Count}."
+        );
+    }
+
+    public void NotifyTrackedEnemyDestroyed(GameObject enemy)
+    {
+        if (suppressEnemyTrackerCallbacks)
+            return;
+
+        int removed = ReconcileTrackedEnemies(true);
+
+        if (removed <= 0 && enemy != null)
+        {
+            // Unity dapat membuat referensi GameObject tampak null saat proses Destroy.
+            // Karena itu, jika rekonsiliasi biasa gagal, coba hapus berdasarkan instance ID.
+            for (int i = trackedEnemies.Count - 1; i >= 0; i--)
+            {
+                GameObject tracked = trackedEnemies[i];
+                if (tracked == enemy)
+                {
+                    trackedEnemies.RemoveAt(i);
+                    removed++;
+                    break;
+                }
+            }
+
+            activeEnemiesCount = Mathf.Max(0, trackedEnemies.Count);
+        }
+
+        if (removed > 0)
+        {
+            Debug.Log(
+                $"[STAGE MANAGER] Tracker mendeteksi musuh hilang/destroyed. " +
+                $"Removed: {removed}. Sisa enemy aktif: {activeEnemiesCount}. State: {currentState}."
+            );
+        }
+
+        TryAdvanceStageAfterEnemyCountChanged("NotifyTrackedEnemyDestroyed");
+    }
+
+    private void UpdateEnemyTrackingWatchdog()
+    {
+        if (!useEnemyTrackingWatchdog)
+            return;
+
+        if (Time.time < nextEnemyTrackingCheckTime)
+            return;
+
+        nextEnemyTrackingCheckTime = Time.time + Mathf.Max(0.05f, enemyTrackingCheckInterval);
+
+        if (currentState != StageState.FightingMinions && currentState != StageState.FightingBoss)
+            return;
+
+        int removed = ReconcileTrackedEnemies(false);
+
+        if (removed > 0)
+        {
+            Debug.Log(
+                $"[STAGE MANAGER] Watchdog tracker menghapus {removed} musuh yang sudah mati/hilang. " +
+                $"Sisa enemy aktif: {activeEnemiesCount}. State: {currentState}."
+            );
+        }
+
+        TryAdvanceStageAfterEnemyCountChanged("EnemyTrackingWatchdog");
+    }
+
+    private int ReconcileTrackedEnemies(bool logRemoved)
+    {
+        int before = trackedEnemies.Count;
+
+        for (int i = trackedEnemies.Count - 1; i >= 0; i--)
+        {
+            GameObject enemy = trackedEnemies[i];
+            string reason = string.Empty;
+
+            if (ShouldRemoveTrackedEnemy(enemy, out reason))
+            {
+                string enemyName = enemy != null ? enemy.name : "NULL/Destroyed";
+                trackedEnemies.RemoveAt(i);
+
+                if (logRemoved)
+                {
+                    Debug.Log(
+                        $"[STAGE MANAGER] Tracker menghapus enemy: {enemyName}. " +
+                        $"Alasan: {reason}."
+                    );
+                }
+            }
+        }
+
+        activeEnemiesCount = Mathf.Max(0, trackedEnemies.Count);
+        return Mathf.Max(0, before - trackedEnemies.Count);
+    }
+
+    private bool ShouldRemoveTrackedEnemy(GameObject enemy, out string reason)
+    {
+        reason = string.Empty;
+
+        if (enemy == null)
+        {
+            reason = "GameObject null atau sudah Destroy";
+            return true;
+        }
+
+        if (!enemy.activeInHierarchy)
+        {
+            reason = "GameObject tidak aktif di hierarchy";
+            return true;
+        }
+
+        if (treatZeroHpAsDead)
+        {
+            CharacterBase character = enemy.GetComponent<CharacterBase>();
+            if (character != null && character.currentHP <= 0f)
+            {
+                reason = $"CharacterBase.currentHP <= 0 ({character.currentHP})";
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void TryAdvanceStageAfterEnemyCountChanged(string source)
+    {
+        if (activeEnemiesCount > 0)
+            return;
+
+        if (currentState == StageState.FightingMinions)
+        {
+            Debug.Log(
+                $"[STAGE MANAGER] Semua minion dianggap selesai oleh {source}. " +
+                "StageManager memulai transisi ke boss."
+            );
+
+            StartBossTransitionIfNeeded();
+        }
+        else if (currentState == StageState.FightingBoss)
+        {
+            Debug.Log(
+                $"[STAGE MANAGER] Boss dianggap selesai oleh {source}. " +
+                "StageManager menyelesaikan stage."
+            );
+
+            HandleBossDefeated();
+        }
     }
 
     private void CheckStageTransition()
@@ -425,6 +820,11 @@ public class StageManager : MonoBehaviour
         TryResetSkillDebugData();
 
         yield return StartCoroutine(FadeBlackScreen(0f));
+
+        suppressEnemyTrackerCallbacks = true;
+        trackedEnemies.Clear();
+        activeEnemiesCount = 0;
+        suppressEnemyTrackerCallbacks = false;
 
         StartStage();
 
@@ -491,9 +891,15 @@ public class StageManager : MonoBehaviour
         if (resetSkillDebugMethod.GetParameters().Length > 0)
             return;
 
-        resetSkillDebugMethod.Invoke(DataTracker.Instance, null);
-
-        Debug.Log("[STAGE MANAGER] Skill debug player direset untuk stage berikutnya.");
+        try
+        {
+            resetSkillDebugMethod.Invoke(DataTracker.Instance, null);
+            Debug.Log("[STAGE MANAGER] Skill debug player direset untuk stage berikutnya.");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("[STAGE MANAGER] Exception saat ResetSkillDebugData().\n" + ex);
+        }
     }
 
     private void ResetDDAAndDataTracker()
@@ -568,10 +974,17 @@ public class StageManager : MonoBehaviour
             if (method.GetParameters().Length > 0)
                 continue;
 
-            method.Invoke(instance, null);
-
-            Debug.Log($"[STAGE MANAGER] {typeName}.{methodName}() berhasil dipanggil.");
-            return true;
+            try
+            {
+                method.Invoke(instance, null);
+                Debug.Log($"[STAGE MANAGER] {typeName}.{methodName}() berhasil dipanggil.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[STAGE MANAGER] Exception saat memanggil {typeName}.{methodName}().\n{ex}");
+                return false;
+            }
         }
 
         return false;
@@ -583,10 +996,25 @@ public class StageManager : MonoBehaviour
 
         foreach (Assembly assembly in assemblies)
         {
-            Type[] types = assembly.GetTypes();
+            Type[] types;
+
+            try
+            {
+                types = assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                types = ex.Types;
+            }
+
+            if (types == null)
+                continue;
 
             foreach (Type type in types)
             {
+                if (type == null)
+                    continue;
+
                 if (type.Name == typeName || type.FullName == typeName)
                     return type;
             }
@@ -597,6 +1025,9 @@ public class StageManager : MonoBehaviour
 
     private object FindRuntimeInstance(Type targetType)
     {
+        if (targetType == null)
+            return null;
+
         PropertyInfo instanceProperty = targetType.GetProperty(
             "Instance",
             BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic
@@ -604,9 +1035,16 @@ public class StageManager : MonoBehaviour
 
         if (instanceProperty != null)
         {
-            object propertyInstance = instanceProperty.GetValue(null);
-            if (propertyInstance != null)
-                return propertyInstance;
+            try
+            {
+                object propertyInstance = instanceProperty.GetValue(null);
+                if (propertyInstance != null)
+                    return propertyInstance;
+            }
+            catch
+            {
+                // Abaikan dan lanjut mencari lewat field atau scene object.
+            }
         }
 
         FieldInfo instanceField = targetType.GetField(
@@ -616,9 +1054,16 @@ public class StageManager : MonoBehaviour
 
         if (instanceField != null)
         {
-            object fieldInstance = instanceField.GetValue(null);
-            if (fieldInstance != null)
-                return fieldInstance;
+            try
+            {
+                object fieldInstance = instanceField.GetValue(null);
+                if (fieldInstance != null)
+                    return fieldInstance;
+            }
+            catch
+            {
+                // Abaikan dan lanjut mencari lewat scene object.
+            }
         }
 
         UnityEngine.Object sceneObject = FindObjectOfType(targetType);
@@ -654,5 +1099,32 @@ public class StageManager : MonoBehaviour
         }
 
         return "Sword";
+    }
+}
+
+
+public class StageSpawnedEnemyTracker : MonoBehaviour
+{
+    private StageManager owner;
+
+    public void Bind(StageManager stageManager)
+    {
+        owner = stageManager;
+    }
+
+    private void OnDestroy()
+    {
+        if (owner != null)
+        {
+            owner.NotifyTrackedEnemyDestroyed(gameObject);
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (owner != null && gameObject.scene.IsValid())
+        {
+            owner.NotifyTrackedEnemyDestroyed(gameObject);
+        }
     }
 }
