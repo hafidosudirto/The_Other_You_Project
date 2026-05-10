@@ -14,8 +14,8 @@ GameObject:
   - component: {fileID: 4460668518140164234}
   - component: {fileID: 6945581294852377261}
   - component: {fileID: 832043816788415805}
-  - component: {fileID: 7541793541947009147}
   - component: {fileID: 1629492807262619146}
+  - component: {fileID: 16033676855940389}
   m_Layer: 3
   m_Name: Minion_Melee
   m_TagString: Enemy
@@ -185,7 +185,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f15ee3b9018387047bec8ca63a621e5a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &7541793541947009147
+--- !u!114 &1629492807262619146
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -194,7 +194,19 @@ MonoBehaviour:
   m_GameObject: {fileID: 4509274736977115155}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e7ea206f4aafb2e409b731aa3b90c8f6, type: 3}
+  m_Script: {fileID: 11500000, guid: aabbbed7de27d284084e0d4b0d1e2015, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &16033676855940389
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4509274736977115155}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9be7bda4c6c5c244984863a3e9db8c43, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   maxHP: 1000
@@ -208,31 +220,26 @@ MonoBehaviour:
   useUnscaledTime: 0
   energyRegenBlocked: 0
   isFacingRight: 1
-  isStaggered: 1
+  isStaggered: 0
   isRiposteStance: 0
   canRiposte: 1
   riposteWindow: 0.6
   staggerResistance: 1
   currentState: 0
-  detectionRange: 10
+  detectionRange: 15
   attackRange: 1.2
   attackCooldown: 2
-  damagedDuration: 0.5
+  damagedDuration: 1
   damagedStateFullPath: MinionMelee_Damaged
   hordeRadius: 2.5
-  separationRadius: 1
-  separationWeight: 1.5
+  separationRadius: 1.5
+  separationWeight: 2
+  horizontalAttackOnly: 1
+  attackYTolerance: 0.45
+  minY: -4
+  maxY: 1.6
+  horizontalAttackHeight: 0.75
+  horizontalAttackWidth: 0
+  horizontalAttackOffset: 0
   attackTokens: 3
   isBoss: 0
---- !u!114 &1629492807262619146
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4509274736977115155}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aabbbed7de27d284084e0d4b0d1e2015, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
