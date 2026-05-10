@@ -27,6 +27,28 @@ public class MinionMeleeController : Enemy
     public float separationRadius = 1.5f;
     public float separationWeight = 2f;
 
+    [Header("Horizontal Attack & Stage Bounds")]
+    [Tooltip("Jika aktif, minion hanya boleh melakukan pendekatan dan hit serangan secara horizontal ketika siap menyerang.")]
+    public bool horizontalAttackOnly = true;
+
+    [Tooltip("Selisih Y maksimum antara minion dan player agar serangan horizontal dianggap valid.")]
+    public float attackYTolerance = 0.45f;
+
+    [Tooltip("Batas Y terendah jalur minion.")]
+    public float minY = -4f;
+
+    [Tooltip("Batas Y tertinggi jalur minion.")]
+    public float maxY = 1.6f;
+
+    [Tooltip("Tinggi area serangan horizontal. Naikkan jika serangan terlalu sulit mengenai player pada jalur yang sama.")]
+    public float horizontalAttackHeight = 0.75f;
+
+    [Tooltip("Lebar area serangan horizontal. Jika bernilai 0 atau kurang, script memakai attackRange.")]
+    public float horizontalAttackWidth = 0f;
+
+    [Tooltip("Jarak pusat area serangan dari posisi minion. Jika bernilai 0 atau kurang, script memakai setengah horizontalAttackWidth.")]
+    public float horizontalAttackOffset = 0f;
+
     [Header("Stage Settings (DDA)")]
     public int attackTokens = 3;
     public bool isBoss = false;
@@ -59,6 +81,7 @@ public class MinionMeleeController : Enemy
         FindPlayer();
 
         assignedOrbitAngle = Random.Range(0f, 360f) * Mathf.Deg2Rad;
+        ClampPositionToStageY();
     }
 
     private void FindPlayer()
@@ -141,6 +164,8 @@ public class MinionMeleeController : Enemy
                 HandleDamaged();
                 break;
         }
+
+        ClampPositionToStageY();
     }
 
     private void HandleIdle()
@@ -167,7 +192,12 @@ public class MinionMeleeController : Enemy
             return;
         }
 
-        float distToPlayer = Vector2.Distance(transform.position, player.position);
+        Vector2 minionPosition = transform.position;
+        Vector2 playerPosition = player.position;
+
+        float distToPlayer = Vector2.Distance(minionPosition, playerPosition);
+        float horizontalDistance = Mathf.Abs(playerPosition.x - minionPosition.x);
+        float verticalDistance = Mathf.Abs(playerPosition.y - minionPosition.y);
 
         if (distToPlayer > detectionRange)
         {
@@ -179,18 +209,48 @@ public class MinionMeleeController : Enemy
         Vector2 moveDirection = Vector2.zero;
 
         bool isReadyToAttack = cooldownTimer <= 0f && attackTokens > 0;
+        bool isHorizontalAttackMotion = horizontalAttackOnly && isReadyToAttack;
 
         if (isReadyToAttack)
         {
-            if (distToPlayer > attackRange * 0.8f)
+            if (horizontalAttackOnly)
             {
-                moveDirection = ((Vector2)player.position - (Vector2)transform.position).normalized * 1.2f;
-            }
+                bool isAlignedOnY = verticalDistance <= attackYTolerance;
 
-            if (distToPlayer <= attackRange)
+                if (!isAlignedOnY)
+                {
+                    // Koreksi jalur dilakukan vertikal terlebih dahulu, bukan diagonal.
+                    float yDirection = Mathf.Sign(playerPosition.y - minionPosition.y);
+                    moveDirection = new Vector2(0f, yDirection);
+                }
+                else
+                {
+                    if (horizontalDistance > attackRange * 0.8f)
+                    {
+                        float xDirection = Mathf.Sign(playerPosition.x - minionPosition.x);
+                        moveDirection = new Vector2(xDirection, 0f);
+                    }
+
+                    if (horizontalDistance <= attackRange)
+                    {
+                        FacePlayerHorizontally();
+                        ChangeState(MinionState.Attack);
+                        return;
+                    }
+                }
+            }
+            else
             {
-                ChangeState(MinionState.Attack);
-                return;
+                if (distToPlayer > attackRange * 0.8f)
+                {
+                    moveDirection = ((Vector2)player.position - (Vector2)transform.position).normalized * 1.2f;
+                }
+
+                if (distToPlayer <= attackRange)
+                {
+                    ChangeState(MinionState.Attack);
+                    return;
+                }
             }
         }
         else
@@ -200,7 +260,10 @@ public class MinionMeleeController : Enemy
                 Mathf.Sin(assignedOrbitAngle)
             ) * hordeRadius;
 
-            targetPosition = (Vector2)player.position + offset;
+            targetPosition = new Vector2(
+                playerPosition.x + offset.x,
+                Mathf.Clamp(playerPosition.y + offset.y, minY, maxY)
+            );
 
             float distToOrbitPoint = Vector2.Distance(transform.position, targetPosition);
 
@@ -239,20 +302,18 @@ public class MinionMeleeController : Enemy
 
         Vector2 finalMoveDir = (moveDirection + separation * separationWeight).normalized;
 
+        if (isHorizontalAttackMotion && moveDirection.sqrMagnitude > 0.01f)
+        {
+            finalMoveDir = GetAxisLockedDirection(moveDirection);
+        }
+
         if (moveDirection.sqrMagnitude > 0.01f || separation.sqrMagnitude > 0.01f)
         {
             transform.position += (Vector3)(finalMoveDir * moveSpeed * Time.deltaTime);
+            ClampPositionToStageY();
         }
 
-        float faceDirection = player.position.x - transform.position.x;
-
-        if (Mathf.Abs(faceDirection) > 0.1f)
-        {
-            if ((faceDirection > 0f && !isFacingRight) || (faceDirection < 0f && isFacingRight))
-            {
-                Flip();
-            }
-        }
+        FacePlayerHorizontally();
     }
 
     private void HandleAttack()
@@ -377,6 +438,43 @@ public class MinionMeleeController : Enemy
 
     private void GiveDamageToPlayer()
     {
+        if (player == null)
+            FindPlayer();
+
+        if (player == null)
+            return;
+
+        FacePlayerHorizontally();
+
+        if (horizontalAttackOnly)
+        {
+            float attackWidth = horizontalAttackWidth > 0f ? horizontalAttackWidth : attackRange;
+            float attackOffset = horizontalAttackOffset > 0f ? horizontalAttackOffset : attackWidth * 0.5f;
+            float facingDirection = isFacingRight ? 1f : -1f;
+
+            Vector2 boxCenter = (Vector2)transform.position + Vector2.right * facingDirection * attackOffset;
+            Vector2 boxSize = new Vector2(attackWidth, horizontalAttackHeight);
+
+            Collider2D[] hits = Physics2D.OverlapBoxAll(boxCenter, boxSize, 0f);
+
+            foreach (Collider2D hit in hits)
+            {
+                if (!hit.CompareTag("Player"))
+                    continue;
+
+                CharacterBase playerStats = hit.GetComponent<CharacterBase>();
+
+                if (playerStats != null)
+                {
+                    playerStats.TakeDamage(attack, gameObject);
+                    Debug.Log($"<color=red>[MINION ATTACK]</color> Minion hit Player secara horizontal! Damage: {attack}");
+                    return;
+                }
+            }
+
+            return;
+        }
+
         Collider2D playerCol = Physics2D.OverlapCircle(transform.position, attackRange);
 
         if (playerCol == null)
@@ -385,12 +483,69 @@ public class MinionMeleeController : Enemy
         if (!playerCol.CompareTag("Player"))
             return;
 
-        CharacterBase playerStats = playerCol.GetComponent<CharacterBase>();
+        CharacterBase fallbackPlayerStats = playerCol.GetComponent<CharacterBase>();
 
-        if (playerStats != null)
+        if (fallbackPlayerStats != null)
         {
-            playerStats.TakeDamage(attack, gameObject);
+            fallbackPlayerStats.TakeDamage(attack, gameObject);
             Debug.Log($"<color=red>[MINION ATTACK]</color> Minion hit Player! Damage: {attack}");
         }
     }
+
+    private Vector2 GetAxisLockedDirection(Vector2 inputDirection)
+    {
+        if (Mathf.Abs(inputDirection.x) >= Mathf.Abs(inputDirection.y))
+        {
+            return new Vector2(Mathf.Sign(inputDirection.x), 0f);
+        }
+
+        return new Vector2(0f, Mathf.Sign(inputDirection.y));
+    }
+
+    private void FacePlayerHorizontally()
+    {
+        if (player == null)
+            return;
+
+        float faceDirection = player.position.x - transform.position.x;
+
+        if (Mathf.Abs(faceDirection) > 0.1f)
+        {
+            if ((faceDirection > 0f && !isFacingRight) || (faceDirection < 0f && isFacingRight))
+            {
+                Flip();
+            }
+        }
+    }
+
+    private void ClampPositionToStageY()
+    {
+        Vector3 clampedPosition = transform.position;
+        clampedPosition.y = Mathf.Clamp(clampedPosition.y, minY, maxY);
+        transform.position = clampedPosition;
+    }
+
+#if UNITY_EDITOR
+    private void OnDrawGizmosSelected()
+    {
+        float attackWidth = horizontalAttackWidth > 0f ? horizontalAttackWidth : attackRange;
+        float attackOffset = horizontalAttackOffset > 0f ? horizontalAttackOffset : attackWidth * 0.5f;
+        float facingDirection = isFacingRight ? 1f : -1f;
+
+        Vector2 boxCenter = (Vector2)transform.position + Vector2.right * facingDirection * attackOffset;
+        Vector2 boxSize = new Vector2(attackWidth, horizontalAttackHeight);
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireCube(boxCenter, boxSize);
+
+        Gizmos.color = Color.yellow;
+        Vector3 leftBoundStart = new Vector3(transform.position.x - 2f, minY, transform.position.z);
+        Vector3 leftBoundEnd = new Vector3(transform.position.x + 2f, minY, transform.position.z);
+        Vector3 rightBoundStart = new Vector3(transform.position.x - 2f, maxY, transform.position.z);
+        Vector3 rightBoundEnd = new Vector3(transform.position.x + 2f, maxY, transform.position.z);
+
+        Gizmos.DrawLine(leftBoundStart, leftBoundEnd);
+        Gizmos.DrawLine(rightBoundStart, rightBoundEnd);
+    }
+#endif
 }
