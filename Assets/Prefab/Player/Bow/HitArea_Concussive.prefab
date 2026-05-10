@@ -130,15 +130,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04b0f3c254f90bd40a2d0f7c6867377b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  damage: 10
-  knockback: 6
-  stun: 0.35
-  radius: 1.4
+  damageLedak: 10
+  dorongLedak: 6
+  stunLedak: 0.35
+  radiusLedak: 1.4
   owner: {fileID: 0}
   hitMask:
     serializedVersion: 2
-    m_Bits: 8
-  lifeTime: 0.15
+    m_Bits: 72
+  waktuHidup: 0.15
 --- !u!50 &2562713775554911117
 Rigidbody2D:
   serializedVersion: 4

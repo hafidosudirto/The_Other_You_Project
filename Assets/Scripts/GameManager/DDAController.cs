@@ -11,6 +11,9 @@ public class DDAController : MonoBehaviour
 {
     public static DDAController Instance { get; private set; }
 
+    private const int SwordSkillSlotTotal = 4;
+    private const int BowSkillSlotTotal = 5;
+
     // =========================================================
     // FINAL RESULT PER STAGE
     // =========================================================
@@ -32,13 +35,14 @@ public class DDAController : MonoBehaviour
     private float[] swordSkillWeights = new float[] { 25f, 25f, 25f, 25f };
 
     // =========================================================
-    // BOW SKILL WEIGHTS (UPDATED: 4 SLOTS)
+    // BOW SKILL WEIGHTS (UPDATED: 5 SLOTS)
     // [0] QuickShot
-    // [1] PiercingShot
+    // [1] SpreadArrow
     // [2] FullDraw
-    // [3] ConcussiveShot (Reaktif / Defense)
+    // [3] FullDrawFullCharge / Piercing
+    // [4] ConcussiveShot
     // =========================================================
-    private float[] bowSkillWeights = new float[] { 25f, 25f, 25f, 25f };
+    private float[] bowSkillWeights = new float[] { 33.34f, 33.33f, 33.33f, 0f, 0f };
     private bool hasBowSkillProfile = false;
 
     public bool HasBowSkillProfile => hasBowSkillProfile;
@@ -84,7 +88,8 @@ public class DDAController : MonoBehaviour
         int[] bowSkillCounts,
         int dashCount,
         int riposteCount,
-        int concussiveCount)
+        int concussiveCount
+    )
     {
         // 1. Analisis playstyle
         if (offensive > defensive)
@@ -102,13 +107,13 @@ public class DDAController : MonoBehaviour
         // 3. Analisis senjata dominan
         currentPlayerDominantWeapon = AnalyzeDominantWeapon();
 
-        // 4. Normalisasi sword (4 slot)
+        // 4. Normalisasi sword
         NormalizeSwordSkillWeights(swordSkillCounts);
 
-        // 5. Normalisasi bow (4 slot: 3 Attack + 1 Concussive)
+        // 5. Normalisasi bow 5 slot
         NormalizeBowSkillWeights(bowSkillCounts);
 
-        // 6. Normalisasi defense (Hanya Dash & Riposte)
+        // 6. Normalisasi defense
         NormalizeDefenseWeights(dashCount, riposteCount);
 
         // 7. Versioning
@@ -119,7 +124,7 @@ public class DDAController : MonoBehaviour
             $"Weapon={currentPlayerDominantWeapon}, " +
             $"Version={ProfileVersion}, " +
             $"SwordWeights=[{swordSkillWeights[0]:F1}, {swordSkillWeights[1]:F1}, {swordSkillWeights[2]:F1}, {swordSkillWeights[3]:F1}], " +
-            $"BowWeights=[{bowSkillWeights[0]:F1}, {bowSkillWeights[1]:F1}, {bowSkillWeights[2]:F1}, {bowSkillWeights[3]:F1}], " +
+            $"BowWeights=[Quick={bowSkillWeights[0]:F1}, Spread={bowSkillWeights[1]:F1}, FullDraw={bowSkillWeights[2]:F1}, FullCharge={bowSkillWeights[3]:F1}, Concussive={bowSkillWeights[4]:F1}], " +
             $"HasBowProfile={hasBowSkillProfile}, " +
             $"DefenseWeights=[Dash={defenseDashWeight:F1}, Riposte={defenseRiposteWeight:F1}], " +
             $"HasDefenseProfile={hasDefenseProfile}"
@@ -129,6 +134,7 @@ public class DDAController : MonoBehaviour
     // =========================================================
     // API UNTUK ENEMY AI / NODEMANAGER
     // =========================================================
+
     public float[] GetCurrentSwordSkillWeightsCopy()
     {
         return (float[])swordSkillWeights.Clone();
@@ -137,6 +143,16 @@ public class DDAController : MonoBehaviour
     public float[] GetCurrentBowSkillWeightsCopy()
     {
         return (float[])bowSkillWeights.Clone();
+    }
+
+    public float GetBowSkillWeight(BowSkillSlot slot)
+    {
+        int index = (int)slot;
+
+        if (index < 0 || index >= bowSkillWeights.Length)
+            return 0f;
+
+        return bowSkillWeights[index];
     }
 
     public float GetCurrentDefenseDashWeight()
@@ -150,48 +166,102 @@ public class DDAController : MonoBehaviour
     }
 
     // =========================================================
-    // NORMALIZATION MEMORY FIX (REVISI DESIGNER)
+    // NORMALIZATION
     // =========================================================
+
     private void NormalizeSwordSkillWeights(int[] counts)
     {
-        if (counts == null || counts.Length != 4) return;
+        if (counts == null || counts.Length < SwordSkillSlotTotal)
+            return;
 
         int total = 0;
-        for (int i = 0; i < counts.Length; i++)
+
+        for (int i = 0; i < SwordSkillSlotTotal; i++)
             total += Mathf.Max(0, counts[i]);
 
-        // [PERBAIKAN DDA]: Jika tidak ada serangan pedang sama sekali di stage ini,
-        // reset persentase ke default (seimbang), BUKAN menyimpan memori stage lama.
         if (total <= 0)
         {
             swordSkillWeights = new float[] { 25f, 25f, 25f, 25f };
             return;
         }
 
-        for (int i = 0; i < counts.Length; i++)
+        for (int i = 0; i < SwordSkillSlotTotal; i++)
             swordSkillWeights[i] = (Mathf.Max(0, counts[i]) / (float)total) * 100f;
     }
 
     private void NormalizeBowSkillWeights(int[] counts)
     {
-        if (counts == null || counts.Length != 4) return;
+        int[] normalizedCounts = BuildCompatibleBowCounts(counts);
 
         int total = 0;
-        for (int i = 0; i < counts.Length; i++)
-            total += Mathf.Max(0, counts[i]);
 
-        // [PERBAIKAN DDA]: Reset persentase ke default jika tidak ada penggunaan panah
+        for (int i = 0; i < normalizedCounts.Length; i++)
+            total += Mathf.Max(0, normalizedCounts[i]);
+
         if (total <= 0)
         {
-            bowSkillWeights = new float[] { 25f, 25f, 25f, 25f };
+            /*
+             * Default sengaja hanya ofensif dasar.
+             * Concussive dan FullCharge tidak diberi bobot default agar tidak muncul
+             * sebelum player benar-benar memakainya.
+             */
+            bowSkillWeights = new float[] { 33.34f, 33.33f, 33.33f, 0f, 0f };
             hasBowSkillProfile = false;
             return;
         }
 
         hasBowSkillProfile = true;
 
-        for (int i = 0; i < counts.Length; i++)
-            bowSkillWeights[i] = (Mathf.Max(0, counts[i]) / (float)total) * 100f;
+        if (bowSkillWeights == null || bowSkillWeights.Length != BowSkillSlotTotal)
+            bowSkillWeights = new float[BowSkillSlotTotal];
+
+        for (int i = 0; i < BowSkillSlotTotal; i++)
+        {
+            bowSkillWeights[i] =
+                (Mathf.Max(0, normalizedCounts[i]) / (float)total) * 100f;
+        }
+    }
+
+    private int[] BuildCompatibleBowCounts(int[] counts)
+    {
+        int[] result = new int[BowSkillSlotTotal];
+
+        if (counts == null)
+            return result;
+
+        /*
+         * Format baru:
+         * [0] QuickShot
+         * [1] SpreadArrow
+         * [2] FullDraw
+         * [3] FullDrawFullCharge
+         * [4] ConcussiveShot
+         */
+        if (counts.Length >= 5)
+        {
+            for (int i = 0; i < BowSkillSlotTotal; i++)
+                result[i] = Mathf.Max(0, counts[i]);
+
+            return result;
+        }
+
+        /*
+         * Format lama:
+         * [0] QuickShot
+         * [1] SpreadArrow / Piercing lama
+         * [2] FullDraw
+         * [3] ConcussiveShot
+         */
+        if (counts.Length == 4)
+        {
+            result[(int)BowSkillSlot.QuickShot] = Mathf.Max(0, counts[0]);
+            result[(int)BowSkillSlot.SpreadArrow] = Mathf.Max(0, counts[1]);
+            result[(int)BowSkillSlot.FullDraw] = Mathf.Max(0, counts[2]);
+            result[(int)BowSkillSlot.FullDrawFullCharge] = 0;
+            result[(int)BowSkillSlot.ConcussiveShot] = Mathf.Max(0, counts[3]);
+        }
+
+        return result;
     }
 
     private void NormalizeDefenseWeights(int dashCount, int riposteCount)
@@ -201,7 +271,6 @@ public class DDAController : MonoBehaviour
 
         int total = dashCount + riposteCount;
 
-        // JIKA PLAYER TIDAK DASH, RESET KE 0
         if (total <= 0)
         {
             defenseDashWeight = 0f;
@@ -211,6 +280,7 @@ public class DDAController : MonoBehaviour
         }
 
         hasDefenseProfile = true;
+
         defenseDashWeight = (dashCount / (float)total) * 100f;
         defenseRiposteWeight = (riposteCount / (float)total) * 100f;
     }
@@ -218,21 +288,29 @@ public class DDAController : MonoBehaviour
     // =========================================================
     // WEAPON DOMINANCE & RESET
     // =========================================================
+
     private WeaponType AnalyzeDominantWeapon()
     {
         int max = Mathf.Max(swordCount, Mathf.Max(bowCount, gauntletCount));
 
-        if (max == 0) return WeaponType.None;
+        if (max == 0)
+            return WeaponType.None;
 
         int tieCount = 0;
+
         if (swordCount == max) tieCount++;
         if (bowCount == max) tieCount++;
         if (gauntletCount == max) tieCount++;
 
-        if (tieCount > 1) return WeaponType.None;
+        if (tieCount > 1)
+            return WeaponType.None;
 
-        if (swordCount == max) return WeaponType.Sword;
-        if (bowCount == max) return WeaponType.Bow;
+        if (swordCount == max)
+            return WeaponType.Sword;
+
+        if (bowCount == max)
+            return WeaponType.Bow;
+
         return WeaponType.Gauntlet;
     }
 
@@ -249,7 +327,12 @@ public class DDAController : MonoBehaviour
         currentPlayerDominantWeapon = WeaponType.None;
 
         swordSkillWeights = new float[] { 25f, 25f, 25f, 25f };
-        bowSkillWeights = new float[] { 25f, 25f, 25f, 25f };
+
+        /*
+         * Default Bow hanya Quick, Spread, FullDraw biasa.
+         * FullCharge dan Concussive tidak default agar tidak muncul tanpa data.
+         */
+        bowSkillWeights = new float[] { 33.34f, 33.33f, 33.33f, 0f, 0f };
 
         defenseDashWeight = 0f;
         defenseRiposteWeight = 0f;
@@ -258,6 +341,8 @@ public class DDAController : MonoBehaviour
         hasDefenseProfile = false;
 
         ResetWeaponAnalysis();
+
+        ProfileVersion++;
 
         Debug.Log("[DDA] Semua bobot dan profil DDA telah direset untuk stage berikutnya.");
     }

@@ -50,12 +50,15 @@ public class EnemyMovementFSM : MonoBehaviour
 
     [Header("Attack Movement Lock")]
     [SerializeField] private bool isAttackMovementLocked;
-    [SerializeField] private float defaultAttackLockFailSafe = 0.6f;
+    [SerializeField] private float defaultAttackLockFailSafe = 0.75f;
     private float attackLockUntil = -999f;
 
     public bool IsExternallyLocked => isExternallyLocked;
     public bool IsAttackMovementLocked => isAttackMovementLocked;
     public bool IsMovementLocked => isExternallyLocked || isAttackMovementLocked;
+
+    public MoveState CurrentState => currentState;
+    public CombatMovementMode CurrentMovementMode => movementMode;
 
     private void Awake()
     {
@@ -111,6 +114,7 @@ public class EnemyMovementFSM : MonoBehaviour
         {
             isAttackMovementLocked = false;
             attackLockUntil = -999f;
+
             StopMovementVelocity();
             SwitchState(MoveState.Idle);
         }
@@ -202,6 +206,8 @@ public class EnemyMovementFSM : MonoBehaviour
             return;
 
         Vector2 toPlayer = player.position - transform.position;
+
+        float distanceToPlayer = toPlayer.magnitude;
         float absDistX = Mathf.Abs(toPlayer.x);
         float absDistY = Mathf.Abs(toPlayer.y);
 
@@ -209,19 +215,32 @@ public class EnemyMovementFSM : MonoBehaviour
         bool isChasing = currentState == MoveState.Chase;
         bool isAligning = currentState == MoveState.Aligning;
 
-        float retreatThreshold = isRetreating ? minimumCombatRange : minimumCombatRange - rangeTolerance;
-        float chaseThreshold = isChasing ? desiredRange : desiredRange + rangeTolerance;
-        float alignThreshold = isAligning ? verticalTolerance * 0.5f : verticalTolerance;
+        float retreatThreshold = isRetreating
+            ? minimumCombatRange + rangeTolerance
+            : minimumCombatRange;
+
+        float chaseThreshold = isChasing
+            ? Mathf.Max(0f, desiredRange - rangeTolerance)
+            : desiredRange + rangeTolerance;
+
+        float alignThreshold = isAligning
+            ? verticalTolerance * 0.5f
+            : verticalTolerance;
 
         if (movementMode == CombatMovementMode.Bow)
         {
-            if (absDistX < retreatThreshold)
+            /*
+             * Untuk Bow, jarak yang dipakai adalah jarak vektor.
+             * Sebelumnya Bow dapat tampak diam jika jarak horizontal tidak besar,
+             * padahal player sebenarnya jauh secara diagonal atau vertikal.
+             */
+            if (minimumCombatRange > 0f && distanceToPlayer < retreatThreshold)
             {
                 SwitchState(MoveState.Retreat);
                 return;
             }
 
-            if (absDistX > chaseThreshold)
+            if (distanceToPlayer > chaseThreshold)
             {
                 SwitchState(MoveState.Chase);
                 return;
@@ -235,6 +254,9 @@ public class EnemyMovementFSM : MonoBehaviour
         }
         else
         {
+            /*
+             * Untuk Sword, sumbu X tetap lebih dominan karena sword perlu masuk jarak serang dekat.
+             */
             if (absDistX > chaseThreshold)
             {
                 SwitchState(MoveState.Chase);
@@ -259,7 +281,7 @@ public class EnemyMovementFSM : MonoBehaviour
                 rb.velocity = Vector2.Lerp(
                     rb.velocity,
                     Vector2.zero,
-                    Time.deltaTime * accel
+                    Time.fixedDeltaTime * accel
                 );
                 break;
 

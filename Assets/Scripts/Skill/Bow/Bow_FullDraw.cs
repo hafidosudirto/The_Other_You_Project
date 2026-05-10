@@ -635,7 +635,7 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
             damagePanah.SetStats(damage, knockback, stun, piercing, false);
         }
 
-        CatatDataFullDraw();
+        CatatDataFullDraw(piercing);
 
         if (debugLog)
         {
@@ -1133,18 +1133,63 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
         return null;
     }
 
-    private void CatatDataFullDraw()
+    private void CatatDataFullDraw(bool piercing)
     {
         DataTracker tracker = DataTracker.Instance;
 
         if (tracker == null)
             return;
 
-        MethodInfo method = tracker.GetType().GetMethod("RecordBowFullDraw");
+        /*
+         * DDA baru membedakan:
+         * - FullDraw biasa
+         * - FullDrawFullCharge / Piercing
+         *
+         * Reflection dipakai agar tetap aman jika ada build lama yang belum
+         * memiliki method baru.
+         */
+        string primaryMethodName = piercing
+            ? "RecordBowFullDrawFullCharge"
+            : "RecordBowFullDrawNormal";
 
-        if (method != null)
+        MethodInfo primaryMethod = tracker.GetType().GetMethod(primaryMethodName);
+
+        if (primaryMethod != null)
         {
-            method.Invoke(tracker, null);
+            primaryMethod.Invoke(tracker, null);
+            return;
+        }
+
+        /*
+         * Alias kompatibilitas untuk full charge / piercing.
+         */
+        if (piercing)
+        {
+            MethodInfo piercingAlias = tracker.GetType().GetMethod("RecordBowPiercingShot");
+
+            if (piercingAlias != null)
+            {
+                piercingAlias.Invoke(tracker, null);
+                return;
+            }
+
+            MethodInfo fullDrawPiercingAlias = tracker.GetType().GetMethod("RecordBowFullDrawPiercing");
+
+            if (fullDrawPiercingAlias != null)
+            {
+                fullDrawPiercingAlias.Invoke(tracker, null);
+                return;
+            }
+        }
+
+        /*
+         * Fallback lama: semua FullDraw dicatat sebagai FullDraw biasa.
+         */
+        MethodInfo legacyMethod = tracker.GetType().GetMethod("RecordBowFullDraw");
+
+        if (legacyMethod != null)
+        {
+            legacyMethod.Invoke(tracker, null);
             return;
         }
 

@@ -6,30 +6,93 @@ using UnityEngine;
 public class BowAnimationEventRelay_Enemy : MonoBehaviour
 {
     [Header("Bow Skills Enemy")]
-    [Tooltip("Isi dengan komponen Enemy_Bow_QuickShot.")]
     public MonoBehaviour quickShot;
-
-    [Tooltip("Isi dengan komponen Enemy_Bow_FullDraw.")]
     public MonoBehaviour fullDraw;
-
-    [Tooltip("Isi dengan komponen Spread Arrow enemy. Jika belum ada class khusus SpreadArrow enemy, boleh sementara isi dengan komponen lama Enemy_Bow_PiercingShot sebagai fallback.")]
     public MonoBehaviour spreadArrow;
-
-    [Tooltip("Isi dengan komponen Enemy_Bow_ConcussiveShot.")]
     public MonoBehaviour concussiveShot;
 
-    [Header("Fallback / Compatibility")]
-    [Tooltip("Jika SpreadArrow belum ditemukan, relay boleh memakai piercing lama sebagai fallback release.")]
-    [SerializeField] private bool allowPiercingAsSpreadFallback = true;
-
-    [Tooltip("Jika aktif, relay akan mencoba mencari referensi skill otomatis dari EnemyCombatController dan child SkillRoot_Bow.")]
+    [Header("Auto Assign")]
     [SerializeField] private bool autoAssignOnAwake = true;
+    [SerializeField] private bool autoAssignBeforeEveryEvent = true;
 
     [Header("Debug")]
-    [SerializeField] private bool debugEvent = true;
+    [SerializeField] private bool debugEvent = false;
     [SerializeField] private bool warningIfMissing = true;
 
+    private static readonly string[] QuickShotMethods =
+    {
+        "ReleaseFromAnimationEvent",
+        "ReleaseQuickShot",
+        "Release",
+        "Shoot"
+    };
+
+    private static readonly string[] FullDrawMethods =
+    {
+        "ReleaseFromAnimationEvent",
+        "ReleaseFullDraw",
+        "Release",
+        "Shoot"
+    };
+
+    private static readonly string[] SpreadStartBackDashMethods =
+    {
+        "StartBackDash",
+        "StartBackDashFromAnimationEvent",
+        "BeginBackDash",
+        "BeginBackDashFromAnimationEvent"
+    };
+
+    private static readonly string[] SpreadReleaseMethods =
+    {
+        "ReleaseSpreadArrow",
+        "ReleaseFromAnimationEvent",
+        "ReleaseSpread",
+        "Release",
+        "Shoot"
+    };
+
+    private static readonly string[] SpreadEndRecoveryMethods =
+    {
+        "EndSpreadArrowRecovery",
+        "EndRecoveryFromAnimationEvent",
+        "EndRecovery",
+        "FinishRecovery",
+        "Finish"
+    };
+
+    private static readonly string[] ConcussiveStartPopMethods =
+    {
+        "StartPopFromAnimationEvent",
+        "StartPop",
+        "BeginPop",
+        "BeginPopFromAnimationEvent"
+    };
+
+    private static readonly string[] ConcussiveReleaseMethods =
+    {
+        "ReleaseFromAnimationEvent",
+        "ReleaseConcussive",
+        "Release",
+        "Shoot"
+    };
+
+    private static readonly string[] ConcussiveEndRecoveryMethods =
+    {
+        "EndRecoveryFromAnimationEvent",
+        "EndConcussiveRecovery",
+        "EndRecovery",
+        "FinishRecovery",
+        "Finish"
+    };
+
     private void Awake()
+    {
+        if (autoAssignOnAwake)
+            AutoAssign();
+    }
+
+    private void OnEnable()
     {
         if (autoAssignOnAwake)
             AutoAssign();
@@ -50,53 +113,87 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
 
         if (combat != null)
         {
-            if (quickShot == null)
-                quickShot = GetMemberAsBehaviour(combat, "quickShotBow", "quickShot", "enemyQuickShot");
+            quickShot = ResolveCombatMemberIfCompatible(
+                combat,
+                quickShot,
+                QuickShotMethods,
+                "quickShotBow",
+                "quickShot",
+                "enemyQuickShot"
+            );
 
-            if (fullDraw == null)
-                fullDraw = GetMemberAsBehaviour(combat, "fullDrawBow", "fullDraw", "enemyFullDraw");
+            fullDraw = ResolveCombatMemberIfCompatible(
+                combat,
+                fullDraw,
+                FullDrawMethods,
+                "fullDrawBow",
+                "fullDraw",
+                "enemyFullDraw"
+            );
 
-            if (spreadArrow == null)
-                spreadArrow = GetMemberAsBehaviour(
-                    combat,
-                    "spreadArrowBow",
-                    "spreadBow",
-                    "spreadArrow",
-                    "spreadShotBow",
-                    "spreadShot"
-                );
+            spreadArrow = ResolveCombatMemberIfCompatible(
+                combat,
+                spreadArrow,
+                SpreadReleaseMethods,
+                "spreadArrowBow",
+                "spreadBow",
+                "spreadArrow",
+                "spreadShotBow",
+                "spreadShot"
+            );
 
-            if (concussiveShot == null)
-                concussiveShot = GetMemberAsBehaviour(combat, "concussiveBow", "concussiveShot", "enemyConcussive");
-
-            if (allowPiercingAsSpreadFallback && spreadArrow == null)
-                spreadArrow = GetMemberAsBehaviour(combat, "piercingBow", "piercingShot", "enemyPiercing");
+            concussiveShot = ResolveCombatMemberIfCompatible(
+                combat,
+                concussiveShot,
+                ConcussiveReleaseMethods,
+                "concussiveBow",
+                "concussiveShot",
+                "enemyConcussive"
+            );
         }
 
-        if (quickShot == null)
-            quickShot = FindBehaviourByTypeName("Enemy_Bow_QuickShot");
-
-        if (fullDraw == null)
-            fullDraw = FindBehaviourByTypeName("Enemy_Bow_FullDraw");
-
-        if (spreadArrow == null)
+        if (!HasAnyMethod(quickShot, QuickShotMethods))
         {
-            spreadArrow = FindBehaviourByTypeName(
+            quickShot = FindCompatibleBehaviour(
+                QuickShotMethods,
+                "Enemy_Bow_QuickShot"
+            );
+        }
+
+        if (!HasAnyMethod(fullDraw, FullDrawMethods))
+        {
+            fullDraw = FindCompatibleBehaviour(
+                FullDrawMethods,
+                "Enemy_Bow_FullDraw"
+            );
+        }
+
+        /*
+         * Bagian penting:
+         * Spread Arrow tidak boleh memakai Enemy_SkillBase jika base itu
+         * tidak punya ReleaseSpreadArrow / StartBackDash / EndSpreadArrowRecovery.
+         */
+        if (!HasAnyMethod(spreadArrow, SpreadReleaseMethods))
+        {
+            spreadArrow = FindCompatibleBehaviour(
+                SpreadReleaseMethods,
                 "Enemy_Bow_SpreadArrow",
                 "Enemy_Bow_SpreadShot",
                 "Enemy_Bow_Spread"
             );
         }
 
-        if (allowPiercingAsSpreadFallback && spreadArrow == null)
-            spreadArrow = FindBehaviourByTypeName("Enemy_Bow_PiercingShot");
-
-        if (concussiveShot == null)
-            concussiveShot = FindBehaviourByTypeName("Enemy_Bow_ConcussiveShot");
+        if (!HasAnyMethod(concussiveShot, ConcussiveReleaseMethods))
+        {
+            concussiveShot = FindCompatibleBehaviour(
+                ConcussiveReleaseMethods,
+                "Enemy_Bow_ConcussiveShot"
+            );
+        }
     }
 
     // =========================================================
-    // EVENT NAMA BARU - SESUAI KLIP PLAYER YANG ANDA MIRROR
+    // ANIMATION EVENTS - BOW
     // =========================================================
 
     public void AE_BowQuickShot_Release()
@@ -104,12 +201,10 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
         LogEvent(nameof(AE_BowQuickShot_Release));
 
         InvokeSkillMethod(
-            quickShot,
+            ref quickShot,
             nameof(AE_BowQuickShot_Release),
-            "ReleaseFromAnimationEvent",
-            "ReleaseQuickShot",
-            "Release",
-            "Shoot"
+            QuickShotMethods,
+            "Enemy_Bow_QuickShot"
         );
     }
 
@@ -118,12 +213,10 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
         LogEvent(nameof(AE_BowFullDraw_Release));
 
         InvokeSkillMethod(
-            fullDraw,
+            ref fullDraw,
             nameof(AE_BowFullDraw_Release),
-            "ReleaseFromAnimationEvent",
-            "ReleaseFullDraw",
-            "Release",
-            "Shoot"
+            FullDrawMethods,
+            "Enemy_Bow_FullDraw"
         );
     }
 
@@ -132,12 +225,12 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
         LogEvent(nameof(AE_BowSpreadArrow_StartBackDash));
 
         InvokeSkillMethod(
-            spreadArrow,
+            ref spreadArrow,
             nameof(AE_BowSpreadArrow_StartBackDash),
-            "StartBackDash",
-            "StartBackDashFromAnimationEvent",
-            "BeginBackDash",
-            "BeginBackDashFromAnimationEvent"
+            SpreadStartBackDashMethods,
+            "Enemy_Bow_SpreadArrow",
+            "Enemy_Bow_SpreadShot",
+            "Enemy_Bow_Spread"
         );
     }
 
@@ -146,13 +239,12 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
         LogEvent(nameof(AE_BowSpreadArrow_Release));
 
         InvokeSkillMethod(
-            spreadArrow,
+            ref spreadArrow,
             nameof(AE_BowSpreadArrow_Release),
-            "ReleaseSpreadArrow",
-            "ReleaseFromAnimationEvent",
-            "ReleaseSpread",
-            "Release",
-            "Shoot"
+            SpreadReleaseMethods,
+            "Enemy_Bow_SpreadArrow",
+            "Enemy_Bow_SpreadShot",
+            "Enemy_Bow_Spread"
         );
     }
 
@@ -161,13 +253,12 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
         LogEvent(nameof(AE_BowSpreadArrow_EndRecovery));
 
         InvokeSkillMethod(
-            spreadArrow,
+            ref spreadArrow,
             nameof(AE_BowSpreadArrow_EndRecovery),
-            "EndSpreadArrowRecovery",
-            "EndRecoveryFromAnimationEvent",
-            "EndRecovery",
-            "FinishRecovery",
-            "Finish"
+            SpreadEndRecoveryMethods,
+            "Enemy_Bow_SpreadArrow",
+            "Enemy_Bow_SpreadShot",
+            "Enemy_Bow_Spread"
         );
     }
 
@@ -176,12 +267,10 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
         LogEvent(nameof(AE_BowConcussive_StartPop));
 
         InvokeSkillMethod(
-            concussiveShot,
+            ref concussiveShot,
             nameof(AE_BowConcussive_StartPop),
-            "StartPopFromAnimationEvent",
-            "StartPop",
-            "BeginPop",
-            "BeginPopFromAnimationEvent"
+            ConcussiveStartPopMethods,
+            "Enemy_Bow_ConcussiveShot"
         );
     }
 
@@ -190,12 +279,10 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
         LogEvent(nameof(AE_BowConcussive_Release));
 
         InvokeSkillMethod(
-            concussiveShot,
+            ref concussiveShot,
             nameof(AE_BowConcussive_Release),
-            "ReleaseFromAnimationEvent",
-            "ReleaseConcussive",
-            "Release",
-            "Shoot"
+            ConcussiveReleaseMethods,
+            "Enemy_Bow_ConcussiveShot"
         );
     }
 
@@ -204,18 +291,15 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
         LogEvent(nameof(AE_BowConcussive_EndRecovery));
 
         InvokeSkillMethod(
-            concussiveShot,
+            ref concussiveShot,
             nameof(AE_BowConcussive_EndRecovery),
-            "EndRecoveryFromAnimationEvent",
-            "EndConcussiveRecovery",
-            "EndRecovery",
-            "FinishRecovery",
-            "Finish"
+            ConcussiveEndRecoveryMethods,
+            "Enemy_Bow_ConcussiveShot"
         );
     }
 
     // =========================================================
-    // ALIAS LAMA - SUPAYA KLIP LAMA TIDAK LANGSUNG ERROR
+    // ALIAS LAMA / KOMPATIBILITAS
     // =========================================================
 
     public void AE_QuickShotRelease()
@@ -233,7 +317,6 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
         AE_BowConcussive_Release();
     }
 
-    // Piercing lama diarahkan ke SpreadArrow.
     public void AE_PiercingRelease()
     {
         AE_BowSpreadArrow_Release();
@@ -250,16 +333,22 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
     }
 
     // =========================================================
-    // INTERNAL UTILITIES
+    // INTERNAL
     // =========================================================
 
-    private void InvokeSkillMethod(MonoBehaviour target, string eventName, params string[] methodNames)
+    private void InvokeSkillMethod(
+        ref MonoBehaviour target,
+        string eventName,
+        string[] methodNames,
+        params string[] preferredTypeNames
+    )
     {
-        if (target == null)
-        {
+        if (autoAssignBeforeEveryEvent)
             AutoAssign();
 
-            target = ResolveTargetForEvent(eventName);
+        if (!HasAnyMethod(target, methodNames))
+        {
+            target = FindCompatibleBehaviour(methodNames, preferredTypeNames);
         }
 
         if (target == null)
@@ -267,7 +356,7 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
             if (warningIfMissing)
             {
                 Debug.LogWarning(
-                    $"[BowAnimationEventRelay_Enemy] {eventName} gagal. Referensi skill belum diisi pada {name}.",
+                    $"[BowAnimationEventRelay_Enemy] {eventName} gagal. Target skill tidak ditemukan atau belum punya method kompatibel.",
                     this
                 );
             }
@@ -303,7 +392,7 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
             {
                 Debug.LogError(
                     $"[BowAnimationEventRelay_Enemy] Error saat menjalankan {type.Name}.{method.Name}() dari {eventName}: {e.Message}",
-                    this
+                    target
                 );
 
                 return;
@@ -313,27 +402,43 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
         if (warningIfMissing)
         {
             Debug.LogWarning(
-                $"[BowAnimationEventRelay_Enemy] {eventName} gagal. Tidak ada method release yang cocok pada {type.Name}.",
+                $"[BowAnimationEventRelay_Enemy] {eventName} gagal. Tidak ada method kompatibel pada {type.Name}.",
                 target
             );
         }
     }
 
-    private MonoBehaviour ResolveTargetForEvent(string eventName)
+    private MonoBehaviour ResolveCombatMemberIfCompatible(
+        object source,
+        MonoBehaviour current,
+        string[] requiredMethods,
+        params string[] memberNames
+    )
     {
-        if (eventName.Contains("QuickShot"))
-            return quickShot;
+        if (HasAnyMethod(current, requiredMethods))
+            return current;
 
-        if (eventName.Contains("FullDraw"))
-            return fullDraw;
+        MonoBehaviour candidate = GetMemberAsBehaviour(source, memberNames);
 
-        if (eventName.Contains("SpreadArrow") || eventName.Contains("Piercing"))
-            return spreadArrow;
+        if (HasAnyMethod(candidate, requiredMethods))
+            return candidate;
 
-        if (eventName.Contains("Concussive"))
-            return concussiveShot;
+        /*
+         * Jika field combat menunjuk ke Enemy_SkillBase, jangan langsung dipakai.
+         * Cari komponen konkret di object yang sama atau anak-anaknya.
+         */
+        if (candidate != null)
+        {
+            MonoBehaviour nestedCandidate = FindCompatibleBehaviourInRoot(
+                candidate.transform,
+                requiredMethods
+            );
 
-        return null;
+            if (nestedCandidate != null)
+                return nestedCandidate;
+        }
+
+        return current;
     }
 
     private MonoBehaviour GetMemberAsBehaviour(object source, params string[] memberNames)
@@ -370,28 +475,49 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
         return null;
     }
 
-    private MonoBehaviour FindBehaviourByTypeName(params string[] typeNames)
+    private MonoBehaviour FindCompatibleBehaviour(string[] requiredMethods, params string[] preferredTypeNames)
     {
         Transform root = transform.root;
 
-        MonoBehaviour found = FindBehaviourByTypeNameInRoot(transform, typeNames);
+        MonoBehaviour found = FindCompatibleBehaviourInRoot(
+            transform,
+            requiredMethods,
+            preferredTypeNames
+        );
 
         if (found != null)
             return found;
 
         if (root != null && root != transform)
-            return FindBehaviourByTypeNameInRoot(root, typeNames);
+        {
+            found = FindCompatibleBehaviourInRoot(
+                root,
+                requiredMethods,
+                preferredTypeNames
+            );
+
+            if (found != null)
+                return found;
+        }
 
         return null;
     }
 
-    private MonoBehaviour FindBehaviourByTypeNameInRoot(Transform searchRoot, params string[] typeNames)
+    private MonoBehaviour FindCompatibleBehaviourInRoot(
+        Transform searchRoot,
+        string[] requiredMethods,
+        params string[] preferredTypeNames
+    )
     {
         if (searchRoot == null)
             return null;
 
         MonoBehaviour[] behaviours = searchRoot.GetComponentsInChildren<MonoBehaviour>(true);
 
+        /*
+         * Prioritas 1:
+         * Cari berdasarkan nama class yang diharapkan dan method yang benar.
+         */
         for (int i = 0; i < behaviours.Length; i++)
         {
             MonoBehaviour behaviour = behaviours[i];
@@ -399,16 +525,63 @@ public class BowAnimationEventRelay_Enemy : MonoBehaviour
             if (behaviour == null)
                 continue;
 
-            string typeName = behaviour.GetType().Name;
+            if (!IsPreferredType(behaviour, preferredTypeNames))
+                continue;
 
-            for (int j = 0; j < typeNames.Length; j++)
-            {
-                if (typeName == typeNames[j])
-                    return behaviour;
-            }
+            if (HasAnyMethod(behaviour, requiredMethods))
+                return behaviour;
+        }
+
+        /*
+         * Prioritas 2:
+         * Cari komponen apa pun yang punya method yang dibutuhkan.
+         * Ini membuat relay tetap aman walaupun nama class berubah.
+         */
+        for (int i = 0; i < behaviours.Length; i++)
+        {
+            MonoBehaviour behaviour = behaviours[i];
+
+            if (behaviour == null)
+                continue;
+
+            if (HasAnyMethod(behaviour, requiredMethods))
+                return behaviour;
         }
 
         return null;
+    }
+
+    private bool IsPreferredType(MonoBehaviour behaviour, params string[] preferredTypeNames)
+    {
+        if (behaviour == null || preferredTypeNames == null || preferredTypeNames.Length == 0)
+            return false;
+
+        string typeName = behaviour.GetType().Name;
+
+        for (int i = 0; i < preferredTypeNames.Length; i++)
+        {
+            if (typeName == preferredTypeNames[i])
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool HasAnyMethod(MonoBehaviour target, params string[] methodNames)
+    {
+        if (target == null || methodNames == null)
+            return false;
+
+        Type type = target.GetType();
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+        for (int i = 0; i < methodNames.Length; i++)
+        {
+            if (type.GetMethod(methodNames[i], flags, null, Type.EmptyTypes, null) != null)
+                return true;
+        }
+
+        return false;
     }
 
     private void LogEvent(string eventName)

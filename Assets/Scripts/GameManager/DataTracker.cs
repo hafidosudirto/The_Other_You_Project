@@ -35,12 +35,19 @@ public enum BowSkillSlot
     QuickShot = 0,
     SpreadArrow = 1,
     FullDraw = 2,
-    ConcussiveShot = 3
+    FullDrawFullCharge = 3,
+    ConcussiveShot = 4,
+
+    // Alias kompatibilitas: Piercing sekarang dianggap FullDraw penuh.
+    PiercingShot = FullDrawFullCharge
 }
 
 public class DataTracker : MonoBehaviour
 {
     public static DataTracker Instance { get; private set; }
+
+    private const int SwordSkillSlotTotal = 4;
+    private const int BowSkillSlotTotal = 5;
 
     private int offensiveCount;
     private int defensiveCount;
@@ -49,8 +56,8 @@ public class DataTracker : MonoBehaviour
     private int bowUsageCount;
     private int gauntletUsageCount;
 
-    private readonly int[] swordSkillCounts = new int[4];
-    private readonly int[] bowSkillCounts = new int[4];
+    private readonly int[] swordSkillCounts = new int[SwordSkillSlotTotal];
+    private readonly int[] bowSkillCounts = new int[BowSkillSlotTotal];
 
     [Header("Real-Time Player Skill Debug UI - Sword")]
     [SerializeField] private TMP_Text swordSkillDebugText;
@@ -64,8 +71,8 @@ public class DataTracker : MonoBehaviour
     [SerializeField] private bool showBowSkillDebugPanel = true;
     [SerializeField] private string bowSkillDebugTitle = "BOW SKILL DEBUG";
 
-    private readonly int[] debugSwordSkillCounts = new int[4];
-    private readonly int[] debugBowSkillCounts = new int[4];
+    private readonly int[] debugSwordSkillCounts = new int[SwordSkillSlotTotal];
+    private readonly int[] debugBowSkillCounts = new int[BowSkillSlotTotal];
 
     private int dashCount;
     private int riposteCount;
@@ -141,7 +148,7 @@ public class DataTracker : MonoBehaviour
         }
         else
         {
-            CurrentDistanceState = (currentDistance < lastDistance)
+            CurrentDistanceState = currentDistance < lastDistance
                 ? PlayerDistanceState.Chase
                 : PlayerDistanceState.Retreat;
         }
@@ -170,6 +177,7 @@ public class DataTracker : MonoBehaviour
 
         defensiveCount++;
         dashCount++;
+
         AddWeaponUsage(weaponType);
 
         DebugHub.DDA(
@@ -186,6 +194,7 @@ public class DataTracker : MonoBehaviour
         swordUsageCount++;
 
         int idx = (int)slot;
+
         if (idx >= 0 && idx < swordSkillCounts.Length)
             swordSkillCounts[idx]++;
 
@@ -201,58 +210,94 @@ public class DataTracker : MonoBehaviour
         );
     }
 
-    public void RecordSwordSlashCombo() => RecordSwordSkill(SwordSkillSlot.SlashCombo, PlayerActionType.Offensive);
-    public void RecordSwordWhirlwind() => RecordSwordSkill(SwordSkillSlot.Whirlwind, PlayerActionType.Offensive);
-    public void RecordSwordChargedStrike() => RecordSwordSkill(SwordSkillSlot.ChargedStrike, PlayerActionType.Offensive);
-    public void RecordSwordRiposte() => RecordSwordSkill(SwordSkillSlot.Riposte, PlayerActionType.Defensive);
+    public void RecordSwordSlashCombo()
+    {
+        RecordSwordSkill(SwordSkillSlot.SlashCombo, PlayerActionType.Offensive);
+    }
+
+    public void RecordSwordWhirlwind()
+    {
+        RecordSwordSkill(SwordSkillSlot.Whirlwind, PlayerActionType.Offensive);
+    }
+
+    public void RecordSwordChargedStrike()
+    {
+        RecordSwordSkill(SwordSkillSlot.ChargedStrike, PlayerActionType.Offensive);
+    }
+
+    public void RecordSwordRiposte()
+    {
+        RecordSwordSkill(SwordSkillSlot.Riposte, PlayerActionType.Defensive);
+    }
 
     public void RecordBowSkill(BowSkillSlot slot)
     {
         lastUsedWeapon = WeaponType.Bow;
 
-        AddPlaystyleCount(PlayerActionType.Offensive);
+        if (slot == BowSkillSlot.ConcussiveShot)
+            AddPlaystyleCount(PlayerActionType.Defensive);
+        else
+            AddPlaystyleCount(PlayerActionType.Offensive);
+
         bowUsageCount++;
 
         int idx = (int)slot;
+
         if (idx >= 0 && idx < bowSkillCounts.Length)
             bowSkillCounts[idx]++;
+
+        if (slot == BowSkillSlot.ConcussiveShot)
+            bowConcussiveCount++;
 
         RecordBowSkillForDebug(slot);
 
         DebugHub.DDA(
             $"Bow Skill Recorded -> {slot} | O={offensiveCount}, D={defensiveCount}, " +
-            $"BowUse={bowUsageCount}, BowSkillCounts=[{bowSkillCounts[0]}, {bowSkillCounts[1]}, {bowSkillCounts[2]}, {bowSkillCounts[3]}]"
-        );
-    }
-
-    public void RecordBowQuickShot() => RecordBowSkill(BowSkillSlot.QuickShot);
-
-    public void RecordBowSpreadArrow() => RecordBowSkill(BowSkillSlot.SpreadArrow);
-
-    public void RecordBowFullDraw() => RecordBowSkill(BowSkillSlot.FullDraw);
-
-    public void RecordBowConcussiveShot()
-    {
-        lastUsedWeapon = WeaponType.Bow;
-
-        AddPlaystyleCount(PlayerActionType.Defensive);
-        bowUsageCount++;
-
-        bowConcussiveCount++;
-        bowSkillCounts[(int)BowSkillSlot.ConcussiveShot]++;
-
-        RecordBowSkillForDebug(BowSkillSlot.ConcussiveShot);
-
-        DebugHub.DDA(
-            $"Bow Concussive (DEFENSE) Recorded -> O={offensiveCount}, D={defensiveCount}, " +
-            $"BowUse={bowUsageCount}, BowSkillCounts=[{bowSkillCounts[0]}, {bowSkillCounts[1]}, {bowSkillCounts[2]}, {bowSkillCounts[3]}], " +
+            $"BowUse={bowUsageCount}, " +
+            $"BowSkillCounts=[{bowSkillCounts[0]}, {bowSkillCounts[1]}, {bowSkillCounts[2]}, {bowSkillCounts[3]}, {bowSkillCounts[4]}], " +
             $"BowConcussiveTotal={bowConcussiveCount}"
         );
     }
 
-    // Alias supaya referensi lama tidak langsung membuat compile error.
-    // Secara data, Piercing lama sekarang diarahkan ke SpreadArrow.
-    public void RecordBowPiercingShot() => RecordBowSpreadArrow();
+    public void RecordBowQuickShot()
+    {
+        RecordBowSkill(BowSkillSlot.QuickShot);
+    }
+
+    public void RecordBowSpreadArrow()
+    {
+        RecordBowSkill(BowSkillSlot.SpreadArrow);
+    }
+
+    public void RecordBowFullDraw()
+    {
+        RecordBowSkill(BowSkillSlot.FullDraw);
+    }
+
+    public void RecordBowFullDrawNormal()
+    {
+        RecordBowSkill(BowSkillSlot.FullDraw);
+    }
+
+    public void RecordBowFullDrawFullCharge()
+    {
+        RecordBowSkill(BowSkillSlot.FullDrawFullCharge);
+    }
+
+    public void RecordBowFullDrawPiercing()
+    {
+        RecordBowSkill(BowSkillSlot.FullDrawFullCharge);
+    }
+
+    public void RecordBowPiercingShot()
+    {
+        RecordBowSkill(BowSkillSlot.FullDrawFullCharge);
+    }
+
+    public void RecordBowConcussiveShot()
+    {
+        RecordBowSkill(BowSkillSlot.ConcussiveShot);
+    }
 
     private void AddPlaystyleCount(PlayerActionType actionType)
     {
@@ -305,7 +350,7 @@ public class DataTracker : MonoBehaviour
             $"Stage Final Data Sent -> O={offensiveCount}, D={defensiveCount}, " +
             $"WeaponUse[S={swordUsageCount}, B={bowUsageCount}, G={gauntletUsageCount}], " +
             $"SwordSkillCounts=[{swordSkillCounts[0]}, {swordSkillCounts[1]}, {swordSkillCounts[2]}, {swordSkillCounts[3]}], " +
-            $"BowSkillCounts=[{bowSkillCounts[0]}, {bowSkillCounts[1]}, {bowSkillCounts[2]}, {bowSkillCounts[3]}], " +
+            $"BowSkillCounts=[{bowSkillCounts[0]}, {bowSkillCounts[1]}, {bowSkillCounts[2]}, {bowSkillCounts[3]}, {bowSkillCounts[4]}], " +
             $"Defense=[Dash={dashCount}, Riposte={riposteCount}, Concussive={bowConcussiveCount}]"
         );
 
@@ -315,6 +360,7 @@ public class DataTracker : MonoBehaviour
     private void RecordSwordSkillForDebug(SwordSkillSlot slot)
     {
         int idx = (int)slot;
+
         if (idx >= 0 && idx < debugSwordSkillCounts.Length)
             debugSwordSkillCounts[idx]++;
 
@@ -324,6 +370,7 @@ public class DataTracker : MonoBehaviour
     private void RecordBowSkillForDebug(BowSkillSlot slot)
     {
         int idx = (int)slot;
+
         if (idx >= 0 && idx < debugBowSkillCounts.Length)
             debugBowSkillCounts[idx]++;
 
@@ -339,6 +386,7 @@ public class DataTracker : MonoBehaviour
             debugBowSkillCounts[i] = 0;
 
         UpdateSkillDebugUI();
+
         Debug.Log("[DataTracker] Real-time skill debug player direset untuk stage berikutnya.");
     }
 
@@ -393,7 +441,7 @@ public class DataTracker : MonoBehaviour
     {
         return
             $"{bowSkillDebugTitle}\n" +
-            "QuickShot | SpreadArrow | FullDraw | ConcussiveShot\n" +
+            "QuickShot | SpreadArrow | FullDraw | FullCharge | Concussive\n" +
             $"{FormatPercentRow(debugBowSkillCounts)}\n" +
             $"{FormatCountRow(debugBowSkillCounts)}";
     }
@@ -401,19 +449,33 @@ public class DataTracker : MonoBehaviour
     private string FormatPercentRow(int[] counts)
     {
         float[] weights = BuildPercentArray(counts);
+
+        if (weights.Length >= 5)
+        {
+            return
+                $"{weights[0]:F0}%, {weights[1]:F0}%, {weights[2]:F0}%, {weights[3]:F0}%, {weights[4]:F0}%";
+        }
+
         return $"{weights[0]:F0}%, {weights[1]:F0}%, {weights[2]:F0}%, {weights[3]:F0}%";
     }
 
     private string FormatCountRow(int[] counts)
     {
+        if (counts.Length >= 5)
+            return $"{counts[0]}, {counts[1]}, {counts[2]}, {counts[3]}, {counts[4]}";
+
         return $"{counts[0]}, {counts[1]}, {counts[2]}, {counts[3]}";
     }
 
     private float[] BuildPercentArray(int[] counts)
     {
-        float[] weights = new float[4];
+        if (counts == null)
+            return new float[0];
+
+        float[] weights = new float[counts.Length];
 
         int total = 0;
+
         for (int i = 0; i < counts.Length; i++)
             total += Mathf.Max(0, counts[i]);
 

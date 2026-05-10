@@ -5,26 +5,39 @@ public class EnemyAnimation : MonoBehaviour
 {
     [Header("References")]
     public Animator animator;
-    private SpriteRenderer sr;
+    public SpriteRenderer spriteRenderer;
+
     private NodeManager nodeManager;
 
     [Header("Debug")]
-    [SerializeField] private bool warnMissingAnimatorParameter = true;
+    [SerializeField] private bool logMissingParameters = false;
+
+    [Tooltip("Jika aktif, semua trigger Bow dibersihkan ketika object aktif.")]
+    [SerializeField] private bool resetBowTriggersOnEnable = true;
+
+    [Tooltip("Jika aktif, status charging Bow dimatikan ketika object aktif.")]
+    [SerializeField] private bool clearChargeFlagsOnEnable = true;
 
     // =========================
-    // HASH PARAMETERS
+    // HASH PARAMETERS - COMMON
     // =========================
     private static readonly int HashMoveSpeed = Animator.StringToHash("MoveSpeed");
 
-    // Bow
+    // =========================
+    // HASH PARAMETERS - BOW
+    // =========================
     private static readonly int HashQuickShot = Animator.StringToHash("QuickShot");
+    private static readonly int HashSpreadArrow = Animator.StringToHash("SpreadArrow");
+    private static readonly int HashConcussive = Animator.StringToHash("Concussive");
+    private static readonly int HashPiercing = Animator.StringToHash("Piercing");
+
     private static readonly int HashIsCharging = Animator.StringToHash("IsCharging");
     private static readonly int HashChargeRelease = Animator.StringToHash("ChargeRelease");
-    private static readonly int HashSpreadArrow = Animator.StringToHash("SpreadArrow");
-    private static readonly int HashPiercing = Animator.StringToHash("Piercing");
-    private static readonly int HashConcussive = Animator.StringToHash("Concussive");
+    private static readonly int HashIsFullCharge = Animator.StringToHash("isFullCharge");
 
-    // Sword
+    // =========================
+    // HASH PARAMETERS - SWORD
+    // =========================
     private static readonly int HashSlash1 = Animator.StringToHash("Slash1");
     private static readonly int HashSlash2 = Animator.StringToHash("Slash2");
     private static readonly int HashDash = Animator.StringToHash("Dash");
@@ -32,268 +45,290 @@ public class EnemyAnimation : MonoBehaviour
     private static readonly int HashRiposteReady = Animator.StringToHash("RiposteReady");
     private static readonly int HashRiposteCounter = Animator.StringToHash("RiposteCounter");
 
-    private readonly HashSet<int> missingParameterWarnings = new HashSet<int>();
+    private readonly HashSet<int> availableParameters = new HashSet<int>();
+    private readonly HashSet<int> warnedMissingParameters = new HashSet<int>();
 
     private void Awake()
     {
-        if (!animator)
-            animator = GetComponentInChildren<Animator>(true);
+        AutoAssignReferences();
+        RefreshAnimatorParameterCache();
+    }
 
-        sr = GetComponentInChildren<SpriteRenderer>(true);
-        nodeManager = GetComponentInParent<NodeManager>();
+    private void OnEnable()
+    {
+        AutoAssignReferences();
+        RefreshAnimatorParameterCache();
 
-        if (sr == null)
-            Debug.LogError($"[EnemyAnimation] SpriteRenderer tidak ditemukan di {gameObject.name}", this);
+        if (resetBowTriggersOnEnable)
+            ResetBowActionTriggers();
+
+        if (clearChargeFlagsOnEnable)
+            ClearBowChargeFlags();
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        AutoAssignReferences();
+    }
+#endif
+
+    [ContextMenu("Auto Assign References")]
+    public void AutoAssignReferences()
+    {
+        if (animator == null)
+            animator = GetComponent<Animator>();
 
         if (animator == null)
-            Debug.LogError($"[EnemyAnimation] Animator tidak ditemukan di {gameObject.name}", this);
+            animator = GetComponentInChildren<Animator>(true);
+
+        if (spriteRenderer == null)
+            spriteRenderer = GetComponent<SpriteRenderer>();
+
+        if (spriteRenderer == null)
+            spriteRenderer = GetComponentInChildren<SpriteRenderer>(true);
+
+        if (nodeManager == null)
+            nodeManager = GetComponentInParent<NodeManager>();
     }
+
+    [ContextMenu("Refresh Animator Parameter Cache")]
+    public void RefreshAnimatorParameterCache()
+    {
+        availableParameters.Clear();
+        warnedMissingParameters.Clear();
+
+        if (animator == null || animator.runtimeAnimatorController == null)
+            return;
+
+        AnimatorControllerParameter[] parameters = animator.parameters;
+
+        for (int i = 0; i < parameters.Length; i++)
+            availableParameters.Add(parameters[i].nameHash);
+    }
+
+    private bool HasParameter(int hash, string parameterName)
+    {
+        if (animator == null)
+            return false;
+
+        if (availableParameters.Count == 0)
+            RefreshAnimatorParameterCache();
+
+        bool exists = availableParameters.Contains(hash);
+
+        if (!exists && logMissingParameters && !warnedMissingParameters.Contains(hash))
+        {
+            warnedMissingParameters.Add(hash);
+            Debug.LogWarning($"[EnemyAnimation] Parameter Animator tidak ditemukan: {parameterName}", this);
+        }
+
+        return exists;
+    }
+
+    private void SafeSetTrigger(int hash, string parameterName)
+    {
+        if (animator != null && HasParameter(hash, parameterName))
+            animator.SetTrigger(hash);
+    }
+
+    private void SafeResetTrigger(int hash, string parameterName)
+    {
+        if (animator != null && HasParameter(hash, parameterName))
+            animator.ResetTrigger(hash);
+    }
+
+    private void SafeSetBool(int hash, string parameterName, bool value)
+    {
+        if (animator != null && HasParameter(hash, parameterName))
+            animator.SetBool(hash, value);
+    }
+
+    private void SafeSetFloat(int hash, string parameterName, float value)
+    {
+        if (animator != null && HasParameter(hash, parameterName))
+            animator.SetFloat(hash, value);
+    }
+
+    // =========================
+    // MOVEMENT
+    // =========================
 
     public void SetMoveSpeed(float speed)
     {
-        SetFloatIfExists(HashMoveSpeed, "MoveSpeed", speed);
+        SafeSetFloat(HashMoveSpeed, "MoveSpeed", speed);
     }
 
     public void SetFlip(bool flip)
     {
-        if (sr != null)
-            sr.flipX = flip;
+        if (spriteRenderer != null)
+            spriteRenderer.flipX = flip;
     }
 
     // =========================
-    // BOW
+    // BOW - ONE SHOT ACTIONS
     // =========================
 
     public void PlayQuickShot()
     {
-        if (animator == null)
-            return;
-
-        ResetAllTriggers();
-        SetTriggerIfExists(HashQuickShot, "QuickShot");
-    }
-
-    public void TriggerBowChargeStart()
-    {
-        if (animator == null)
-            return;
-
-        ResetTriggerIfExists(HashChargeRelease, "ChargeRelease");
-        SetBoolIfExists(HashIsCharging, "IsCharging", true);
-    }
-
-    public void TriggerBowChargeRelease()
-    {
-        if (animator == null)
-            return;
-
-        SetBoolIfExists(HashIsCharging, "IsCharging", false);
-        SetTriggerIfExists(HashChargeRelease, "ChargeRelease");
+        PrepareBowOneShotAction();
+        SafeSetTrigger(HashQuickShot, "QuickShot");
     }
 
     public void PlaySpreadArrow()
     {
-        if (animator == null)
-            return;
-
-        ResetAllTriggers();
-        SetTriggerIfExists(HashSpreadArrow, "SpreadArrow");
-    }
-
-    public void PlayPiercingShot()
-    {
-        if (animator == null)
-            return;
-
-        ResetAllTriggers();
-        SetTriggerIfExists(HashPiercing, "Piercing");
+        PrepareBowOneShotAction();
+        SafeSetTrigger(HashSpreadArrow, "SpreadArrow");
     }
 
     public void PlayConcussiveShot()
     {
-        if (animator == null)
-            return;
+        PrepareBowOneShotAction();
+        SafeSetTrigger(HashConcussive, "Concussive");
+    }
 
-        ResetAllTriggers();
-        SetTriggerIfExists(HashConcussive, "Concussive");
+    public void PlayPiercingShot()
+    {
+        PrepareBowOneShotAction();
+        SafeSetTrigger(HashPiercing, "Piercing");
+    }
+
+    private void PrepareBowOneShotAction()
+    {
+        ResetBowActionTriggers();
+        ClearBowChargeFlags();
     }
 
     // =========================
-    // SWORD
+    // BOW - FULL DRAW CHARGE FLOW
+    // =========================
+
+    public void TriggerBowChargeStart()
+    {
+        ResetBowActionTriggers();
+        SafeSetBool(HashIsCharging, "IsCharging", true);
+        SafeSetBool(HashIsFullCharge, "isFullCharge", false);
+    }
+
+    public void SetBowFullCharge(bool value)
+    {
+        SafeSetBool(HashIsFullCharge, "isFullCharge", value);
+    }
+
+    public void TriggerBowChargeRelease()
+    {
+        SafeSetBool(HashIsCharging, "IsCharging", false);
+        SafeResetTrigger(HashChargeRelease, "ChargeRelease");
+        SafeSetTrigger(HashChargeRelease, "ChargeRelease");
+    }
+
+    public void TriggerBowChargeRelease(bool fullCharge)
+    {
+        SafeSetBool(HashIsFullCharge, "isFullCharge", fullCharge);
+        TriggerBowChargeRelease();
+    }
+
+    public void ClearBowChargeFlags()
+    {
+        SafeSetBool(HashIsCharging, "IsCharging", false);
+        SafeSetBool(HashIsFullCharge, "isFullCharge", false);
+    }
+
+    public void ResetBowActionTriggers()
+    {
+        SafeResetTrigger(HashQuickShot, "QuickShot");
+        SafeResetTrigger(HashSpreadArrow, "SpreadArrow");
+        SafeResetTrigger(HashConcussive, "Concussive");
+        SafeResetTrigger(HashPiercing, "Piercing");
+        SafeResetTrigger(HashChargeRelease, "ChargeRelease");
+    }
+
+    public void ResetBowToNeutral()
+    {
+        ResetBowActionTriggers();
+        ClearBowChargeFlags();
+        SetMoveSpeed(0f);
+    }
+
+    // =========================
+    // SWORD / LEGACY COMPATIBILITY
     // =========================
 
     public void SetCharging(bool value)
     {
-        SetBoolIfExists(HashIsCharging, "IsCharging", value);
+        SafeSetBool(HashIsCharging, "IsCharging", value);
     }
 
     public void PlayDash()
     {
-        if (animator == null)
-            return;
+        SafeSetTrigger(HashDash, "Dash");
+    }
 
-        ResetAllTriggers();
-        SetTriggerIfExists(HashDash, "Dash");
+    public void SetSlash1(bool value)
+    {
+        if (value)
+        {
+            SafeResetTrigger(HashSlash1, "Slash1");
+            SafeSetTrigger(HashSlash1, "Slash1");
+        }
+        else
+        {
+            SafeResetTrigger(HashSlash1, "Slash1");
+        }
+    }
+
+    public void SetSlash2(bool value)
+    {
+        if (value)
+        {
+            SafeResetTrigger(HashSlash2, "Slash2");
+            SafeSetTrigger(HashSlash2, "Slash2");
+        }
+        else
+        {
+            SafeResetTrigger(HashSlash2, "Slash2");
+        }
     }
 
     public void PlaySlash1()
     {
-        if (animator == null)
-            return;
-
-        ResetAllTriggers();
-        SetTriggerIfExists(HashSlash1, "Slash1");
+        SetSlash1(true);
     }
 
     public void PlaySlash2()
     {
-        if (animator == null)
-            return;
+        SetSlash2(true);
+    }
 
-        ResetAllTriggers();
-        SetTriggerIfExists(HashSlash2, "Slash2");
+    public void ResetSlashFlags()
+    {
+        SafeResetTrigger(HashSlash1, "Slash1");
+        SafeResetTrigger(HashSlash2, "Slash2");
     }
 
     public void PlayWhirlwind()
     {
-        if (animator == null)
-            return;
-
-        ResetAllTriggers();
-        SetTriggerIfExists(HashWhirlwind, "Whirlwind");
+        SafeSetTrigger(HashWhirlwind, "Whirlwind");
     }
 
     public void SetRiposteReady(bool isReady)
     {
-        SetBoolIfExists(HashRiposteReady, "RiposteReady", isReady);
+        SafeSetBool(HashRiposteReady, "RiposteReady", isReady);
     }
 
     public void TriggerRiposteCounter()
     {
-        if (animator == null)
-            return;
-
-        ResetAllTriggers();
-        SetTriggerIfExists(HashRiposteCounter, "RiposteCounter");
+        SafeResetTrigger(HashRiposteCounter, "RiposteCounter");
+        SafeSetTrigger(HashRiposteCounter, "RiposteCounter");
     }
 
     // =========================
-    // UTILITY & ANIMATION EVENTS
+    // ANIMATION EVENT FALLBACK
     // =========================
-
-    private void ResetAllTriggers()
-    {
-        if (animator == null)
-            return;
-
-        ResetTriggerIfExists(HashQuickShot, "QuickShot");
-        ResetTriggerIfExists(HashChargeRelease, "ChargeRelease");
-        ResetTriggerIfExists(HashSpreadArrow, "SpreadArrow");
-        ResetTriggerIfExists(HashPiercing, "Piercing");
-        ResetTriggerIfExists(HashConcussive, "Concussive");
-
-        ResetTriggerIfExists(HashSlash1, "Slash1");
-        ResetTriggerIfExists(HashSlash2, "Slash2");
-        ResetTriggerIfExists(HashDash, "Dash");
-        ResetTriggerIfExists(HashWhirlwind, "Whirlwind");
-        ResetTriggerIfExists(HashRiposteCounter, "RiposteCounter");
-    }
 
     public void EndCurrentAction()
     {
         if (nodeManager != null)
             nodeManager.OnActionEnd();
-    }
-
-    // =========================
-    // SAFE ANIMATOR PARAMETER API
-    // =========================
-
-    private void SetFloatIfExists(int hash, string parameterName, float value)
-    {
-        if (animator == null)
-            return;
-
-        if (!HasParameter(hash, AnimatorControllerParameterType.Float))
-        {
-            WarnMissingParameter(hash, parameterName, "Float");
-            return;
-        }
-
-        animator.SetFloat(hash, value);
-    }
-
-    private void SetBoolIfExists(int hash, string parameterName, bool value)
-    {
-        if (animator == null)
-            return;
-
-        if (!HasParameter(hash, AnimatorControllerParameterType.Bool))
-        {
-            WarnMissingParameter(hash, parameterName, "Bool");
-            return;
-        }
-
-        animator.SetBool(hash, value);
-    }
-
-    private void SetTriggerIfExists(int hash, string parameterName)
-    {
-        if (animator == null)
-            return;
-
-        if (!HasParameter(hash, AnimatorControllerParameterType.Trigger))
-        {
-            WarnMissingParameter(hash, parameterName, "Trigger");
-            return;
-        }
-
-        animator.SetTrigger(hash);
-    }
-
-    private void ResetTriggerIfExists(int hash, string parameterName)
-    {
-        if (animator == null)
-            return;
-
-        if (!HasParameter(hash, AnimatorControllerParameterType.Trigger))
-            return;
-
-        animator.ResetTrigger(hash);
-    }
-
-    private bool HasParameter(int hash, AnimatorControllerParameterType expectedType)
-    {
-        if (animator == null)
-            return false;
-
-        AnimatorControllerParameter[] parameters = animator.parameters;
-
-        for (int i = 0; i < parameters.Length; i++)
-        {
-            AnimatorControllerParameter parameter = parameters[i];
-
-            if (parameter.nameHash == hash && parameter.type == expectedType)
-                return true;
-        }
-
-        return false;
-    }
-
-    private void WarnMissingParameter(int hash, string parameterName, string expectedType)
-    {
-        if (!warnMissingAnimatorParameter)
-            return;
-
-        if (missingParameterWarnings.Contains(hash))
-            return;
-
-        missingParameterWarnings.Add(hash);
-
-        Debug.LogWarning(
-            $"[EnemyAnimation] Animator '{animator.runtimeAnimatorController?.name}' tidak memiliki parameter {expectedType} bernama '{parameterName}'. " +
-            $"Tambahkan parameter ini di Animator Controller atau sesuaikan nama parameternya.",
-            this
-        );
     }
 }

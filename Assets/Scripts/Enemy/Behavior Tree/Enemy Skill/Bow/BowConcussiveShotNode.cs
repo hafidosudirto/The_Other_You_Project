@@ -18,17 +18,17 @@ public class BowConcussiveShotNode : Node
         if (skill == null)
             return NodeState.Failure;
 
-        float distance = Vector2.Distance(ai.transform.position, ai.playerTransform.position);
-
-        if (ai.Movement != null)
-            ai.Movement.SetDesiredRange(skill.skillRange);
-
         if (skill.IsActive)
             return NodeState.Running;
 
-        if (distance > skill.skillRange + skill.rangeTolerance)
-            return NodeState.Running;
+        float distance = Vector2.Distance(ai.transform.position, ai.playerTransform.position);
 
+        /*
+         * Penting:
+         * Jika target terlalu jauh, node harus Failure, bukan Running.
+         * Running akan membuat WeightedRandomSelector mengunci node ini,
+         * sehingga Bow dapat terlihat diam atau seperti menunggu skill yang belum valid.
+         */
         if (!skill.IsInRange(distance))
             return NodeState.Failure;
 
