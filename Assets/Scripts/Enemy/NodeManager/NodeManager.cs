@@ -138,21 +138,23 @@ public class NodeManager : MonoBehaviour
         UpdateDesiredFacing();
         ApplyMovementPresetForCurrentWeapon();
 
+        EnemyWeaponMode currentMode = ResolveWeaponMode();
+        bool blockByCombatBusy = ShouldBlockByCombatBusy(currentMode);
+
         /*
-         * Ini sengaja meniru pola EnemyAI lama:
-         * Movement hanya berjalan ketika musuh tidak sedang melakukan action.
-         * Dengan pola ini Bow tidak akan menyerang sambil berjalan.
+         * Sword mengikuti pola EnemyAI lama: setelah action selesai, AI boleh langsung
+         * mengevaluasi serangan lagi tanpa menunggu Combat.IsBusy/cooldown global.
+         * Bow tetap memakai guard Combat.IsBusy agar perilaku Bow hasil refactor tidak berubah.
          */
-        if (!isPerformingAction && Combat != null && !Combat.IsBusy && Movement != null && Movement.enabled)
+        if (!isPerformingAction && !blockByCombatBusy && Movement != null && Movement.enabled)
         {
             Movement.SetPlayer(playerTransform);
             Movement.Tick();
         }
 
-        UpdateLocomotionAnim();
+        UpdateLocomotionAnim(currentMode);
 
-        if (!isPerformingAction && Combat != null && !Combat.IsBusy)
-            EvaluateAttackTree();
+        EvaluateAttackTree(currentMode);
     }
 
     private void LateUpdate()
@@ -256,6 +258,7 @@ public class NodeManager : MonoBehaviour
             }
 
             attackRange = swordTree.attackRange;
+            swordTree.swordSenseRange = swordSenseRange;
         }
     }
 
@@ -298,15 +301,16 @@ public class NodeManager : MonoBehaviour
         }
     }
 
-    private void EvaluateAttackTree()
+    private void EvaluateAttackTree(EnemyWeaponMode currentMode)
     {
-        if (playerTransform == null)
+        if (isPerformingAction || playerTransform == null)
             return;
-
-        EnemyWeaponMode currentMode = ResolveWeaponMode();
 
         if (currentMode == EnemyWeaponMode.Bow)
         {
+            if (ShouldBlockByCombatBusy(currentMode))
+                return;
+
             if (bowTree != null)
                 bowTree.EvaluateTree();
 
@@ -325,12 +329,17 @@ public class NodeManager : MonoBehaviour
         }
     }
 
-    private void UpdateLocomotionAnim()
+    private bool ShouldBlockByCombatBusy(EnemyWeaponMode currentMode)
+    {
+        return currentMode == EnemyWeaponMode.Bow && Combat != null && Combat.IsBusy;
+    }
+
+    private void UpdateLocomotionAnim(EnemyWeaponMode currentMode)
     {
         if (Animation == null)
             return;
 
-        if (isPerformingAction || Combat != null && Combat.IsBusy)
+        if (isPerformingAction || ShouldBlockByCombatBusy(currentMode))
         {
             Animation.SetMoveSpeed(0f);
             return;
@@ -363,7 +372,7 @@ public class NodeManager : MonoBehaviour
          * Saat action, arah hadap tidak diubah oleh velocity.
          * Arah hadap dikunci ke player di OnActionStart().
          */
-        if (isPerformingAction || Combat != null && Combat.IsBusy)
+        if (isPerformingAction || ShouldBlockByCombatBusy(ResolveWeaponMode()))
             return;
 
         float velocityX = rb2d != null ? rb2d.velocity.x : 0f;
@@ -453,7 +462,7 @@ public class NodeManager : MonoBehaviour
             Movement.enabled = false;
         }
 
-        UpdateLocomotionAnim();
+        UpdateLocomotionAnim(ResolveWeaponMode());
     }
 
     public void OnActionEnd()
@@ -474,6 +483,12 @@ public class NodeManager : MonoBehaviour
     {
         if (playerTransform == null)
             return false;
+
+        if (ResolveWeaponMode() == EnemyWeaponMode.Sword && swordTree != null)
+        {
+            Vector2 attackCenter = swordTree.GetAttackRangeCenter();
+            return Vector2.Distance(attackCenter, playerTransform.position) <= swordTree.attackRange;
+        }
 
         float distance = Vector2.Distance(transform.position, playerTransform.position);
         return distance <= attackRange;

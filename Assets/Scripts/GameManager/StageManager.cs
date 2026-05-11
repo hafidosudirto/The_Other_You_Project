@@ -22,6 +22,12 @@ public class StageManager : MonoBehaviour
     public float fallbackPlayerStartX = -8f;
     public float rightTransitionX = 18f;
 
+    [Header("Player Prefabs")]
+    public GameObject playerSwordPrefab;
+    public GameObject playerBowPrefab;
+    public WeaponType selectedPlayerWeapon = WeaponType.Sword;
+    public Transform playerSpawnPoint;
+
     [Header("Minion Prefabs")]
     public GameObject meleeMinionPrefab;
     public GameObject rangeMinionPrefab;
@@ -61,31 +67,190 @@ public class StageManager : MonoBehaviour
     [Header("Stage Start Delay")]
     [SerializeField] private float minionSpawnDelayOnStageStart = 2f;
 
+    [Header("Player Regen on Next Stage")]
+    public bool regenPlayerOnNextStage = true;
+    [SerializeField] private float nextStagePlayerFlatHPRegen = 25f;
+    [Range(0f, 1f)]
+    [SerializeField] private float nextStagePlayerPercentHPRegen = 0f;
+    [SerializeField] private bool clampPlayerRegenToMaxHP = true;
+
+    [Header("Minion Attack Token Runtime Debug")]
+    public bool enforceMinionAttackTokenFallback = true;
+    [SerializeField] private float tokenHitDetectionRadius = 4f;
+    [SerializeField] private bool tokenFallbackUseNearestEnemyIfNoEnemyInRange = true;
+    [SerializeField] private bool setMinionAttackToZeroWhenTokenEmpty = true;
+    [SerializeField] private bool useReflectionToDisableAttackWhenTokenEmpty = true;
+    [SerializeField] private float tokenConsumptionCooldown = 0.15f;
+
+    [Header("Visual Debug Overlay")]
+    public bool showStageRuntimeDebug = true;
+    public bool showEnemyWorldDebugLabels = true;
+    public KeyCode toggleDebugOverlayKey = KeyCode.F6;
+    public Vector2 debugPanelPosition = new Vector2(12f, 12f);
+    public float debugPanelWidth = 430f;
+    public int maxEnemyRowsInDebugPanel = 10;
+    public int maxFloatingDebugLines = 8;
+    public float floatingDebugLineDuration = 4f;
+
     private int currentStage;
     private int activeEnemiesCount = 0;
     private bool isChangingStage = false;
+    private bool isTransitioningToBoss = false;
+    private bool bossSpawnConfigurationFailed = false;
+
+    private readonly List<StageEnemyRuntimeDebugData> enemyRuntimeDebugData = new List<StageEnemyRuntimeDebugData>();
+    private readonly List<StageFloatingDebugLine> floatingDebugLines = new List<StageFloatingDebugLine>();
+
+    private CharacterBase playerCharacterCache;
+    private float previousPlayerHP = -1f;
+    private int lastStageTotalMinions = 0;
+    private int lastStageMeleeCount = 0;
+    private int lastStageRangeCount = 0;
+    private int lastStageMinionAttackTokens = 0;
+    private float lastStageStatMultiplier = 1f;
+    private string lastStagePlaystyle = "Balanced";
+    private float lastPlayerRegenAmount = 0f;
+    private string lastTokenDebugMessage = "Belum ada konsumsi token.";
+
+    private GUIStyle debugPanelStyle;
+    private GUIStyle debugHeaderStyle;
+    private GUIStyle debugTextStyle;
+    private GUIStyle debugWarningStyle;
+    private GUIStyle worldDebugLabelStyle;
 
     private void Start()
     {
         currentStage = startingStageNumber;
         activeEnemiesCount = 0;
         isChangingStage = false;
+        isTransitioningToBoss = false;
+        bossSpawnConfigurationFailed = false;
 
         SetBlackScreenInstant(0f, false);
+
+        EnsurePlayerReference();
+        CachePlayerHealthForTokenDebug();
 
         StartStage();
     }
 
     private void Update()
     {
+        if (Input.GetKeyDown(toggleDebugOverlayKey))
+        {
+            showStageRuntimeDebug = !showStageRuntimeDebug;
+            showEnemyWorldDebugLabels = showStageRuntimeDebug;
+        }
+
         CheckStageTransition();
+        CheckMinionWaveClearedFallback();
+        CheckMinionAttackTokenConsumptionFallback();
+        PruneRuntimeDebugData();
+    }
+
+    private void EnsurePlayerReference()
+    {
+        if (playerTransform == null)
+        {
+            try
+            {
+                GameObject existingPlayer = GameObject.FindGameObjectWithTag("Player");
+
+                if (existingPlayer != null)
+                {
+                    playerTransform = existingPlayer.transform;
+                }
+            }
+            catch (UnityException)
+            {
+                Debug.LogWarning("[STAGE MANAGER] Tag Player belum dibuat di Project Settings > Tags and Layers.");
+            }
+        }
+
+        if (playerTransform == null)
+        {
+            GameObject selectedPlayerPrefab = selectedPlayerWeapon == WeaponType.Bow
+                ? playerBowPrefab
+                : playerSwordPrefab;
+
+            if (selectedPlayerPrefab == null)
+            {
+                Debug.LogError(
+                    "[STAGE MANAGER] Player prefab belum diisi. " +
+                    "Isi playerSwordPrefab dan playerBowPrefab di Inspector."
+                );
+                return;
+            }
+
+            Vector3 spawnPosition = playerSpawnPoint != null
+                ? playerSpawnPoint.position
+                : new Vector3(fallbackPlayerStartX, 0f, 0f);
+
+            Quaternion spawnRotation = playerSpawnPoint != null
+                ? playerSpawnPoint.rotation
+                : Quaternion.identity;
+
+            GameObject playerObject = Instantiate(selectedPlayerPrefab, spawnPosition, spawnRotation);
+
+            try
+            {
+                playerObject.tag = "Player";
+            }
+            catch (UnityException)
+            {
+                Debug.LogWarning("[STAGE MANAGER] Tag Player belum dibuat. Player tetap dibuat, tetapi tag tidak dapat diatur.");
+            }
+
+            playerTransform = playerObject.transform;
+
+            Debug.Log(
+                "[STAGE MANAGER] Player dibuat dari prefab: " +
+                selectedPlayerPrefab.name +
+                " | Weapon: " +
+                selectedPlayerWeapon
+            );
+        }
+
+        AssignPlayerReferenceToRuntimeSystems();
+    }
+
+    private void AssignPlayerReferenceToRuntimeSystems()
+    {
+        if (playerTransform == null)
+            return;
+
+        CameraFollow cameraFollow = FindObjectOfType<CameraFollow>();
+
+        if (cameraFollow != null)
+        {
+            cameraFollow.SetTarget(playerTransform);
+        }
+        else
+        {
+            Debug.LogWarning("[STAGE MANAGER] CameraFollow tidak ditemukan di scene.");
+        }
+
+        if (DataTracker.Instance != null)
+        {
+            DataTracker.Instance.SetPlayerTransform(playerTransform);
+        }
+        else
+        {
+            Debug.LogWarning("[STAGE MANAGER] DataTracker.Instance belum tersedia.");
+        }
     }
 
     private void StartStage()
     {
         Debug.Log("--- MEMULAI STAGE " + GetDisplayedStageNumber() + " ---");
 
+        activeEnemiesCount = 0;
+        isTransitioningToBoss = false;
+        bossSpawnConfigurationFailed = false;
+        enemyRuntimeDebugData.Clear();
+
         currentState = StageState.SpawningMinions;
+        AddFloatingDebugLine($"[STAGE] Mulai Stage {GetDisplayedStageNumber()}.");
         StartCoroutine(SpawnMinionWave());
     }
 
@@ -106,7 +271,7 @@ public class StageManager : MonoBehaviour
             yield return new WaitForSeconds(minionSpawnDelayOnStageStart);
         }
 
-        int totalMinions = baseSpawnToken + (spawnTokenIncreasePerStage * currentStage);
+        int totalMinions = Mathf.Max(0, baseSpawnToken + (spawnTokenIncreasePerStage * currentStage));
         int minionAttackTokens = baseMinionAttackToken + (minionAttackTokenIncreasePerStage * currentStage);
         float statMultiplier = 1f + (statAmplifyPerStage * currentStage);
 
@@ -114,6 +279,13 @@ public class StageManager : MonoBehaviour
         int rangeCount = 0;
 
         string playerPlaystyle = GetPlayerPlaystyleFromDDA();
+
+        lastStageTotalMinions = totalMinions;
+        lastStageMeleeCount = 0;
+        lastStageRangeCount = 0;
+        lastStageMinionAttackTokens = minionAttackTokens;
+        lastStageStatMultiplier = statMultiplier;
+        lastStagePlaystyle = playerPlaystyle;
 
         if (playerPlaystyle == "OffensiveDominant")
         {
@@ -131,38 +303,64 @@ public class StageManager : MonoBehaviour
             rangeCount = totalMinions - meleeCount;
         }
 
+        lastStageMeleeCount = meleeCount;
+        lastStageRangeCount = rangeCount;
+
+        AddFloatingDebugLine(
+            $"[STAT] Stage {GetDisplayedStageNumber()} | Stat minion x{statMultiplier:0.00} " +
+            $"(+{GetStatIncreasePercent(statMultiplier):0.#}%)."
+        );
+        AddFloatingDebugLine(
+            $"[TOKEN] Setiap minion mendapat {minionAttackTokens} token serangan."
+        );
+
         Debug.Log(
             $"Spawn: {totalMinions} Minions " +
             $"({meleeCount} Melee, {rangeCount} Range). " +
             $"Token: {minionAttackTokens}. Stat Mult: {statMultiplier}x"
         );
 
+        // State dipindahkan sebelum instantiate agar OnEnemyDied tidak terlewat
+        // bila ada musuh yang mati sangat cepat setelah dibuat.
+        currentState = StageState.FightingMinions;
+
+        int spawnedCount = 0;
+
         for (int i = 0; i < meleeCount; i++)
         {
-            SpawnEnemy(meleeMinionPrefab, statMultiplier, minionAttackTokens);
+            if (SpawnEnemy(meleeMinionPrefab, statMultiplier, minionAttackTokens))
+                spawnedCount++;
         }
 
         for (int i = 0; i < rangeCount; i++)
         {
-            SpawnEnemy(rangeMinionPrefab, statMultiplier, minionAttackTokens);
+            if (SpawnEnemy(rangeMinionPrefab, statMultiplier, minionAttackTokens))
+                spawnedCount++;
         }
 
-        currentState = StageState.FightingMinions;
-        yield return null;
+        if (spawnedCount <= 0)
+        {
+            Debug.LogWarning(
+                "[STAGE MANAGER] Tidak ada minion yang berhasil dibuat. " +
+                "Boss akan langsung dicoba untuk dimunculkan."
+            );
+
+            TryStartBossTransition("Tidak ada minion yang berhasil dibuat.");
+        }
     }
 
-    private void SpawnEnemy(GameObject prefab, float statMultiplier, int attackTokens)
+    private bool SpawnEnemy(GameObject prefab, float statMultiplier, int attackTokens)
     {
         if (prefab == null)
         {
             Debug.LogWarning("[STAGE MANAGER] Prefab enemy belum diisi.");
-            return;
+            return false;
         }
 
         if (minionSpawnPoints == null || minionSpawnPoints.Count == 0)
         {
             Debug.LogWarning("[STAGE MANAGER] Tidak ada minion spawn point.");
-            return;
+            return false;
         }
 
         Transform spawnPoint = minionSpawnPoints[UnityEngine.Random.Range(0, minionSpawnPoints.Count)];
@@ -175,19 +373,26 @@ public class StageManager : MonoBehaviour
 
         if (character == null)
         {
+            character = enemy.GetComponentInChildren<CharacterBase>();
+        }
+
+        if (character == null)
+        {
             Debug.LogWarning(
                 $"[STAGE MANAGER] Prefab {prefab.name} tidak memiliki CharacterBase atau turunan Enemy.cs."
             );
 
             Destroy(enemy);
-            return;
+            return false;
         }
 
+        StatsSnapshot beforeStats = CaptureStats(character);
         InitializeCharacterBaseStats(character, statMultiplier);
+        StatsSnapshot afterStats = CaptureStats(character);
 
-        // Inisialisasi minion dengan token dan isBoss = false
         InitializeStageCombatController(enemy, character, attackTokens, false);
         InitializeDeathHandler(enemy);
+        RegisterRuntimeEnemyDebug(enemy, character, attackTokens, statMultiplier, beforeStats, afterStats, false);
 
         activeEnemiesCount++;
 
@@ -196,8 +401,11 @@ public class StageManager : MonoBehaviour
             $"HP: {character.currentHP}/{character.maxHP} | " +
             $"Attack: {character.attack} | " +
             $"MoveSpeed: {character.moveSpeed} | " +
-            $"Token: {attackTokens}"
+            $"Token: {attackTokens} | " +
+            $"ActiveCount: {activeEnemiesCount}"
         );
+
+        return true;
     }
 
     private void InitializeCharacterBaseStats(CharacterBase character, float statMultiplier)
@@ -215,23 +423,24 @@ public class StageManager : MonoBehaviour
         character.moveSpeed *= statMultiplier;
     }
 
-    // --- REVISI: Fungsi inisialisasi AI baru menggunakan parameter isBoss ---
     private void InitializeStageCombatController(GameObject enemy, CharacterBase character, int attackTokens, bool isBoss = false)
     {
         if (enemy == null || character == null)
             return;
 
-        // Mencari NodeManager (sistem AI yang baru) sebagai pusat kontrol
         NodeManager nodeManager = enemy.GetComponent<NodeManager>();
+
+        if (nodeManager == null)
+        {
+            nodeManager = enemy.GetComponentInChildren<NodeManager>();
+        }
 
         if (nodeManager != null)
         {
-            // Lempar data token, stat, dan status boss ke NodeManager
             nodeManager.InitializeStageEnemy(character, attackTokens, isBoss);
         }
         else
         {
-            // Peringatan jika musuh masih belum memakai sistem baru
             Debug.LogWarning(
                 $"[STAGE MANAGER] {enemy.name} tidak memiliki NodeManager. Normalisasi DDA gagal diterapkan."
             );
@@ -245,6 +454,11 @@ public class StageManager : MonoBehaviour
 
         EnemyDeathHandler deathHandler = enemy.GetComponent<EnemyDeathHandler>();
 
+        if (deathHandler == null)
+        {
+            deathHandler = enemy.GetComponentInChildren<EnemyDeathHandler>();
+        }
+
         if (deathHandler != null)
         {
             deathHandler.Init(this);
@@ -253,7 +467,7 @@ public class StageManager : MonoBehaviour
         {
             Debug.LogWarning(
                 $"[STAGE MANAGER] {enemy.name} tidak memiliki EnemyDeathHandler. " +
-                "Stage tidak akan lanjut jika enemy ini mati."
+                "Boss tetap akan dicoba muncul melalui fallback scan, tetapi sebaiknya prefab tetap diberi EnemyDeathHandler."
             );
         }
     }
@@ -279,33 +493,123 @@ public class StageManager : MonoBehaviour
 
     public void OnEnemyDied()
     {
-        activeEnemiesCount--;
+        if (currentState == StageState.StageCleared)
+            return;
+
+        activeEnemiesCount = Mathf.Max(0, activeEnemiesCount - 1);
+
+        Debug.Log(
+            $"[STAGE MANAGER] OnEnemyDied terpanggil. " +
+            $"State: {currentState} | Sisa activeEnemiesCount: {activeEnemiesCount}"
+        );
+
+        if (currentState == StageState.FightingMinions)
+        {
+            if (activeEnemiesCount <= 0 || CountAliveEnemyObjectsInScene() <= 0)
+            {
+                TryStartBossTransition("Semua minion terdeteksi kalah.");
+            }
+        }
+        else if (currentState == StageState.FightingBoss)
+        {
+            if (activeEnemiesCount <= 0)
+            {
+                HandleBossDefeated();
+            }
+        }
+    }
+
+    private void CheckMinionWaveClearedFallback()
+    {
+        if (currentState != StageState.FightingMinions)
+            return;
+
+        if (isTransitioningToBoss || bossSpawnConfigurationFailed)
+            return;
 
         if (activeEnemiesCount <= 0)
         {
+            TryStartBossTransition("activeEnemiesCount sudah 0.");
+            return;
+        }
+
+        int aliveEnemies = CountAliveEnemyObjectsInScene();
+
+        if (aliveEnemies <= 0)
+        {
+            Debug.LogWarning(
+                "[STAGE MANAGER] Fallback mendeteksi tidak ada Enemy hidup di scene, " +
+                "walaupun activeEnemiesCount belum 0. Kemungkinan EnemyDeathHandler tidak memanggil OnEnemyDied()."
+            );
+
             activeEnemiesCount = 0;
+            TryStartBossTransition("Fallback scan mendeteksi semua minion telah kalah.");
+        }
+    }
 
-            if (currentState == StageState.FightingMinions)
+    private int CountAliveEnemyObjectsInScene()
+    {
+        GameObject[] enemies;
+
+        try
+        {
+            enemies = GameObject.FindGameObjectsWithTag("Enemy");
+        }
+        catch (UnityException)
+        {
+            Debug.LogWarning("[STAGE MANAGER] Tag Enemy belum dibuat di Project Settings > Tags and Layers.");
+            return activeEnemiesCount;
+        }
+
+        int aliveCount = 0;
+
+        foreach (GameObject enemy in enemies)
+        {
+            if (enemy == null || !enemy.activeInHierarchy)
+                continue;
+
+            CharacterBase character = enemy.GetComponent<CharacterBase>();
+
+            if (character == null)
             {
-                StartCoroutine(TransitionToBoss());
+                character = enemy.GetComponentInChildren<CharacterBase>();
             }
-            else if (currentState == StageState.FightingBoss)
+
+            if (character == null)
             {
-                if (finalizeDataAfterBoss)
-                {
-                    Debug.Log("DDA Data Difinalisasi Setelah Boss");
-                }
+                // Jika tidak ada CharacterBase, objek tetap dihitung hidup
+                // agar StageManager tidak salah menganggap musuh sudah mati.
+                aliveCount++;
+                continue;
+            }
 
-                currentState = StageState.StageCleared;
-
-                if (resetDDAAndDataTrackerOnStageCleared)
-                {
-                    ResetDDAAndDataTracker();
-                }
-
-                Debug.Log("STAGE CLEAR! DDA dan DataTracker direset. Berjalanlah ke kanan untuk lanjut.");
+            if (character.currentHP > 0f)
+            {
+                aliveCount++;
             }
         }
+
+        return aliveCount;
+    }
+
+    private void TryStartBossTransition(string reason)
+    {
+        if (currentState != StageState.FightingMinions)
+            return;
+
+        if (isTransitioningToBoss || bossSpawnConfigurationFailed)
+            return;
+
+        int aliveEnemies = CountAliveEnemyObjectsInScene();
+
+        if (activeEnemiesCount > 0 && aliveEnemies > 0)
+            return;
+
+        activeEnemiesCount = 0;
+        isTransitioningToBoss = true;
+
+        Debug.Log($"[STAGE MANAGER] Transisi ke boss dimulai. Alasan: {reason}");
+        StartCoroutine(TransitionToBoss());
     }
 
     private IEnumerator TransitionToBoss()
@@ -330,13 +634,23 @@ public class StageManager : MonoBehaviour
 
         if (bossToSpawn == null)
         {
-            Debug.LogWarning("[STAGE MANAGER] Boss prefab belum diisi.");
+            bossSpawnConfigurationFailed = true;
+            isTransitioningToBoss = false;
+            Debug.LogError(
+                "[STAGE MANAGER] Boss prefab belum diisi. " +
+                "Isi bossPrefabSword dan bossPrefabBow di Inspector."
+            );
             yield break;
         }
 
         if (bossSpawnPoint == null)
         {
-            Debug.LogWarning("[STAGE MANAGER] Boss spawn point belum diisi.");
+            bossSpawnConfigurationFailed = true;
+            isTransitioningToBoss = false;
+            Debug.LogError(
+                "[STAGE MANAGER] Boss spawn point belum diisi. " +
+                "Isi bossSpawnPoint di Inspector."
+            );
             yield break;
         }
 
@@ -345,29 +659,53 @@ public class StageManager : MonoBehaviour
         SetLayerRecursively(boss, LayerMask.NameToLayer("Enemy"));
 
         CharacterBase bossCharacter = boss.GetComponent<CharacterBase>();
-        if (bossCharacter != null)
+
+        if (bossCharacter == null)
         {
-            InitializeCharacterBaseStats(bossCharacter, statMultiplier);
+            bossCharacter = boss.GetComponentInChildren<CharacterBase>();
         }
 
-        // --- REVISI: Inisialisasi AI Boss tanpa batasan token ---
-        // Memberikan nilai token 999 sebagai pengaman dan set isBoss = true
-        InitializeStageCombatController(boss, bossCharacter, 999, true);
-
-        EnemyDeathHandler deathHandler = boss.GetComponent<EnemyDeathHandler>();
-        if (deathHandler != null)
+        if (bossCharacter != null)
         {
-            deathHandler.Init(this);
+            StatsSnapshot beforeStats = CaptureStats(bossCharacter);
+            InitializeCharacterBaseStats(bossCharacter, statMultiplier);
+            StatsSnapshot afterStats = CaptureStats(bossCharacter);
+
+            InitializeStageCombatController(boss, bossCharacter, 999, true);
+            RegisterRuntimeEnemyDebug(boss, bossCharacter, 999, statMultiplier, beforeStats, afterStats, true);
         }
         else
         {
-            Debug.LogWarning("[STAGE MANAGER] Boss tidak memiliki EnemyDeathHandler.");
+            Debug.LogWarning("[STAGE MANAGER] Boss tidak memiliki CharacterBase atau turunannya.");
         }
 
-        activeEnemiesCount++;
-        currentState = StageState.FightingBoss;
+        InitializeDeathHandler(boss);
 
-        Debug.Log("BOSS MUNCUL TANPA BATASAN TOKEN!");
+        activeEnemiesCount = 1;
+        currentState = StageState.FightingBoss;
+        isTransitioningToBoss = false;
+
+        Debug.Log(
+            "[STAGE MANAGER] BOSS MUNCUL. " +
+            $"Prefab: {boss.name} | DominantWeapon: {dominantWeapon} | ActiveCount: {activeEnemiesCount}"
+        );
+    }
+
+    private void HandleBossDefeated()
+    {
+        if (finalizeDataAfterBoss)
+        {
+            Debug.Log("DDA Data Difinalisasi Setelah Boss");
+        }
+
+        currentState = StageState.StageCleared;
+
+        if (resetDDAAndDataTrackerOnStageCleared)
+        {
+            ResetDDAAndDataTracker();
+        }
+
+        Debug.Log("STAGE CLEAR! DDA dan DataTracker direset. Berjalanlah ke kanan untuk lanjut.");
     }
 
     private void CheckStageTransition()
@@ -422,6 +760,7 @@ public class StageManager : MonoBehaviour
 
         currentStage++;
 
+        RegeneratePlayerHealthForNextStage();
         TryResetSkillDebugData();
 
         yield return StartCoroutine(FadeBlackScreen(0f));
@@ -473,6 +812,670 @@ public class StageManager : MonoBehaviour
         blackScreenCanvasGroup.alpha = Mathf.Clamp01(alpha);
         blackScreenCanvasGroup.blocksRaycasts = blockRaycasts;
         blackScreenCanvasGroup.interactable = blockRaycasts;
+    }
+
+    private void CachePlayerHealthForTokenDebug()
+    {
+        CharacterBase playerCharacter = GetPlayerCharacter();
+
+        if (playerCharacter == null)
+        {
+            previousPlayerHP = -1f;
+            return;
+        }
+
+        previousPlayerHP = playerCharacter.currentHP;
+    }
+
+    private CharacterBase GetPlayerCharacter()
+    {
+        if (playerTransform == null)
+        {
+            playerCharacterCache = null;
+            return null;
+        }
+
+        if (playerCharacterCache != null)
+            return playerCharacterCache;
+
+        playerCharacterCache = playerTransform.GetComponent<CharacterBase>();
+
+        if (playerCharacterCache == null)
+        {
+            playerCharacterCache = playerTransform.GetComponentInChildren<CharacterBase>();
+        }
+
+        return playerCharacterCache;
+    }
+
+    private void RegeneratePlayerHealthForNextStage()
+    {
+        lastPlayerRegenAmount = 0f;
+
+        if (!regenPlayerOnNextStage)
+        {
+            CachePlayerHealthForTokenDebug();
+            return;
+        }
+
+        CharacterBase playerCharacter = GetPlayerCharacter();
+
+        if (playerCharacter == null)
+        {
+            Debug.LogWarning(
+                "[STAGE MANAGER] Regen HP player gagal karena CharacterBase pada player tidak ditemukan."
+            );
+            previousPlayerHP = -1f;
+            return;
+        }
+
+        float beforeHP = playerCharacter.currentHP;
+        float flatRegen = Mathf.Max(0f, nextStagePlayerFlatHPRegen);
+        float percentRegen = Mathf.Max(0f, nextStagePlayerPercentHPRegen) * playerCharacter.maxHP;
+        float targetHP = beforeHP + flatRegen + percentRegen;
+
+        if (clampPlayerRegenToMaxHP)
+        {
+            targetHP = Mathf.Min(playerCharacter.maxHP, targetHP);
+        }
+
+        playerCharacter.currentHP = Mathf.Max(0f, targetHP);
+        lastPlayerRegenAmount = playerCharacter.currentHP - beforeHP;
+        previousPlayerHP = playerCharacter.currentHP;
+
+        AddFloatingDebugLine(
+            $"[REGEN] Player +{lastPlayerRegenAmount:0.#} HP " +
+            $"({beforeHP:0.#} -> {playerCharacter.currentHP:0.#}/{playerCharacter.maxHP:0.#})."
+        );
+
+        Debug.Log(
+            $"[STAGE MANAGER] Player regen setelah next stage: " +
+            $"+{lastPlayerRegenAmount:0.##} HP | " +
+            $"{beforeHP:0.##} -> {playerCharacter.currentHP:0.##}/{playerCharacter.maxHP:0.##}"
+        );
+    }
+
+    private void CheckMinionAttackTokenConsumptionFallback()
+    {
+        CharacterBase playerCharacter = GetPlayerCharacter();
+
+        if (playerCharacter == null)
+        {
+            previousPlayerHP = -1f;
+            return;
+        }
+
+        if (previousPlayerHP < 0f)
+        {
+            previousPlayerHP = playerCharacter.currentHP;
+            return;
+        }
+
+        float hpLoss = previousPlayerHP - playerCharacter.currentHP;
+
+        if (enforceMinionAttackTokenFallback &&
+            currentState == StageState.FightingMinions &&
+            hpLoss > 0.001f)
+        {
+            bool consumed = TryConsumeLikelyMinionAttackToken(hpLoss);
+
+            if (!consumed)
+            {
+                lastTokenDebugMessage =
+                    $"HP player turun {hpLoss:0.##}, tetapi minion pemilik token tidak ditemukan.";
+
+                AddFloatingDebugLine("[TOKEN] HP player turun, tetapi sumber minion tidak terdeteksi.");
+            }
+        }
+
+        previousPlayerHP = playerCharacter.currentHP;
+    }
+
+    private bool TryConsumeLikelyMinionAttackToken(float hpLoss)
+    {
+        if (playerTransform == null)
+            return false;
+
+        StageEnemyRuntimeDebugData selectedEnemy = null;
+        float selectedDistance = float.MaxValue;
+        bool selectedIsInsideRadius = false;
+
+        foreach (StageEnemyRuntimeDebugData data in enemyRuntimeDebugData)
+        {
+            if (!IsValidAliveRuntimeEnemy(data))
+                continue;
+
+            if (data.isBoss)
+                continue;
+
+            if (data.remainingAttackTokens <= 0)
+                continue;
+
+            if (Time.time - data.lastTokenConsumedTime < tokenConsumptionCooldown)
+                continue;
+
+            float distance = Vector3.Distance(playerTransform.position, data.enemy.transform.position);
+            bool insideRadius = distance <= tokenHitDetectionRadius;
+
+            if (!insideRadius && !tokenFallbackUseNearestEnemyIfNoEnemyInRange)
+                continue;
+
+            if (insideRadius)
+            {
+                if (!selectedIsInsideRadius || distance < selectedDistance)
+                {
+                    selectedEnemy = data;
+                    selectedDistance = distance;
+                    selectedIsInsideRadius = true;
+                }
+            }
+            else if (!selectedIsInsideRadius && distance < selectedDistance)
+            {
+                selectedEnemy = data;
+                selectedDistance = distance;
+            }
+        }
+
+        if (selectedEnemy == null)
+            return false;
+
+        selectedEnemy.remainingAttackTokens = Mathf.Max(0, selectedEnemy.remainingAttackTokens - 1);
+        selectedEnemy.lastTokenConsumedTime = Time.time;
+
+        lastTokenDebugMessage =
+            $"{selectedEnemy.enemy.name}: token {selectedEnemy.remainingAttackTokens}/" +
+            $"{selectedEnemy.initialAttackTokens} | Damage terdeteksi: {hpLoss:0.##}.";
+
+        AddFloatingDebugLine(
+            $"[TOKEN] {selectedEnemy.enemy.name} memakai 1 token " +
+            $"({selectedEnemy.remainingAttackTokens}/{selectedEnemy.initialAttackTokens})."
+        );
+
+        Debug.Log(
+            $"[STAGE MANAGER] Token minion berkurang: {selectedEnemy.enemy.name} | " +
+            $"Sisa Token: {selectedEnemy.remainingAttackTokens}/{selectedEnemy.initialAttackTokens} | " +
+            $"HP Loss Player: {hpLoss:0.##} | Distance: {selectedDistance:0.##}"
+        );
+
+        if (selectedEnemy.remainingAttackTokens <= 0)
+        {
+            ApplyAttackTokenExhaustedEffect(selectedEnemy);
+        }
+
+        return true;
+    }
+
+    private void ApplyAttackTokenExhaustedEffect(StageEnemyRuntimeDebugData data)
+    {
+        if (data == null || data.tokenExhaustedEffectApplied)
+            return;
+
+        data.tokenExhaustedEffectApplied = true;
+
+        if (data.character != null && setMinionAttackToZeroWhenTokenEmpty)
+        {
+            data.character.attack = 0f;
+        }
+
+        bool reflectionDisabledSomething = false;
+
+        if (useReflectionToDisableAttackWhenTokenEmpty && data.enemy != null)
+        {
+            reflectionDisabledSomething = TryDisableAttackThroughReflection(data.enemy);
+        }
+
+        string reflectionStatus = reflectionDisabledSomething
+            ? "Komponen serangan juga dinonaktifkan melalui reflection."
+            : "Serangan dinetralkan melalui nilai attack CharacterBase.";
+
+        lastTokenDebugMessage =
+            $"{data.enemy.name}: TOKEN HABIS. {reflectionStatus}";
+
+        AddFloatingDebugLine($"[TOKEN HABIS] {data.enemy.name} tidak boleh menyerang lagi.");
+
+        Debug.Log(
+            $"[STAGE MANAGER] Token habis pada {data.enemy.name}. {reflectionStatus}"
+        );
+    }
+
+    private bool TryDisableAttackThroughReflection(GameObject enemy)
+    {
+        if (enemy == null)
+            return false;
+
+        bool changed = false;
+        MonoBehaviour[] behaviours = enemy.GetComponentsInChildren<MonoBehaviour>(true);
+
+        foreach (MonoBehaviour behaviour in behaviours)
+        {
+            if (behaviour == null)
+                continue;
+
+            Type behaviourType = behaviour.GetType();
+            string typeName = behaviourType.Name.ToLowerInvariant();
+
+            if (!typeName.Contains("attack") &&
+                !typeName.Contains("combat") &&
+                !typeName.Contains("node") &&
+                !typeName.Contains("enemy"))
+            {
+                continue;
+            }
+
+            changed |= TryInvokeAttackDisableMethod(behaviour, behaviourType, "SetCanAttack", false);
+            changed |= TryInvokeAttackDisableMethod(behaviour, behaviourType, "SetAttackEnabled", false);
+            changed |= TryInvokeAttackDisableMethod(behaviour, behaviourType, "SetCanUseAttack", false);
+            changed |= TryInvokeAttackDisableMethod(behaviour, behaviourType, "DisableAttack", false);
+            changed |= TryInvokeAttackDisableMethod(behaviour, behaviourType, "StopAttacking", false);
+
+            changed |= TrySetBoolMember(behaviour, behaviourType, "canAttack", false);
+            changed |= TrySetBoolMember(behaviour, behaviourType, "CanAttack", false);
+            changed |= TrySetBoolMember(behaviour, behaviourType, "attackEnabled", false);
+            changed |= TrySetBoolMember(behaviour, behaviourType, "isAttackEnabled", false);
+            changed |= TrySetBoolMember(behaviour, behaviourType, "canUseAttack", false);
+        }
+
+        return changed;
+    }
+
+    private bool TryInvokeAttackDisableMethod(MonoBehaviour target, Type targetType, string methodName, bool value)
+    {
+        MethodInfo method = targetType.GetMethod(
+            methodName,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
+        );
+
+        if (method == null)
+            return false;
+
+        ParameterInfo[] parameters = method.GetParameters();
+
+        try
+        {
+            if (parameters.Length == 0)
+            {
+                method.Invoke(target, null);
+                return true;
+            }
+
+            if (parameters.Length == 1 && parameters[0].ParameterType == typeof(bool))
+            {
+                method.Invoke(target, new object[] { value });
+                return true;
+            }
+        }
+        catch (Exception exception)
+        {
+            Debug.LogWarning(
+                $"[STAGE MANAGER] Gagal memanggil {targetType.Name}.{methodName}(): {exception.Message}"
+            );
+        }
+
+        return false;
+    }
+
+    private bool TrySetBoolMember(MonoBehaviour target, Type targetType, string memberName, bool value)
+    {
+        bool changed = false;
+
+        FieldInfo field = targetType.GetField(
+            memberName,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
+        );
+
+        if (field != null && field.FieldType == typeof(bool))
+        {
+            try
+            {
+                field.SetValue(target, value);
+                changed = true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning(
+                    $"[STAGE MANAGER] Gagal mengubah field {targetType.Name}.{memberName}: {exception.Message}"
+                );
+            }
+        }
+
+        PropertyInfo property = targetType.GetProperty(
+            memberName,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
+        );
+
+        if (property != null && property.PropertyType == typeof(bool) && property.CanWrite)
+        {
+            try
+            {
+                property.SetValue(target, value, null);
+                changed = true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning(
+                    $"[STAGE MANAGER] Gagal mengubah property {targetType.Name}.{memberName}: {exception.Message}"
+                );
+            }
+        }
+
+        return changed;
+    }
+
+    private void RegisterRuntimeEnemyDebug(
+        GameObject enemy,
+        CharacterBase character,
+        int attackTokens,
+        float statMultiplier,
+        StatsSnapshot beforeStats,
+        StatsSnapshot afterStats,
+        bool isBoss
+    )
+    {
+        if (enemy == null || character == null)
+            return;
+
+        StageEnemyRuntimeDebugData data = new StageEnemyRuntimeDebugData
+        {
+            enemy = enemy,
+            character = character,
+            isBoss = isBoss,
+            initialAttackTokens = Mathf.Max(0, attackTokens),
+            remainingAttackTokens = Mathf.Max(0, attackTokens),
+            statMultiplier = statMultiplier,
+            beforeStats = beforeStats,
+            afterStats = afterStats,
+            originalAttack = character.attack,
+            lastTokenConsumedTime = -999f,
+            tokenExhaustedEffectApplied = false
+        };
+
+        enemyRuntimeDebugData.Add(data);
+    }
+
+    private bool IsValidAliveRuntimeEnemy(StageEnemyRuntimeDebugData data)
+    {
+        if (data == null || data.enemy == null || data.character == null)
+            return false;
+
+        if (!data.enemy.activeInHierarchy)
+            return false;
+
+        return data.character.currentHP > 0f;
+    }
+
+    private void PruneRuntimeDebugData()
+    {
+        for (int i = enemyRuntimeDebugData.Count - 1; i >= 0; i--)
+        {
+            StageEnemyRuntimeDebugData data = enemyRuntimeDebugData[i];
+
+            if (data == null || data.enemy == null)
+            {
+                enemyRuntimeDebugData.RemoveAt(i);
+            }
+        }
+
+        float now = Time.time;
+
+        for (int i = floatingDebugLines.Count - 1; i >= 0; i--)
+        {
+            if (now - floatingDebugLines[i].createdAt > floatingDebugLineDuration)
+            {
+                floatingDebugLines.RemoveAt(i);
+            }
+        }
+    }
+
+    private StatsSnapshot CaptureStats(CharacterBase character)
+    {
+        if (character == null)
+            return new StatsSnapshot();
+
+        return new StatsSnapshot
+        {
+            maxHP = character.maxHP,
+            currentHP = character.currentHP,
+            attack = character.attack,
+            defense = character.defense,
+            moveSpeed = character.moveSpeed
+        };
+    }
+
+    private float GetStatIncreasePercent(float statMultiplier)
+    {
+        return (statMultiplier - 1f) * 100f;
+    }
+
+    private void AddFloatingDebugLine(string message)
+    {
+        if (string.IsNullOrEmpty(message))
+            return;
+
+        floatingDebugLines.Add(new StageFloatingDebugLine
+        {
+            message = message,
+            createdAt = Time.time
+        });
+
+        while (floatingDebugLines.Count > maxFloatingDebugLines)
+        {
+            floatingDebugLines.RemoveAt(0);
+        }
+    }
+
+    private void OnGUI()
+    {
+        if (!showStageRuntimeDebug && !showEnemyWorldDebugLabels)
+            return;
+
+        InitializeDebugGUIStyles();
+
+        if (showStageRuntimeDebug)
+        {
+            DrawStageDebugPanel();
+        }
+
+        if (showEnemyWorldDebugLabels)
+        {
+            DrawEnemyWorldDebugLabels();
+        }
+    }
+
+    private void InitializeDebugGUIStyles()
+    {
+        if (debugTextStyle != null)
+            return;
+
+        debugPanelStyle = new GUIStyle(GUI.skin.box)
+        {
+            alignment = TextAnchor.UpperLeft,
+            padding = new RectOffset(12, 12, 10, 10)
+        };
+
+        debugHeaderStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 16,
+            fontStyle = FontStyle.Bold,
+            normal = { textColor = Color.white }
+        };
+
+        debugTextStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 13,
+            normal = { textColor = Color.white },
+            wordWrap = true
+        };
+
+        debugWarningStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 13,
+            fontStyle = FontStyle.Bold,
+            normal = { textColor = Color.yellow },
+            wordWrap = true
+        };
+
+        worldDebugLabelStyle = new GUIStyle(GUI.skin.box)
+        {
+            fontSize = 12,
+            alignment = TextAnchor.MiddleCenter,
+            normal = { textColor = Color.white },
+            wordWrap = true
+        };
+    }
+
+    private void DrawStageDebugPanel()
+    {
+        float panelHeight = Mathf.Min(Screen.height - debugPanelPosition.y - 12f, 520f);
+
+        GUILayout.BeginArea(
+            new Rect(debugPanelPosition.x, debugPanelPosition.y, debugPanelWidth, panelHeight),
+            debugPanelStyle
+        );
+
+        GUILayout.Label("STAGE RUNTIME DEBUG", debugHeaderStyle);
+        GUILayout.Label($"Toggle: {toggleDebugOverlayKey} | State: {currentState}", debugTextStyle);
+        GUILayout.Space(4f);
+
+        GUILayout.Label($"Stage Tampil: {GetDisplayedStageNumber()} | Stage Internal: {currentStage}", debugTextStyle);
+        GUILayout.Label($"Playstyle DDA: {lastStagePlaystyle}", debugTextStyle);
+        GUILayout.Label(
+            $"Spawn Token: {lastStageTotalMinions} | Melee: {lastStageMeleeCount} | Range: {lastStageRangeCount}",
+            debugTextStyle
+        );
+        GUILayout.Label(
+            $"Stat Bertambah: x{lastStageStatMultiplier:0.00} (+{GetStatIncreasePercent(lastStageStatMultiplier):0.#}%)",
+            debugWarningStyle
+        );
+        GUILayout.Label(
+            $"Token Serangan Minion: {lastStageMinionAttackTokens} per minion",
+            debugWarningStyle
+        );
+
+        CharacterBase playerCharacter = GetPlayerCharacter();
+
+        if (playerCharacter != null)
+        {
+            GUILayout.Label(
+                $"Player HP: {playerCharacter.currentHP:0.#}/{playerCharacter.maxHP:0.#} | Regen Terakhir: +{lastPlayerRegenAmount:0.#}",
+                debugTextStyle
+            );
+        }
+        else
+        {
+            GUILayout.Label("Player HP: CharacterBase tidak ditemukan.", debugWarningStyle);
+        }
+
+        GUILayout.Label(
+            $"Fallback Token: {(enforceMinionAttackTokenFallback ? "ON" : "OFF")} | Radius: {tokenHitDetectionRadius:0.#}",
+            debugTextStyle
+        );
+        GUILayout.Label($"Token Debug: {lastTokenDebugMessage}", debugTextStyle);
+        GUILayout.Space(6f);
+
+        GUILayout.Label("Enemy Runtime", debugHeaderStyle);
+
+        int shownRows = 0;
+
+        foreach (StageEnemyRuntimeDebugData data in enemyRuntimeDebugData)
+        {
+            if (!IsValidAliveRuntimeEnemy(data))
+                continue;
+
+            if (shownRows >= maxEnemyRowsInDebugPanel)
+            {
+                GUILayout.Label("...enemy lain disembunyikan karena batas baris debug.", debugTextStyle);
+                break;
+            }
+
+            string enemyType = data.isBoss ? "BOSS" : "MINION";
+            string tokenText = data.isBoss
+                ? "Token: boss bypass"
+                : $"Token: {data.remainingAttackTokens}/{data.initialAttackTokens}";
+
+            GUILayout.Label(
+                $"{enemyType} {data.enemy.name} | {tokenText} | HP {data.character.currentHP:0.#}/{data.character.maxHP:0.#} | ATK {data.character.attack:0.#}",
+                data.remainingAttackTokens <= 0 && !data.isBoss ? debugWarningStyle : debugTextStyle
+            );
+            GUILayout.Label(
+                $"  Stat naik: HP {data.beforeStats.maxHP:0.#}->{data.afterStats.maxHP:0.#} | " +
+                $"ATK {data.beforeStats.attack:0.#}->{data.afterStats.attack:0.#} | " +
+                $"DEF {data.beforeStats.defense:0.#}->{data.afterStats.defense:0.#} | " +
+                $"SPD {data.beforeStats.moveSpeed:0.#}->{data.afterStats.moveSpeed:0.#}",
+                debugTextStyle
+            );
+
+            shownRows++;
+        }
+
+        if (shownRows == 0)
+        {
+            GUILayout.Label("Tidak ada enemy hidup yang terdaftar.", debugTextStyle);
+        }
+
+        GUILayout.Space(6f);
+        GUILayout.Label("Floating Debug", debugHeaderStyle);
+
+        foreach (StageFloatingDebugLine line in floatingDebugLines)
+        {
+            float age = Time.time - line.createdAt;
+            GUILayout.Label($"[{age:0.0}s] {line.message}", debugTextStyle);
+        }
+
+        GUILayout.EndArea();
+    }
+
+    private void DrawEnemyWorldDebugLabels()
+    {
+        Camera mainCamera = Camera.main;
+
+        if (mainCamera == null)
+            return;
+
+        foreach (StageEnemyRuntimeDebugData data in enemyRuntimeDebugData)
+        {
+            if (!IsValidAliveRuntimeEnemy(data))
+                continue;
+
+            Vector3 worldPosition = data.enemy.transform.position + Vector3.up * 1.7f;
+            Vector3 screenPosition = mainCamera.WorldToScreenPoint(worldPosition);
+
+            if (screenPosition.z < 0f)
+                continue;
+
+            float labelWidth = data.isBoss ? 190f : 160f;
+            float labelHeight = data.isBoss ? 112f : 106f;
+            float x = screenPosition.x - (labelWidth * 0.5f);
+            float y = Screen.height - screenPosition.y - labelHeight;
+
+            string labelText;
+
+            if (data.isBoss)
+            {
+                labelText =
+                    $"BOSS\n" +
+                    $"HP {data.character.currentHP:0.#}/{data.character.maxHP:0.#}\n" +
+                    $"Stat x{data.statMultiplier:0.00} (+{GetStatIncreasePercent(data.statMultiplier):0.#}%)\n" +
+                    $"HP+ {data.beforeStats.maxHP:0.#}->{data.afterStats.maxHP:0.#}\n" +
+                    $"ATK {data.beforeStats.attack:0.#}->{data.character.attack:0.#}";
+            }
+            else
+            {
+                labelText =
+                    $"MINION\n" +
+                    $"Token {data.remainingAttackTokens}/{data.initialAttackTokens}\n" +
+                    $"HP {data.character.currentHP:0.#}/{data.character.maxHP:0.#}\n" +
+                    $"Stat x{data.statMultiplier:0.00} (+{GetStatIncreasePercent(data.statMultiplier):0.#}%)\n" +
+                    $"HP+ {data.beforeStats.maxHP:0.#}->{data.afterStats.maxHP:0.#}\n" +
+                    $"ATK {data.beforeStats.attack:0.#}->{data.character.attack:0.#}";
+
+                if (data.remainingAttackTokens <= 0)
+                {
+                    labelText += "\nTOKEN HABIS";
+                }
+            }
+
+            GUI.Label(new Rect(x, y, labelWidth, labelHeight), labelText, worldDebugLabelStyle);
+        }
     }
 
     private void TryResetSkillDebugData()
@@ -627,6 +1630,36 @@ public class StageManager : MonoBehaviour
             return sceneObject;
 
         return null;
+    }
+
+    private class StageEnemyRuntimeDebugData
+    {
+        public GameObject enemy;
+        public CharacterBase character;
+        public bool isBoss;
+        public int initialAttackTokens;
+        public int remainingAttackTokens;
+        public float statMultiplier;
+        public StatsSnapshot beforeStats;
+        public StatsSnapshot afterStats;
+        public float originalAttack;
+        public float lastTokenConsumedTime;
+        public bool tokenExhaustedEffectApplied;
+    }
+
+    private struct StatsSnapshot
+    {
+        public float maxHP;
+        public float currentHP;
+        public float attack;
+        public float defense;
+        public float moveSpeed;
+    }
+
+    private struct StageFloatingDebugLine
+    {
+        public string message;
+        public float createdAt;
     }
 
     private string GetPlayerPlaystyleFromDDA()

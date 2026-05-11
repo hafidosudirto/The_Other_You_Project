@@ -9,8 +9,12 @@ public class Sword_AttackTree : MonoBehaviour
 
     [Header("Sword Attributes")]
     public float attackRange = 1.8f;
-    public float swordSenseRange = 2.5f;
-    [SerializeField] private Vector2 attackRangeOffset = Vector2.zero;
+    public float swordSenseRange = 3.2f;
+
+    [Header("Legacy Sword Range Offset")]
+    [SerializeField] private Vector2 attackRangeOffset = new Vector2(1f, 0f);
+    [SerializeField] private bool useLegacyAttackOffsetFallback = true;
+    [SerializeField] private float legacyForwardAttackOffset = 1f;
 
     public void Initialize(NodeManager manager)
     {
@@ -49,7 +53,25 @@ public class Sword_AttackTree : MonoBehaviour
         offensiveTree?.Evaluate();
     }
 
-    public Vector2 GetAttackRangeCenter() => (Vector2)transform.position + attackRangeOffset;
+    public Vector2 GetAttackRangeCenter()
+    {
+        Vector2 offset = attackRangeOffset;
+
+        /*
+         * Prefab/scene lama yang sudah menyimpan Vector2.zero tidak otomatis mengambil
+         * default baru dari script. Fallback ini mengembalikan perilaku EnemyAI lama:
+         * pusat hit range berada 1 unit di depan arah hadap sword enemy.
+         */
+        if (useLegacyAttackOffsetFallback && offset == Vector2.zero)
+            offset.x = legacyForwardAttackOffset;
+
+        NodeManager manager = nodeManager != null ? nodeManager : GetComponent<NodeManager>();
+
+        if (manager != null)
+            offset.x *= manager.ForwardSign;
+
+        return (Vector2)transform.position + offset;
+    }
 
     private void OnDrawGizmosSelected()
     {

@@ -122,6 +122,21 @@ public class DataTracker : MonoBehaviour
         UpdateSkillDebugUI();
     }
 
+    public void SetPlayerTransform(Transform newPlayerTransform)
+    {
+        playerTransform = newPlayerTransform;
+
+        if (playerTransform != null)
+        {
+            lastPlayerPos = playerTransform.position;
+
+            if (enemyTransform != null)
+            {
+                lastDistance = Vector2.Distance(playerTransform.position, enemyTransform.position);
+            }
+        }
+    }
+
     private void Update()
     {
         if (Time.time > lastCheckTime + distanceCheckInterval)

@@ -427,7 +427,7 @@ Transform:
   m_GameObject: {fileID: 3213513327903873862}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.6, z: 0}
+  m_LocalPosition: {x: -0.14, y: -0.71, z: 0}
   m_LocalScale: {x: 0.9097923, y: 0.24639998, z: 1.5163155}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -598,9 +598,9 @@ MonoBehaviour:
   fullChargeSkillRange: 9
   fullChargeRangeTolerance: 0.25
   firePoint: {fileID: 5432282122991037403}
-  arrowPrefab: {fileID: 1692899915983295771, guid: eda8816cfe96bca40ba183b8df7a9492, type: 3}
-  piercingArrowPrefab: {fileID: 0}
-  facingSprite: {fileID: 0}
+  arrowPrefab: {fileID: 1692899915983295771, guid: 663ce66886453a84a899d3e844db7563, type: 3}
+  piercingArrowPrefab: {fileID: 1692899915983295771, guid: 75a95f53808499844b0ad3bcf1117d80, type: 3}
+  facingSprite: {fileID: 4184288291677543696}
   maxChargeTime: 1.5
   normalReleaseChargePercent: 0.45
   fullChargeThreshold: 0.95
@@ -773,8 +773,8 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 1.2346267, y: 1.2346267, z: 1.2346267}
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 7686073481702737145}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -819,7 +819,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 529263100, guid: 00803243ceceef442b834f2b774aee49, type: 3}
+  m_Sprite: {fileID: -298367452, guid: 70761416bc0545f479b5fad7548a3869, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -913,7 +913,7 @@ Transform:
   m_GameObject: {fileID: 8094252895751690279}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -5.3846154, y: -0.7058256, z: 0}
+  m_LocalPosition: {x: -0.11, y: -0.7058256, z: 0}
   m_LocalScale: {x: 1.0083231, y: 1.0083231, z: 1.0083231}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -955,7 +955,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0.316}
+  m_AnchoredPosition: {x: 0, y: 0.844}
   m_SizeDelta: {x: 265.9343, y: -26.0597}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!223 &8409694188457163318
