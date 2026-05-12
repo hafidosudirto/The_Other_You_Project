@@ -262,6 +262,10 @@ MonoBehaviour:
   nextStagePlayerStartPoint: {fileID: 0}
   fallbackPlayerStartX: -8
   rightTransitionX: 18
+  playerSwordPrefab: {fileID: 0}
+  playerBowPrefab: {fileID: 0}
+  selectedPlayerWeapon: 1
+  playerSpawnPoint: {fileID: 0}
   meleeMinionPrefab: {fileID: 0}
   rangeMinionPrefab: {fileID: 0}
   minionSpawnPoints: []
@@ -282,6 +286,24 @@ MonoBehaviour:
   blackScreenFadeDuration: 0.5
   blackScreenHoldDuration: 0.5
   minionSpawnDelayOnStageStart: 2
+  regenPlayerOnNextStage: 1
+  nextStagePlayerFlatHPRegen: 25
+  nextStagePlayerPercentHPRegen: 0
+  clampPlayerRegenToMaxHP: 1
+  enforceMinionAttackTokenFallback: 1
+  tokenHitDetectionRadius: 4
+  tokenFallbackUseNearestEnemyIfNoEnemyInRange: 1
+  setMinionAttackToZeroWhenTokenEmpty: 1
+  useReflectionToDisableAttackWhenTokenEmpty: 1
+  tokenConsumptionCooldown: 0.15
+  showStageRuntimeDebug: 1
+  showEnemyWorldDebugLabels: 1
+  toggleDebugOverlayKey: 287
+  debugPanelPosition: {x: 12, y: 12}
+  debugPanelWidth: 430
+  maxEnemyRowsInDebugPanel: 10
+  maxFloatingDebugLines: 8
+  floatingDebugLineDuration: 4
 --- !u!95 &305586858 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 7112847830760851485, guid: ce054ee026d254547908bf4f689bb853, type: 3}
@@ -479,6 +501,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerCharacter: {fileID: 50061050}
+  autoFindPlayer: 1
+  playerTag: Player
+  autoFindInterval: 0.25
   gameOverSceneName: GameOver
   triggerOnDestroyedReference: 1
 --- !u!114 &1080740570
