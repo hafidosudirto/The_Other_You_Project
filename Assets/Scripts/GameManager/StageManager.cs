@@ -42,10 +42,15 @@ public class StageManager : MonoBehaviour
 
     [Header("Progression Formula")]
     public int startingStageNumber = 0;
-    public int baseSpawnToken = 2;
+    public int baseSpawnToken = 3;
     public int spawnTokenIncreasePerStage = 1;
     public float statAmplifyPerStage = 0.1f;
-    public int baseMinionAttackToken = 3;
+
+    [Header("Minion Attack Token Progression")]
+    public bool deriveBaseMinionAttackTokenFromBaseMinionRatio = true;
+    [Range(0f, 2f)]
+    public float initialTokenRatioFromBaseMinion = 0.7f;
+    public int baseMinionAttackToken = 2;
     public int minionAttackTokenIncreasePerStage = 2;
 
     [Header("Minion Variant Ratio")]
@@ -86,11 +91,11 @@ public class StageManager : MonoBehaviour
     public bool showStageRuntimeDebug = true;
     public bool showEnemyWorldDebugLabels = true;
     public KeyCode toggleDebugOverlayKey = KeyCode.F6;
-    public Vector2 debugPanelPosition = new Vector2(12f, 12f);
+    public Vector2 debugPanelPosition = new Vector2(16f, 16f);
     public float debugPanelWidth = 430f;
-    public int maxEnemyRowsInDebugPanel = 10;
-    public int maxFloatingDebugLines = 8;
-    public float floatingDebugLineDuration = 4f;
+    public int maxEnemyRowsInDebugPanel = 14;
+    public int maxFloatingDebugLines = 12;
+    public float floatingDebugLineDuration = 8f;
 
     private int currentStage;
     private int activeEnemiesCount = 0;
@@ -111,6 +116,7 @@ public class StageManager : MonoBehaviour
     private string lastStagePlaystyle = "Balanced";
     private float lastPlayerRegenAmount = 0f;
     private string lastTokenDebugMessage = "Belum ada konsumsi token.";
+    private float lastDirectTokenConsumptionTime = -999f;
 
     private GUIStyle debugPanelStyle;
     private GUIStyle debugHeaderStyle;
@@ -248,6 +254,8 @@ public class StageManager : MonoBehaviour
         isTransitioningToBoss = false;
         bossSpawnConfigurationFailed = false;
         enemyRuntimeDebugData.Clear();
+        lastTokenDebugMessage = "Belum ada konsumsi token pada stage ini.";
+        lastDirectTokenConsumptionTime = -999f;
 
         currentState = StageState.SpawningMinions;
         AddFloatingDebugLine($"[STAGE] Mulai Stage {GetDisplayedStageNumber()}.");
@@ -256,7 +264,29 @@ public class StageManager : MonoBehaviour
 
     private int GetDisplayedStageNumber()
     {
-        return currentStage - startingStageNumber + 1;
+        return GetStageProgressionIndex() + 1;
+    }
+
+    private int GetStageProgressionIndex()
+    {
+        return Mathf.Max(0, currentStage - startingStageNumber);
+    }
+
+    private int CalculateTotalMinions(int stageProgressionIndex)
+    {
+        return Mathf.Max(0, baseSpawnToken + (spawnTokenIncreasePerStage * stageProgressionIndex));
+    }
+
+    private int CalculateMinionAttackTokens(int stageProgressionIndex)
+    {
+        int resolvedBaseMinionAttackToken = deriveBaseMinionAttackTokenFromBaseMinionRatio
+            ? Mathf.RoundToInt(baseSpawnToken * initialTokenRatioFromBaseMinion)
+            : baseMinionAttackToken;
+
+        return Mathf.Max(
+            0,
+            resolvedBaseMinionAttackToken + (minionAttackTokenIncreasePerStage * stageProgressionIndex)
+        );
     }
 
     private IEnumerator SpawnMinionWave()
@@ -271,9 +301,10 @@ public class StageManager : MonoBehaviour
             yield return new WaitForSeconds(minionSpawnDelayOnStageStart);
         }
 
-        int totalMinions = Mathf.Max(0, baseSpawnToken + (spawnTokenIncreasePerStage * currentStage));
-        int minionAttackTokens = baseMinionAttackToken + (minionAttackTokenIncreasePerStage * currentStage);
-        float statMultiplier = 1f + (statAmplifyPerStage * currentStage);
+        int stageProgressionIndex = GetStageProgressionIndex();
+        int totalMinions = CalculateTotalMinions(stageProgressionIndex);
+        int minionAttackTokens = CalculateMinionAttackTokens(stageProgressionIndex);
+        float statMultiplier = 1f + (statAmplifyPerStage * stageProgressionIndex);
 
         int meleeCount = 0;
         int rangeCount = 0;
@@ -428,6 +459,8 @@ public class StageManager : MonoBehaviour
         if (enemy == null || character == null)
             return;
 
+        bool initializedAnyController = false;
+
         NodeManager nodeManager = enemy.GetComponent<NodeManager>();
 
         if (nodeManager == null)
@@ -438,12 +471,69 @@ public class StageManager : MonoBehaviour
         if (nodeManager != null)
         {
             nodeManager.InitializeStageEnemy(character, attackTokens, isBoss);
+            initializedAnyController = true;
         }
-        else
+
+        MonoBehaviour[] behaviours = enemy.GetComponentsInChildren<MonoBehaviour>(true);
+
+        foreach (MonoBehaviour behaviour in behaviours)
+        {
+            if (behaviour == null || behaviour == this)
+                continue;
+
+            if (nodeManager != null && ReferenceEquals(behaviour, nodeManager))
+                continue;
+
+            if (TryInvokeInitializeStageEnemy(behaviour, character, attackTokens, isBoss))
+            {
+                initializedAnyController = true;
+            }
+        }
+
+        if (!initializedAnyController)
         {
             Debug.LogWarning(
-                $"[STAGE MANAGER] {enemy.name} tidak memiliki NodeManager. Normalisasi DDA gagal diterapkan."
+                $"[STAGE MANAGER] {enemy.name} tidak memiliki controller dengan InitializeStageEnemy(CharacterBase, int, bool). " +
+                "Token serangan tetap dicatat pada StageManager, tetapi script enemy perlu diintegrasikan agar token benar-benar membatasi serangan."
             );
+        }
+    }
+
+    private bool TryInvokeInitializeStageEnemy(MonoBehaviour target, CharacterBase character, int attackTokens, bool isBoss)
+    {
+        if (target == null)
+            return false;
+
+        Type targetType = target.GetType();
+        MethodInfo method = targetType.GetMethod(
+            "InitializeStageEnemy",
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
+        );
+
+        if (method == null)
+            return false;
+
+        ParameterInfo[] parameters = method.GetParameters();
+
+        if (parameters.Length != 3 ||
+            !typeof(CharacterBase).IsAssignableFrom(parameters[0].ParameterType) ||
+            parameters[1].ParameterType != typeof(int) ||
+            parameters[2].ParameterType != typeof(bool))
+        {
+            return false;
+        }
+
+        try
+        {
+            method.Invoke(target, new object[] { character, attackTokens, isBoss });
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Debug.LogWarning(
+                $"[STAGE MANAGER] Gagal menginisialisasi {targetType.Name}.InitializeStageEnemy(): {exception.Message}"
+            );
+            return false;
         }
     }
 
@@ -628,7 +718,7 @@ public class StageManager : MonoBehaviour
 
         string dominantWeapon = GetDominantWeaponFromDDA();
         GameObject bossToSpawn = dominantWeapon == "Bow" ? bossPrefabBow : bossPrefabSword;
-        float statMultiplier = 1f + (statAmplifyPerStage * currentStage);
+        float statMultiplier = 1f + (statAmplifyPerStage * GetStageProgressionIndex());
 
         Debug.Log($"Boss membaca DDA: Menirukan senjata dominan player yaitu {dominantWeapon}");
 
@@ -913,6 +1003,12 @@ public class StageManager : MonoBehaviour
 
         float hpLoss = previousPlayerHP - playerCharacter.currentHP;
 
+        if (Time.time - lastDirectTokenConsumptionTime < tokenConsumptionCooldown)
+        {
+            previousPlayerHP = playerCharacter.currentHP;
+            return;
+        }
+
         if (enforceMinionAttackTokenFallback &&
             currentState == StageState.FightingMinions &&
             hpLoss > 0.001f)
@@ -979,30 +1075,145 @@ public class StageManager : MonoBehaviour
         if (selectedEnemy == null)
             return false;
 
-        selectedEnemy.remainingAttackTokens = Mathf.Max(0, selectedEnemy.remainingAttackTokens - 1);
-        selectedEnemy.lastTokenConsumedTime = Time.time;
+        ConsumeAttackToken(selectedEnemy, hpLoss, $"Fallback HP | Distance: {selectedDistance:0.##}", true);
+
+        return true;
+    }
+
+    public bool HasAttackTokenRuntimeData(GameObject enemy)
+    {
+        return FindRuntimeDebugDataForEnemy(enemy) != null;
+    }
+
+    public int GetRemainingAttackTokensForEnemy(GameObject enemy, int fallbackValue = 0)
+    {
+        StageEnemyRuntimeDebugData data = FindRuntimeDebugDataForEnemy(enemy);
+
+        if (data == null)
+            return Mathf.Max(0, fallbackValue);
+
+        if (data.isBoss)
+            return data.initialAttackTokens;
+
+        return Mathf.Max(0, data.remainingAttackTokens);
+    }
+
+    public bool TryConsumeAttackTokenForEnemy(GameObject enemy, float damageAmount = 0f, string source = "Direct Attack")
+    {
+        StageEnemyRuntimeDebugData data = FindRuntimeDebugDataForEnemy(enemy);
+
+        if (data == null)
+        {
+            string enemyName = enemy != null ? enemy.name : "Enemy tidak diketahui";
+            lastTokenDebugMessage = $"{enemyName}: data token tidak ditemukan di StageManager.";
+            AddFloatingDebugLine($"[TOKEN WARNING] {enemyName} belum terdaftar di StageManager.");
+            return false;
+        }
+
+        if (data.isBoss)
+        {
+            lastTokenDebugMessage = $"{data.enemy.name}: boss bypass token.";
+            return true;
+        }
+
+        if (!IsValidAliveRuntimeEnemy(data))
+        {
+            lastTokenDebugMessage = $"{data.enemy.name}: tidak valid atau sudah mati, token tidak dikonsumsi.";
+            return false;
+        }
+
+        if (data.remainingAttackTokens <= 0)
+        {
+            SyncRuntimeAttackTokenToEnemy(data);
+            ApplyAttackTokenExhaustedEffect(data);
+            lastTokenDebugMessage = $"{data.enemy.name}: token sudah habis, serangan ditolak.";
+            AddFloatingDebugLine($"[TOKEN DITOLAK] {data.enemy.name} mencoba menyerang saat token habis.");
+            return false;
+        }
+
+        lastDirectTokenConsumptionTime = Time.time;
+        ConsumeAttackToken(data, damageAmount, source, false);
+        return true;
+    }
+
+    public void FinalizeAttackTokenConsumptionForEnemy(GameObject enemy)
+    {
+        StageEnemyRuntimeDebugData data = FindRuntimeDebugDataForEnemy(enemy);
+
+        if (data == null || data.isBoss)
+            return;
+
+        if (data.remainingAttackTokens <= 0)
+        {
+            data.pendingTokenExhaustedEffect = false;
+            ApplyAttackTokenExhaustedEffect(data);
+        }
+    }
+
+    private void ConsumeAttackToken(
+        StageEnemyRuntimeDebugData data,
+        float damageAmount,
+        string source,
+        bool applyExhaustedImmediately
+    )
+    {
+        if (data == null)
+            return;
+
+        data.remainingAttackTokens = Mathf.Max(0, data.remainingAttackTokens - 1);
+        data.lastTokenConsumedTime = Time.time;
+        data.pendingTokenExhaustedEffect = data.remainingAttackTokens <= 0;
+
+        SyncRuntimeAttackTokenToEnemy(data);
+
+        string damageText = damageAmount > 0.001f
+            ? $" | Damage: {damageAmount:0.##}"
+            : string.Empty;
 
         lastTokenDebugMessage =
-            $"{selectedEnemy.enemy.name}: token {selectedEnemy.remainingAttackTokens}/" +
-            $"{selectedEnemy.initialAttackTokens} | Damage terdeteksi: {hpLoss:0.##}.";
+            $"{data.enemy.name}: token {data.remainingAttackTokens}/" +
+            $"{data.initialAttackTokens}{damageText} | Sumber: {source}.";
 
         AddFloatingDebugLine(
-            $"[TOKEN] {selectedEnemy.enemy.name} memakai 1 token " +
-            $"({selectedEnemy.remainingAttackTokens}/{selectedEnemy.initialAttackTokens})."
+            $"[TOKEN] {data.enemy.name} memakai 1 token " +
+            $"({data.remainingAttackTokens}/{data.initialAttackTokens})."
         );
 
         Debug.Log(
-            $"[STAGE MANAGER] Token minion berkurang: {selectedEnemy.enemy.name} | " +
-            $"Sisa Token: {selectedEnemy.remainingAttackTokens}/{selectedEnemy.initialAttackTokens} | " +
-            $"HP Loss Player: {hpLoss:0.##} | Distance: {selectedDistance:0.##}"
+            $"[STAGE MANAGER] Token minion berkurang: {data.enemy.name} | " +
+            $"Sisa Token: {data.remainingAttackTokens}/{data.initialAttackTokens} | " +
+            $"Damage: {damageAmount:0.##} | Source: {source}"
         );
 
-        if (selectedEnemy.remainingAttackTokens <= 0)
+        if (data.remainingAttackTokens <= 0 && applyExhaustedImmediately)
         {
-            ApplyAttackTokenExhaustedEffect(selectedEnemy);
+            data.pendingTokenExhaustedEffect = false;
+            ApplyAttackTokenExhaustedEffect(data);
+        }
+    }
+
+    private StageEnemyRuntimeDebugData FindRuntimeDebugDataForEnemy(GameObject enemy)
+    {
+        if (enemy == null)
+            return null;
+
+        Transform enemyTransform = enemy.transform;
+
+        foreach (StageEnemyRuntimeDebugData data in enemyRuntimeDebugData)
+        {
+            if (data == null || data.enemy == null)
+                continue;
+
+            if (data.enemy == enemy)
+                return data;
+
+            Transform registeredTransform = data.enemy.transform;
+
+            if (enemyTransform.IsChildOf(registeredTransform) || registeredTransform.IsChildOf(enemyTransform))
+                return data;
         }
 
-        return true;
+        return null;
     }
 
     private void ApplyAttackTokenExhaustedEffect(StageEnemyRuntimeDebugData data)
@@ -1011,6 +1222,8 @@ public class StageManager : MonoBehaviour
             return;
 
         data.tokenExhaustedEffectApplied = true;
+        data.remainingAttackTokens = 0;
+        SyncRuntimeAttackTokenToEnemy(data);
 
         if (data.character != null && setMinionAttackToZeroWhenTokenEmpty)
         {
@@ -1036,6 +1249,40 @@ public class StageManager : MonoBehaviour
         Debug.Log(
             $"[STAGE MANAGER] Token habis pada {data.enemy.name}. {reflectionStatus}"
         );
+    }
+
+    private void SyncRuntimeAttackTokenToEnemy(StageEnemyRuntimeDebugData data)
+    {
+        if (data == null || data.enemy == null || data.isBoss)
+            return;
+
+        SyncAttackTokenToEnemyComponents(data.enemy, data.remainingAttackTokens);
+    }
+
+    private bool SyncAttackTokenToEnemyComponents(GameObject enemy, int remainingTokens)
+    {
+        if (enemy == null)
+            return false;
+
+        bool changed = false;
+        remainingTokens = Mathf.Max(0, remainingTokens);
+
+        MonoBehaviour[] behaviours = enemy.GetComponentsInChildren<MonoBehaviour>(true);
+
+        foreach (MonoBehaviour behaviour in behaviours)
+        {
+            if (behaviour == null)
+                continue;
+
+            Type behaviourType = behaviour.GetType();
+
+            changed |= TryInvokeIntMethod(behaviour, behaviourType, "SetRemainingAttackTokens", remainingTokens);
+            changed |= TryInvokeIntMethod(behaviour, behaviourType, "SetAttackTokens", remainingTokens);
+            changed |= TrySetIntMember(behaviour, behaviourType, "attackTokens", remainingTokens);
+            changed |= TrySetIntMember(behaviour, behaviourType, "remainingAttackTokens", remainingTokens);
+        }
+
+        return changed;
     }
 
     private bool TryDisableAttackThroughReflection(GameObject enemy)
@@ -1114,6 +1361,82 @@ public class StageManager : MonoBehaviour
         return false;
     }
 
+    private bool TryInvokeIntMethod(MonoBehaviour target, Type targetType, string methodName, int value)
+    {
+        MethodInfo method = targetType.GetMethod(
+            methodName,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
+        );
+
+        if (method == null)
+            return false;
+
+        ParameterInfo[] parameters = method.GetParameters();
+
+        if (parameters.Length != 1 || parameters[0].ParameterType != typeof(int))
+            return false;
+
+        try
+        {
+            method.Invoke(target, new object[] { value });
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Debug.LogWarning(
+                $"[STAGE MANAGER] Gagal memanggil {targetType.Name}.{methodName}(int): {exception.Message}"
+            );
+            return false;
+        }
+    }
+
+    private bool TrySetIntMember(MonoBehaviour target, Type targetType, string memberName, int value)
+    {
+        bool changed = false;
+
+        FieldInfo field = targetType.GetField(
+            memberName,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
+        );
+
+        if (field != null && field.FieldType == typeof(int))
+        {
+            try
+            {
+                field.SetValue(target, value);
+                changed = true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning(
+                    $"[STAGE MANAGER] Gagal mengubah field int {targetType.Name}.{memberName}: {exception.Message}"
+                );
+            }
+        }
+
+        PropertyInfo property = targetType.GetProperty(
+            memberName,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
+        );
+
+        if (property != null && property.PropertyType == typeof(int) && property.CanWrite)
+        {
+            try
+            {
+                property.SetValue(target, value, null);
+                changed = true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning(
+                    $"[STAGE MANAGER] Gagal mengubah property int {targetType.Name}.{memberName}: {exception.Message}"
+                );
+            }
+        }
+
+        return changed;
+    }
+
     private bool TrySetBoolMember(MonoBehaviour target, Type targetType, string memberName, bool value)
     {
         bool changed = false;
@@ -1186,10 +1509,12 @@ public class StageManager : MonoBehaviour
             afterStats = afterStats,
             originalAttack = character.attack,
             lastTokenConsumedTime = -999f,
-            tokenExhaustedEffectApplied = false
+            tokenExhaustedEffectApplied = false,
+            pendingTokenExhaustedEffect = false
         };
 
         enemyRuntimeDebugData.Add(data);
+        SyncRuntimeAttackTokenToEnemy(data);
     }
 
     private bool IsValidAliveRuntimeEnemy(StageEnemyRuntimeDebugData data)
@@ -1645,6 +1970,7 @@ public class StageManager : MonoBehaviour
         public float originalAttack;
         public float lastTokenConsumedTime;
         public bool tokenExhaustedEffectApplied;
+        public bool pendingTokenExhaustedEffect;
     }
 
     private struct StatsSnapshot

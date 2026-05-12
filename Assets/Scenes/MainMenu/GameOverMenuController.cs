@@ -3,7 +3,7 @@ using UnityEngine.SceneManagement;
 
 public class GameOverMenuController : MonoBehaviour
 {
-    [SerializeField] private string gameplaySceneName = "Sprite_SwordEnemyAI";
+    [SerializeField] private string gameplaySceneName = "Gabungan_PlayerBow_EnemyAI_Test";
 
     public void PlayAgain()
     {

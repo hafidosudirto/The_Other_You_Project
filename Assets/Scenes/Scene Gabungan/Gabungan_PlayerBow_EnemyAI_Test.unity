@@ -736,7 +736,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1718376399928103269, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2394147951062621979, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: m_Size.x
@@ -1620,7 +1620,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f02c782d9f7229a45af132f9a7c8f8bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 365149507}
+  player: {fileID: 443342433}
   smoothTime: 0.15
   deadZoneHalfWidth: 1.5
   minCameraX: 0
@@ -2091,9 +2091,11 @@ MonoBehaviour:
   bossPrefabBow: {fileID: 1718376399928103269, guid: 31cdc560879ab6041935da80e59b4b70, type: 3}
   bossSpawnPoint: {fileID: 894654933}
   startingStageNumber: 0
-  baseSpawnToken: 2
+  baseSpawnToken: 3
   spawnTokenIncreasePerStage: 1
   statAmplifyPerStage: 0.1
+  deriveBaseMinionAttackTokenFromBaseMinionRatio: 1
+  initialTokenRatioFromBaseMinion: 0.7
   baseMinionAttackToken: 3
   minionAttackTokenIncreasePerStage: 2
   dominantVariantRatio: 0.6
@@ -2261,7 +2263,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6433921802813180583, guid: ce054ee026d254547908bf4f689bb853, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7456105813554528496, guid: ce054ee026d254547908bf4f689bb853, type: 3}
       propertyPath: isAttacking
