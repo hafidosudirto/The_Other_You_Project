@@ -29,6 +29,16 @@ public class Enemy_Sword_Riposte : MonoBehaviour
     public float gizmoShowTime = 0.06f;
     public Color gizmoColor = Color.magenta;
 
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX Riposte musuh ingin dikendalikan dari script ini, bukan dari Animation Event.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara tebasan Riposte diputar saat counter attack benar-benar berhasil dieksekusi.")]
+    public bool playCounterSlashSfxOnSuccess = true;
+
+    [Tooltip("Suara hit hanya dimainkan satu kali untuk satu counter attack, walaupun target yang terkena lebih dari satu.")]
+    public bool playHitSfxOncePerCounter = true;
+
     private NodeManager ai;
     private EnemyCombatController combat;
     private EnemyMovementFSM movementFSM;
@@ -143,6 +153,9 @@ public class Enemy_Sword_Riposte : MonoBehaviour
 
         ai?.Animation?.SetRiposteReady(false);
         ai?.Animation?.TriggerRiposteCounter();
+
+        if (playCounterSlashSfxOnSuccess)
+            PlayCounterSlashSfx();
     }
 
     private IEnumerator RiposteRoutine()
@@ -283,6 +296,8 @@ public class Enemy_Sword_Riposte : MonoBehaviour
             targetLayer
         );
 
+        bool hasHit = false;
+
         for (int i = 0; i < hits.Length; i++)
         {
             var h = hits[i];
@@ -298,7 +313,36 @@ public class Enemy_Sword_Riposte : MonoBehaviour
                 : (selfStats != null ? selfStats.attack : 10f);
 
             cb.TakeDamage(baseAtk * counterDamageMultiplier, ai != null ? ai.gameObject : gameObject);
+            hasHit = true;
+
+            if (!playHitSfxOncePerCounter)
+                PlayHitSfx();
         }
+
+        if (hasHit && playHitSfxOncePerCounter)
+            PlayHitSfx();
+    }
+
+    private void PlayCounterSlashSfx()
+    {
+        if (SFXManager.Instance == null) return;
+        PlaySfx(SFXManager.Instance.swordSlash2);
+    }
+
+    private void PlayHitSfx()
+    {
+        if (SFXManager.Instance == null) return;
+        PlaySfx(SFXManager.Instance.swordHit);
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.sfxSource == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
     }
 
     private IEnumerator ShowDashLineWindow()

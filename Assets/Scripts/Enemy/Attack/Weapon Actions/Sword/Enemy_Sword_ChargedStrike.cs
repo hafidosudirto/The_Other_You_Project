@@ -24,6 +24,26 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
     [Header("Mask")]
     public LayerMask hitMask;
 
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX Charged Strike musuh ingin dikendalikan dari script ini, bukan dari Animation Event.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara charge diputar selama fase windup/charging musuh berlangsung.")]
+    public bool playChargeSfxDuringWindup = true;
+
+    [Tooltip("Jika true, suara charge akan di-loop sampai fase windup selesai atau skill dibatalkan.")]
+    public bool loopChargeSfx = true;
+
+    [Range(0f, 1f)]
+    [Tooltip("Volume khusus untuk suara charge musuh. Tidak memengaruhi suara release dan hit.")]
+    public float chargeSfxVolume = 1f;
+
+    [Tooltip("Suara release/ayunan kuat diputar saat Charged Strike dilepaskan.")]
+    public bool playReleaseSfxOnActiveFrame = true;
+
+    [Tooltip("Suara hit hanya dimainkan satu kali untuk satu Charged Strike, walaupun target yang terkena lebih dari satu.")]
+    public bool playHitSfxOncePerStrike = true;
+
     private NodeManager ai;
     private EnemyCombatController combat;
     private EnemyMovementFSM movementFSM;
@@ -35,6 +55,7 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
     private Coroutine activeRoutine;
     private bool skillStartInvoked = false;
     private bool movementLockedByThisSkill = false;
+    private AudioSource chargeSfxSource;
 
     private void Awake()
     {
@@ -72,10 +93,18 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
 
         ai?.Animation?.SetCharging(true);
 
+        // SFX charge diputar selama fase windup/charging musuh berlangsung.
+        PlayChargeSfx();
+
         yield return new WaitForSeconds(windupTime);
+
+        StopChargeSfx();
 
         ai?.Animation?.SetCharging(false);
         ai?.Animation?.PlaySlash2();
+
+        if (playReleaseSfxOnActiveFrame)
+            PlayReleaseSfx();
 
         PerformAttack();
 
@@ -108,6 +137,8 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
 
     private void ForceEndSkillState()
     {
+        StopChargeSfx();
+
         ai?.Animation?.SetCharging(false);
 
         if (skillStartInvoked)
@@ -135,6 +166,7 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
         Vector3 origin = ai.transform.position + new Vector3(hitOffset.x * sign, hitOffset.y, 0f);
 
         Collider2D[] hits = Physics2D.OverlapCircleAll(origin, attackRadius, hitMask);
+        bool hasHit = false;
 
         foreach (var h in hits)
         {
@@ -149,12 +181,97 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
             float dmg = ai.AttackPower * damageMultiplier;
 
             cb.TakeDamage(dmg, ai.gameObject);
+            hasHit = true;
 
             if (!cb.isRiposteStance)
             {
                 Vector2 knockDir = toTarget.normalized;
                 cb.ApplyStagger(knockDir, knockbackForce, stunDuration);
             }
+
+            if (!playHitSfxOncePerStrike)
+                PlayHitSfx();
         }
+
+        if (hasHit && playHitSfxOncePerStrike)
+            PlayHitSfx();
+    }
+
+    private void PlayChargeSfx()
+    {
+        if (!playSfxFromScript) return;
+        if (!playChargeSfxDuringWindup) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.swordCharge == null) return;
+
+        if (loopChargeSfx)
+        {
+            EnsureChargeSfxSource();
+            if (chargeSfxSource == null) return;
+
+            chargeSfxSource.clip = SFXManager.Instance.swordCharge;
+            chargeSfxSource.loop = true;
+            chargeSfxSource.volume = chargeSfxVolume;
+
+            if (!chargeSfxSource.isPlaying)
+                chargeSfxSource.Play();
+        }
+        else
+        {
+            PlaySfx(SFXManager.Instance.swordCharge);
+        }
+    }
+
+    private void StopChargeSfx()
+    {
+        if (chargeSfxSource == null) return;
+
+        if (chargeSfxSource.isPlaying)
+            chargeSfxSource.Stop();
+
+        chargeSfxSource.clip = null;
+    }
+
+    private void EnsureChargeSfxSource()
+    {
+        if (chargeSfxSource != null) return;
+
+        chargeSfxSource = gameObject.AddComponent<AudioSource>();
+        chargeSfxSource.playOnAwake = false;
+        chargeSfxSource.loop = true;
+        chargeSfxSource.volume = chargeSfxVolume;
+
+        if (SFXManager.Instance != null && SFXManager.Instance.sfxSource != null)
+        {
+            AudioSource referenceSource = SFXManager.Instance.sfxSource;
+            chargeSfxSource.outputAudioMixerGroup = referenceSource.outputAudioMixerGroup;
+            chargeSfxSource.spatialBlend = referenceSource.spatialBlend;
+            chargeSfxSource.rolloffMode = referenceSource.rolloffMode;
+            chargeSfxSource.minDistance = referenceSource.minDistance;
+            chargeSfxSource.maxDistance = referenceSource.maxDistance;
+            chargeSfxSource.priority = referenceSource.priority;
+        }
+    }
+
+    private void PlayReleaseSfx()
+    {
+        if (SFXManager.Instance == null) return;
+        PlaySfx(SFXManager.Instance.swordSlash2);
+    }
+
+    private void PlayHitSfx()
+    {
+        if (SFXManager.Instance == null) return;
+        PlaySfx(SFXManager.Instance.swordHit);
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.sfxSource == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
     }
 }

@@ -390,6 +390,20 @@ public class Bow_SpreadArrow : MonoBehaviour, ISkill, IEnergySkill
     )]
     public float lockGerakSetelahTembak = 0.18f;
 
+
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX Spread Arrow ingin dikendalikan dari script ini.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara tarikan busur diputar satu kali saat casting Spread Arrow dimulai.")]
+    public bool playBowDrawOnCastStart = true;
+
+    [Tooltip("Suara panah meluncur opsi 2 diputar saat formasi Spread Arrow dilepas.")]
+    public bool playLaunchSfxOnRelease = true;
+
+    [Tooltip("Jika aktif, prefab panah diberi BowProjectileSFX agar suara hit/miss muncul dari tabrakan projectile.")]
+    public bool enableProjectileImpactSfx = true;
+
     [Header("Energy")]
     [Tooltip(
         "Biaya energi Skill 3.\n\n" +
@@ -465,6 +479,9 @@ public class Bow_SpreadArrow : MonoBehaviour, ISkill, IEnergySkill
         sedangCast = true;
         panahSudahDitembakkan = false;
         castSudahSelesai = false;
+
+        if (playBowDrawOnCastStart)
+            PlayBowDrawSfx();
 
         if (pemain != null)
         {
@@ -616,6 +633,9 @@ public class Bow_SpreadArrow : MonoBehaviour, ISkill, IEnergySkill
     {
         CatatDataSpreadArrow();
 
+        if (playLaunchSfxOnRelease)
+            PlaySpreadLaunchSfx();
+
         List<DataPanah> formasi = BangunFormasiPanah();
         float arah = AmbilArahHadap();
 
@@ -723,101 +743,103 @@ public class Bow_SpreadArrow : MonoBehaviour, ISkill, IEnergySkill
             arrowDamage.SetStats(damageSpread, dorongMundur, lumpuhSingkat, panahMenembus, false);
         }
 
+        SetupProjectileSfx(panahObj, true, true);
+
         StartCoroutine(RoutinePanah(rb, panahObj, arah, data.sudut, data.bonusVy));
     }
 
     private IEnumerator RoutinePanah(Rigidbody2D rb, GameObject panahObj, float arah, float sudutAwal, float bonusVy)
-{
-    if (rb == null || panahObj == null)
-        yield break;
-
-    bool modeSpreadLurus =
-        polaTembak == PolaTembak.SpreadTetap &&
-        spreadTetapLurusSepertiPiercing;
-
-    if (modeSpreadLurus)
-    {
-        yield return RoutinePanahSpreadLurusSepertiPiercing(rb, panahObj, arah, bonusVy);
-        yield break;
-    }
-
-    float timer = 0f;
-    float posisiAwalX = rb.position.x;
-    bool sudahMendarat = false;
-
-    float waktuMulaiTurun = Mathf.Clamp(mulaiTurun, 0f, Mathf.Max(0.01f, durasiTerbang - 0.01f));
-
-    Vector2 arahAwal = HitungArahDariSudut(arah, sudutAwal);
-    float vx = arahAwal.x * kecepatanPanah;
-    float vy = arahAwal.y * kecepatanPanah + angkatSedikit + bonusVy;
-
-    while (timer < durasiTerbang && !sudahMendarat)
     {
         if (rb == null || panahObj == null)
             yield break;
 
-        if (timer >= waktuMulaiTurun)
-            vy -= lengkungTurun * Time.deltaTime;
+        bool modeSpreadLurus =
+            polaTembak == PolaTembak.SpreadTetap &&
+            spreadTetapLurusSepertiPiercing;
 
-        rb.velocity = new Vector2(vx, vy);
-
-        if (rotasiIkutArah)
-            TerapkanRotasiPanah(rb);
-
-        if (BolehCekMendarat(rb, posisiAwalX))
+        if (modeSpreadLurus)
         {
-            if (CobaMendarat(rb, panahObj, arah))
-            {
-                sudahMendarat = true;
-                break;
-            }
-        }
-
-        timer += Time.deltaTime;
-        yield return null;
-    }
-
-    float timerCariTanah = 0f;
-
-    while (!sudahMendarat && timerCariTanah < batasWaktuCariTanah)
-    {
-        if (rb == null || panahObj == null)
+            yield return RoutinePanahSpreadLurusSepertiPiercing(rb, panahObj, arah, bonusVy);
             yield break;
-
-        vx = arah * kecepatanPanah * pengaliKecepatanSaatTurunAkhir;
-        vy -= (lengkungTurun * 2f) * Time.deltaTime;
-
-        rb.velocity = new Vector2(vx, vy);
-
-        if (rotasiIkutArah)
-            TerapkanRotasiPanah(rb);
-
-        if (BolehCekMendarat(rb, posisiAwalX))
-        {
-            if (CobaMendarat(rb, panahObj, arah))
-            {
-                sudahMendarat = true;
-                break;
-            }
         }
 
-        timerCariTanah += Time.deltaTime;
-        yield return null;
-    }
+        float timer = 0f;
+        float posisiAwalX = rb.position.x;
+        bool sudahMendarat = false;
 
-    if (!sudahMendarat)
-    {
+        float waktuMulaiTurun = Mathf.Clamp(mulaiTurun, 0f, Mathf.Max(0.01f, durasiTerbang - 0.01f));
+
+        Vector2 arahAwal = HitungArahDariSudut(arah, sudutAwal);
+        float vx = arahAwal.x * kecepatanPanah;
+        float vy = arahAwal.y * kecepatanPanah + angkatSedikit + bonusVy;
+
+        while (timer < durasiTerbang && !sudahMendarat)
+        {
+            if (rb == null || panahObj == null)
+                yield break;
+
+            if (timer >= waktuMulaiTurun)
+                vy -= lengkungTurun * Time.deltaTime;
+
+            rb.velocity = new Vector2(vx, vy);
+
+            if (rotasiIkutArah)
+                TerapkanRotasiPanah(rb);
+
+            if (BolehCekMendarat(rb, posisiAwalX))
+            {
+                if (CobaMendarat(rb, panahObj, arah))
+                {
+                    sudahMendarat = true;
+                    break;
+                }
+            }
+
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
+        float timerCariTanah = 0f;
+
+        while (!sudahMendarat && timerCariTanah < batasWaktuCariTanah)
+        {
+            if (rb == null || panahObj == null)
+                yield break;
+
+            vx = arah * kecepatanPanah * pengaliKecepatanSaatTurunAkhir;
+            vy -= (lengkungTurun * 2f) * Time.deltaTime;
+
+            rb.velocity = new Vector2(vx, vy);
+
+            if (rotasiIkutArah)
+                TerapkanRotasiPanah(rb);
+
+            if (BolehCekMendarat(rb, posisiAwalX))
+            {
+                if (CobaMendarat(rb, panahObj, arah))
+                {
+                    sudahMendarat = true;
+                    break;
+                }
+            }
+
+            timerCariTanah += Time.deltaTime;
+            yield return null;
+        }
+
+        if (!sudahMendarat)
+        {
+            if (panahObj != null)
+                Destroy(panahObj);
+
+            yield break;
+        }
+
+        yield return new WaitForSeconds(waktuTerlihatSetelahJatuh);
+
         if (panahObj != null)
             Destroy(panahObj);
-
-        yield break;
     }
-
-    yield return new WaitForSeconds(waktuTerlihatSetelahJatuh);
-
-    if (panahObj != null)
-        Destroy(panahObj);
-}
     private IEnumerator RoutinePanahSpreadLurusSepertiPiercing(
     Rigidbody2D rb,
     GameObject panahObj,
@@ -939,6 +961,8 @@ public class Bow_SpreadArrow : MonoBehaviour, ISkill, IEnergySkill
         rb.angularVelocity = 0f;
         rb.simulated = false;
 
+        PlayGroundMissIfArrowStillActive(panahObj);
+
         Collider2D col = panahObj.GetComponent<Collider2D>();
         if (col != null)
             col.enabled = false;
@@ -1034,6 +1058,54 @@ public class Bow_SpreadArrow : MonoBehaviour, ISkill, IEnergySkill
 
         tracker.RecordBowSpreadArrow();
     }
+
+
+    private void PlayBowDrawSfx()
+    {
+        if (!playSfxFromScript) return;
+        if (SFXManager.Instance == null) return;
+
+        SFXManager.Instance.ResetBowDrawGate();
+        SFXManager.Instance.PlayBowDrawGuarded();
+    }
+
+    private void PlaySpreadLaunchSfx()
+    {
+        PlaySfx(SFXManager.Instance != null ? SFXManager.Instance.arrowLaunchCharged : null);
+    }
+
+    private void SetupProjectileSfx(GameObject arrowObj, bool enableGroundMissSfx, bool enableHitSfx)
+    {
+        if (!enableProjectileImpactSfx) return;
+        if (arrowObj == null) return;
+
+        BowProjectileSFX reporter = arrowObj.GetComponent<BowProjectileSFX>();
+        if (reporter == null)
+            reporter = arrowObj.AddComponent<BowProjectileSFX>();
+
+        reporter.Setup(pemilikEnergi, enableGroundMissSfx, enableHitSfx);
+    }
+
+    private void PlayGroundMissIfArrowStillActive(GameObject arrowObj)
+    {
+        if (!enableProjectileImpactSfx) return;
+        if (arrowObj == null) return;
+
+        BowProjectileSFX reporter = arrowObj.GetComponent<BowProjectileSFX>();
+        if (reporter != null)
+            reporter.PlayGroundMissIfNotPlayed();
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.sfxSource == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
+    }
+
 
     private bool CobaKurangiEnergi()
     {

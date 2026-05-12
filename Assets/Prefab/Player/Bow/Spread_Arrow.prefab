@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 4280799721995992493}
   - component: {fileID: 5039378159981235166}
   - component: {fileID: 7468609875317467290}
+  - component: {fileID: -8022324463860109210}
   m_Layer: 7
   m_Name: Spread_Arrow
   m_TagString: Projectile
@@ -179,3 +180,15 @@ MonoBehaviour:
   baseDamage: 10
   knockbackForce: 0
   stunDuration: 0
+--- !u!114 &-8022324463860109210
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1692899915983295771}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f894b39d95650d643854f51105352a7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

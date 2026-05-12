@@ -3,6 +3,7 @@ using System.Collections;
 
 [RequireComponent(typeof(Animator))]
 [RequireComponent(typeof(Rigidbody2D))]
+// Revisi: attack token adalah slot global dari StageManager untuk membatasi minion yang menyerang bersamaan.
 public class MinionMeleeController : Enemy
 {
     public enum MinionState { Idle, Walk, Attack, Damaged }
@@ -50,20 +51,26 @@ public class MinionMeleeController : Enemy
     public float horizontalAttackOffset = 0f;
 
     [Header("Stage Settings (DDA)")]
-    public int attackTokens = 3;
+    [Tooltip("Batas jumlah minion yang boleh menyerang bersamaan pada stage ini. Nilai ini dikirim oleh StageManager; bukan stok token per minion.")]
+    public int attackTokens = 2;
     public bool isBoss = false;
 
-    [Header("Stage Manager Attack Token Integration")]
-    [Tooltip("Jika aktif, token dikonsumsi melalui StageManager ketika minion memasuki state Attack.")]
-    public bool useStageManagerAttackToken = true;
+    [Header("Concurrent Attack Token Gate")]
+    [SerializeField] private float attackStateDuration = 1f;
+    [SerializeField] private float tokenDeniedRetryDelay = 0.2f;
+    [SerializeField] private bool allowAttackWithoutStageManager = true;
 
-    [Tooltip("Jika aktif, setiap percobaan menyerang menghabiskan 1 token, meskipun hitbox tidak mengenai player.")]
-    public bool consumeTokenOnAttackAttempt = true;
+    [Header("Concurrent Attack Token Runtime Debug")]
+    public bool hasActiveAttackToken = false;
+    public int activeAttackersInStage = 0;
+    public int attackTokenCapacityInStage = 0;
+
+    private StageManager stageManager;
+    private bool hasReservedAttackToken = false;
 
     private Transform player;
     private Animator animator;
     private MinionDeathHandler deathHandler;
-    private StageManager stageManager;
 
     private float stateTimer;
     private float cooldownTimer;
@@ -71,7 +78,6 @@ public class MinionMeleeController : Enemy
     private float assignedOrbitAngle;
 
     private bool isDead = false;
-    private bool canAttackByToken = true;
     private int damagedStateHash;
 
     private static readonly int IsMovingHash = Animator.StringToHash("IsMoving");
@@ -115,8 +121,12 @@ public class MinionMeleeController : Enemy
     public void InitializeStageEnemy(CharacterBase character, int tokens, bool bossStatus)
     {
         attackTokens = Mathf.Max(0, tokens);
+        attackTokenCapacityInStage = Mathf.Max(0, tokens);
+        activeAttackersInStage = 0;
+        hasActiveAttackToken = false;
+        hasReservedAttackToken = false;
         isBoss = bossStatus;
-        canAttackByToken = isBoss || attackTokens > 0;
+
         FindStageManager();
 
         if (character != null)
@@ -129,64 +139,34 @@ public class MinionMeleeController : Enemy
         }
 
         Debug.Log($"<color=orange>[VISUALISASI STAT STAGE]</color> {gameObject.name} Spawned! " +
-                  $"HP: {currentHP} | ATK: {attack} | SPD: {moveSpeed} | Token Serang: {attackTokens}");
+                  $"HP: {currentHP} | ATK: {attack} | SPD: {moveSpeed} | " +
+                  $"Batas Minion Menyerang Bersamaan: {attackTokenCapacityInStage}");
     }
 
-    public void SetRemainingAttackTokens(int remainingTokens)
+    public void SetStageAttackTokenRuntime(bool isUsingToken, int activeTokens, int tokenCapacity)
     {
-        attackTokens = Mathf.Max(0, remainingTokens);
-        canAttackByToken = isBoss || attackTokens > 0;
+        hasActiveAttackToken = isUsingToken;
+        hasReservedAttackToken = isUsingToken;
+        activeAttackersInStage = Mathf.Max(0, activeTokens);
+        attackTokenCapacityInStage = Mathf.Max(0, tokenCapacity);
+        attackTokens = attackTokenCapacityInStage;
     }
 
-    public void SetAttackTokens(int remainingTokens)
+    public void SetConcurrentAttackTokenRuntime(bool isUsingToken, int activeTokens, int tokenCapacity)
     {
-        SetRemainingAttackTokens(remainingTokens);
+        SetStageAttackTokenRuntime(isUsingToken, activeTokens, tokenCapacity);
     }
 
-    public int GetRemainingAttackTokens()
+    public void SetRemainingAttackTokens(int tokens)
     {
-        return isBoss ? int.MaxValue : Mathf.Max(0, attackTokens);
+        // Compatibility method untuk StageManager lama. Pada sistem baru nilai ini diperlakukan sebagai kapasitas global stage.
+        attackTokenCapacityInStage = Mathf.Max(0, tokens);
+        attackTokens = attackTokenCapacityInStage;
     }
 
-    public bool HasAttackTokens()
+    public void SetAttackTokens(int tokens)
     {
-        return isBoss || (canAttackByToken && attackTokens > 0);
-    }
-
-    public void SetCanAttack(bool value)
-    {
-        canAttackByToken = isBoss || value;
-
-        if (!canAttackByToken && !isBoss)
-        {
-            attackTokens = 0;
-        }
-    }
-
-    public void SetAttackEnabled(bool value)
-    {
-        SetCanAttack(value);
-    }
-
-    public void SetCanUseAttack(bool value)
-    {
-        SetCanAttack(value);
-    }
-
-    public void DisableAttack()
-    {
-        SetCanAttack(false);
-    }
-
-    public void StopAttacking()
-    {
-        if (animator == null)
-            animator = GetComponent<Animator>();
-
-        if (animator != null)
-        {
-            animator.ResetTrigger(AttackHash);
-        }
+        SetRemainingAttackTokens(tokens);
     }
 
     public override void TakeDamage(float dmg, GameObject attacker = null)
@@ -285,7 +265,7 @@ public class MinionMeleeController : Enemy
         Vector2 targetPosition;
         Vector2 moveDirection = Vector2.zero;
 
-        bool isReadyToAttack = cooldownTimer <= 0f && CanUseAttackTokenForDecision();
+        bool isReadyToAttack = cooldownTimer <= 0f;
         bool isHorizontalAttackMotion = horizontalAttackOnly && isReadyToAttack;
 
         if (isReadyToAttack)
@@ -311,7 +291,7 @@ public class MinionMeleeController : Enemy
                     if (horizontalDistance <= attackRange)
                     {
                         FacePlayerHorizontally();
-                        ChangeState(MinionState.Attack);
+                        TryChangeToAttackState();
                         return;
                     }
                 }
@@ -325,7 +305,7 @@ public class MinionMeleeController : Enemy
 
                 if (distToPlayer <= attackRange)
                 {
-                    ChangeState(MinionState.Attack);
+                    TryChangeToAttackState();
                     return;
                 }
             }
@@ -410,6 +390,75 @@ public class MinionMeleeController : Enemy
         }
     }
 
+    private bool TryChangeToAttackState()
+    {
+        if (!TryReserveAttackToken())
+        {
+            cooldownTimer = Mathf.Max(cooldownTimer, tokenDeniedRetryDelay);
+            FacePlayerHorizontally();
+            return false;
+        }
+
+        ChangeState(MinionState.Attack);
+        return true;
+    }
+
+    private bool TryReserveAttackToken()
+    {
+        if (isBoss)
+            return true;
+
+        if (hasReservedAttackToken)
+            return true;
+
+        FindStageManager();
+
+        if (stageManager == null)
+        {
+            if (!allowAttackWithoutStageManager)
+                return false;
+
+            hasReservedAttackToken = true;
+            hasActiveAttackToken = true;
+            return true;
+        }
+
+        bool acquired = stageManager.TryAcquireMinionAttackToken(
+            gameObject,
+            "MinionMeleeController.ChangeState(Attack)"
+        );
+
+        if (acquired)
+        {
+            hasReservedAttackToken = true;
+            hasActiveAttackToken = true;
+        }
+
+        return acquired;
+    }
+
+    private void ReleaseAttackToken(string reason)
+    {
+        if (isBoss)
+            return;
+
+        if (!hasReservedAttackToken && !hasActiveAttackToken)
+            return;
+
+        hasReservedAttackToken = false;
+        hasActiveAttackToken = false;
+
+        if (stageManager == null)
+        {
+            FindStageManager();
+        }
+
+        if (stageManager != null)
+        {
+            stageManager.ReleaseMinionAttackToken(gameObject, reason);
+        }
+    }
+
     public void ChangeState(MinionState newState)
     {
         if (isDead)
@@ -417,6 +466,19 @@ public class MinionMeleeController : Enemy
 
         if (currentHP <= 0f && newState != MinionState.Damaged)
             return;
+
+        if (newState == MinionState.Attack && !TryReserveAttackToken())
+        {
+            currentState = MinionState.Walk;
+            animator.SetBool(IsMovingHash, true);
+            cooldownTimer = Mathf.Max(cooldownTimer, tokenDeniedRetryDelay);
+            return;
+        }
+
+        if (currentState == MinionState.Attack && newState != MinionState.Attack)
+        {
+            ReleaseAttackToken($"Keluar dari state Attack menuju {newState}");
+        }
 
         currentState = newState;
 
@@ -433,26 +495,14 @@ public class MinionMeleeController : Enemy
                 break;
 
             case MinionState.Attack:
-                float damageForThisAttack = Mathf.Max(0f, attack);
-
-                if (!TryConsumeAttackTokenBeforeAttack(damageForThisAttack))
-                {
-                    currentState = MinionState.Walk;
-                    animator.ResetTrigger(AttackHash);
-                    animator.SetBool(IsMovingHash, true);
-                    cooldownTimer = Mathf.Max(cooldownTimer, 0.25f);
-                    return;
-                }
-
                 animator.SetBool(IsMovingHash, false);
                 animator.ResetTrigger(DamagedHash);
                 animator.SetTrigger(AttackHash);
 
-                stateTimer = 1f;
-                cooldownTimer = attackCooldown + 1f;
+                stateTimer = Mathf.Max(0.01f, attackStateDuration);
+                cooldownTimer = attackCooldown + stateTimer;
 
-                GiveDamageToPlayer(damageForThisAttack);
-                FinalizeAttackTokenAfterAttack();
+                GiveDamageToPlayer();
                 break;
 
             case MinionState.Damaged:
@@ -494,6 +544,8 @@ public class MinionMeleeController : Enemy
         if (isDead)
             return;
 
+        ReleaseAttackToken("Minion mati");
+
         isDead = true;
         currentHP = 0f;
 
@@ -525,81 +577,7 @@ public class MinionMeleeController : Enemy
         }
     }
 
-    private bool CanUseAttackTokenForDecision()
-    {
-        if (isBoss)
-            return true;
-
-        if (!canAttackByToken || attackTokens <= 0)
-            return false;
-
-        return true;
-    }
-
-    private bool TryConsumeAttackTokenBeforeAttack(float expectedDamage)
-    {
-        if (isBoss || !consumeTokenOnAttackAttempt)
-            return true;
-
-        if (!CanUseAttackTokenForDecision())
-        {
-            Debug.Log($"<color=orange>[MINION TOKEN]</color> {name} gagal menyerang karena token habis.");
-            return false;
-        }
-
-        if (useStageManagerAttackToken)
-        {
-            FindStageManager();
-
-            if (stageManager != null)
-            {
-                bool consumedByStageManager = stageManager.TryConsumeAttackTokenForEnemy(
-                    gameObject,
-                    expectedDamage,
-                    "MinionMeleeController.Attack"
-                );
-
-                if (consumedByStageManager)
-                {
-                    SetRemainingAttackTokens(
-                        stageManager.GetRemainingAttackTokensForEnemy(gameObject, attackTokens)
-                    );
-                    return true;
-                }
-
-                if (stageManager.HasAttackTokenRuntimeData(gameObject))
-                {
-                    SetRemainingAttackTokens(0);
-                    return false;
-                }
-            }
-        }
-
-        attackTokens = Mathf.Max(0, attackTokens - 1);
-        canAttackByToken = attackTokens > 0;
-
-        Debug.Log($"<color=orange>[MINION TOKEN LOCAL]</color> {name} memakai 1 token lokal. Sisa: {attackTokens}");
-
-        return true;
-    }
-
-    private void FinalizeAttackTokenAfterAttack()
-    {
-        if (isBoss || !consumeTokenOnAttackAttempt || !useStageManagerAttackToken)
-            return;
-
-        FindStageManager();
-
-        if (stageManager != null)
-        {
-            stageManager.FinalizeAttackTokenConsumptionForEnemy(gameObject);
-            SetRemainingAttackTokens(
-                stageManager.GetRemainingAttackTokensForEnemy(gameObject, attackTokens)
-            );
-        }
-    }
-
-    private void GiveDamageToPlayer(float damageAmount)
+    private void GiveDamageToPlayer()
     {
         if (player == null)
             FindPlayer();
@@ -629,8 +607,8 @@ public class MinionMeleeController : Enemy
 
                 if (playerStats != null)
                 {
-                    playerStats.TakeDamage(damageAmount, gameObject);
-                    Debug.Log($"<color=red>[MINION ATTACK]</color> Minion hit Player secara horizontal! Damage: {damageAmount} | Sisa Token: {attackTokens}");
+                    playerStats.TakeDamage(attack, gameObject);
+                    Debug.Log($"<color=red>[MINION ATTACK]</color> Minion hit Player secara horizontal! Damage: {attack}");
                     return;
                 }
             }
@@ -650,8 +628,8 @@ public class MinionMeleeController : Enemy
 
         if (fallbackPlayerStats != null)
         {
-            fallbackPlayerStats.TakeDamage(damageAmount, gameObject);
-            Debug.Log($"<color=red>[MINION ATTACK]</color> Minion hit Player! Damage: {damageAmount} | Sisa Token: {attackTokens}");
+            fallbackPlayerStats.TakeDamage(attack, gameObject);
+            Debug.Log($"<color=red>[MINION ATTACK]</color> Minion hit Player! Damage: {attack}");
         }
     }
 
@@ -686,6 +664,11 @@ public class MinionMeleeController : Enemy
         Vector3 clampedPosition = transform.position;
         clampedPosition.y = Mathf.Clamp(clampedPosition.y, minY, maxY);
         transform.position = clampedPosition;
+    }
+
+    private void OnDisable()
+    {
+        ReleaseAttackToken("Minion dinonaktifkan atau dihancurkan");
     }
 
 #if UNITY_EDITOR

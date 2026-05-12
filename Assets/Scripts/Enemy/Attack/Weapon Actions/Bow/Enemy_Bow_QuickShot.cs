@@ -34,6 +34,22 @@ public class Enemy_Bow_QuickShot : MonoBehaviour, ISkill
     public float postShotLock = 0.05f;
     public float releaseTimeout = 0.65f;
 
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX Quick Shot musuh ingin dikendalikan dari script ini.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara tarikan busur diputar satu kali saat casting Quick Shot dimulai.")]
+    public bool playBowDrawOnCastStart = true;
+
+    [Tooltip("Suara panah meluncur diputar saat panah Quick Shot dilepas.")]
+    public bool playLaunchSfxOnRelease = true;
+
+    [Tooltip("Suara panah menancap diputar jika panah tidak mengenai target sampai akhir durasi terbang.")]
+    public bool playGroundMissSfx = true;
+
+    [Tooltip("Suara hit diputar oleh projectile saat panah mengenai target.")]
+    public bool playHitSfx = true;
+
     public bool IsActive => isCasting;
 
     private NodeManager ai;
@@ -111,6 +127,9 @@ public class Enemy_Bow_QuickShot : MonoBehaviour, ISkill
         StopOwnerMovement();
         StartCoroutine(CooldownRoutine());
 
+        if (playBowDrawOnCastStart)
+            PlayBowDrawSfx();
+
         if (enemyAnim != null)
             enemyAnim.PlayQuickShot();
 
@@ -163,6 +182,9 @@ public class Enemy_Bow_QuickShot : MonoBehaviour, ISkill
         if (arrowObj == null)
             return;
 
+        if (playLaunchSfxOnRelease)
+            PlayArrowLaunchNormalSfx();
+
         Rigidbody2D rb = arrowObj.GetComponent<Rigidbody2D>();
         ArrowDamage dmg = arrowObj.GetComponent<ArrowDamage>();
 
@@ -174,6 +196,8 @@ public class Enemy_Bow_QuickShot : MonoBehaviour, ISkill
             dmg.SetOwner(owner);
             dmg.SetStats(quickDamage, knockback, stun, false, false);
         }
+
+        SetupProjectileSfx(arrowObj);
 
         if (rb != null)
             StartCoroutine(ArrowRoutine(rb, arrowObj, dir));
@@ -218,6 +242,8 @@ public class Enemy_Bow_QuickShot : MonoBehaviour, ISkill
 
         rb.velocity = Vector2.zero;
         yield return new WaitForSeconds(destroyDelay);
+
+        PlayGroundMissIfArrowStillActive(arrowObj);
 
         if (arrowObj != null)
             Destroy(arrowObj);
@@ -283,6 +309,52 @@ public class Enemy_Bow_QuickShot : MonoBehaviour, ISkill
         }
 
         return null;
+    }
+
+    private void PlayBowDrawSfx()
+    {
+        if (!playSfxFromScript) return;
+        if (SFXManager.Instance == null) return;
+
+        SFXManager.Instance.ResetBowDrawGate();
+        SFXManager.Instance.PlayBowDrawGuarded();
+    }
+
+    private void PlayArrowLaunchNormalSfx()
+    {
+        PlaySfx(SFXManager.Instance != null ? SFXManager.Instance.arrowLaunchNormal : null);
+    }
+
+    private void SetupProjectileSfx(GameObject arrowObj)
+    {
+        if (arrowObj == null) return;
+        if (!playSfxFromScript) return;
+
+        BowProjectileSFX reporter = arrowObj.GetComponent<BowProjectileSFX>();
+        if (reporter == null)
+            reporter = arrowObj.AddComponent<BowProjectileSFX>();
+
+        reporter.Setup(owner, playGroundMissSfx, playHitSfx);
+    }
+
+    private void PlayGroundMissIfArrowStillActive(GameObject arrowObj)
+    {
+        if (arrowObj == null) return;
+        if (!playSfxFromScript) return;
+
+        BowProjectileSFX reporter = arrowObj.GetComponent<BowProjectileSFX>();
+        if (reporter != null)
+            reporter.PlayGroundMissIfNotPlayed();
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.sfxSource == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
     }
 
     private void OnDisable()

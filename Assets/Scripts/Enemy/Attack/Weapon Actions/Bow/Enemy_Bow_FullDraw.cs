@@ -84,6 +84,22 @@ public class Enemy_Bow_FullDraw : MonoBehaviour, ISkill
     [Header("Animation")]
     public bool useAnimationEvent = true;
 
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX Full Draw musuh ingin dikendalikan dari script ini.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara tarikan busur diputar satu kali saat charge Full Draw dimulai.")]
+    public bool playBowDrawOnChargeStart = true;
+
+    [Tooltip("Suara panah meluncur diputar saat panah Full Draw dilepas.")]
+    public bool playLaunchSfxOnRelease = true;
+
+    [Tooltip("Suara panah menancap diputar jika panah tidak mengenai target sampai akhir durasi terbang.")]
+    public bool playGroundMissSfx = true;
+
+    [Tooltip("Suara hit diputar oleh projectile saat panah mengenai target.")]
+    public bool playHitSfx = true;
+
     [Header("Default Mode")]
     [Tooltip("Dipakai jika node lama masih memanggil Trigger() tanpa menentukan Normal atau FullCharge.")]
     public FullDrawMode defaultMode = FullDrawMode.Normal;
@@ -255,6 +271,9 @@ public class Enemy_Bow_FullDraw : MonoBehaviour, ISkill
 
         cooldownRoutine = StartCoroutine(CooldownRoutine());
 
+        if (playBowDrawOnChargeStart)
+            PlayBowDrawSfx();
+
         if (enemyAnim != null)
         {
             enemyAnim.TriggerBowChargeStart();
@@ -411,6 +430,9 @@ public class Enemy_Bow_FullDraw : MonoBehaviour, ISkill
         if (obj == null)
             return;
 
+        if (playLaunchSfxOnRelease)
+            PlayFullDrawLaunchSfx(piercing);
+
         Rigidbody2D rb = obj.GetComponent<Rigidbody2D>();
         ArrowDamage dmg = obj.GetComponent<ArrowDamage>();
 
@@ -436,6 +458,8 @@ public class Enemy_Bow_FullDraw : MonoBehaviour, ISkill
                 false
             );
         }
+
+        SetupProjectileSfx(obj);
 
         if (rb != null)
         {
@@ -492,6 +516,8 @@ public class Enemy_Bow_FullDraw : MonoBehaviour, ISkill
 
         yield return new WaitForSeconds(destroyDelay);
 
+        PlayGroundMissIfArrowStillActive(arrowObj);
+
         if (arrowObj != null)
             Destroy(arrowObj);
     }
@@ -525,6 +551,8 @@ public class Enemy_Bow_FullDraw : MonoBehaviour, ISkill
             timer += Time.deltaTime;
             yield return null;
         }
+
+        PlayGroundMissIfArrowStillActive(arrowObj);
 
         if (arrowObj != null)
             Destroy(arrowObj);
@@ -666,6 +694,56 @@ public class Enemy_Bow_FullDraw : MonoBehaviour, ISkill
         }
 
         return null;
+    }
+
+    private void PlayBowDrawSfx()
+    {
+        if (!playSfxFromScript) return;
+        if (SFXManager.Instance == null) return;
+
+        SFXManager.Instance.ResetBowDrawGate();
+        SFXManager.Instance.PlayBowDrawGuarded();
+    }
+
+    private void PlayFullDrawLaunchSfx(bool piercing)
+    {
+        AudioClip clip = piercing
+            ? (SFXManager.Instance != null ? SFXManager.Instance.arrowLaunchCharged : null)
+            : (SFXManager.Instance != null ? SFXManager.Instance.arrowLaunchNormal : null);
+
+        PlaySfx(clip);
+    }
+
+    private void SetupProjectileSfx(GameObject arrowObj)
+    {
+        if (arrowObj == null) return;
+        if (!playSfxFromScript) return;
+
+        BowProjectileSFX reporter = arrowObj.GetComponent<BowProjectileSFX>();
+        if (reporter == null)
+            reporter = arrowObj.AddComponent<BowProjectileSFX>();
+
+        reporter.Setup(owner, playGroundMissSfx, playHitSfx);
+    }
+
+    private void PlayGroundMissIfArrowStillActive(GameObject arrowObj)
+    {
+        if (arrowObj == null) return;
+        if (!playSfxFromScript) return;
+
+        BowProjectileSFX reporter = arrowObj.GetComponent<BowProjectileSFX>();
+        if (reporter != null)
+            reporter.PlayGroundMissIfNotPlayed();
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.sfxSource == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
     }
 
     private void OnDisable()

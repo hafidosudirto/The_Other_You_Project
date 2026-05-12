@@ -164,6 +164,26 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
     [Header("Energy")]
     [SerializeField, Min(0f)] private float energyCost = 25f;
 
+
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX Concussive Shot ingin dikendalikan dari script ini.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara tarikan busur diputar satu kali saat casting Concussive Shot dimulai.")]
+    public bool playBowDrawOnCastStart = true;
+
+    [Tooltip("Suara panah meluncur opsi 2 diputar ketika player mulai melompat / pop ke atas.")]
+    public bool playJumpLaunchSfx = true;
+
+    [Tooltip("Suara concussive meluncur diputar saat projectile concussive dilepas.")]
+    public bool playConcussiveLaunchSfxOnRelease = true;
+
+    [Tooltip("Suara ledakan diputar saat area ledakan concussive muncul.")]
+    public bool playConcussiveExplodeSfx = true;
+
+    [Tooltip("Suara hit diputar jika ledakan concussive mendeteksi target di dalam radius.")]
+    public bool playHitSfxOnExplosionHit = true;
+
     [Header("Debug")]
     public bool debugLog = false;
 
@@ -183,6 +203,7 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
     //private bool endRecoveryExecuted;
     private bool startPopReceived;
     private bool dataSudahTercatat;
+    private bool jumpSfxPlayed;
 
     private Vector3 visualLocalAwal;
     private float visualYOffset;
@@ -256,6 +277,7 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
         releaseExecuted = false;
         //endRecoveryExecuted = false;
         dataSudahTercatat = false;
+        jumpSfxPlayed = false;
         visualYOffset = 0f;
 
         CacheAwal();
@@ -266,6 +288,9 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
         StopOwnerMovement();
 
         MulaiCooldown();
+
+        if (playBowDrawOnCastStart)
+            PlayBowDrawSfx();
 
         if (castRoutine != null)
             StopCoroutine(castRoutine);
@@ -320,6 +345,8 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
 
     private IEnumerator RoutineSmoothJumpUp()
     {
+        PlayConcussiveJumpSfxOnce();
+
         float t = 0f;
         float durasi = Mathf.Max(0.01f, jumpUpTime);
 
@@ -390,6 +417,7 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
 
         // Fase 3:
         // Visual baru dipindahkan ke atas setelah blink tanah selesai.
+        PlayConcussiveJumpSfxOnce();
         SetVisualYOffset(jumpHeight);
 
         if (fadeVisualSaatSpecialJump)
@@ -468,6 +496,9 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
 
         if (debugLog)
             Debug.Log("[Bow_ConcussiveShot] Release panah.", this);
+
+        if (playConcussiveLaunchSfxOnRelease)
+            PlayConcussiveLaunchSfx();
 
         if (useArrowVisual)
             FireVisualArrow();
@@ -683,6 +714,12 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
         GameObject area = Instantiate(hitAreaPrefab, pos, Quaternion.identity);
         if (area == null)
             return;
+
+        if (playConcussiveExplodeSfx)
+            PlayConcussiveExplodeSfx();
+
+        if (playHitSfxOnExplosionHit && HasExplosionHitTarget(pos))
+            PlayBowHitSfx();
 
         ConcussiveHitArea hitArea = area.GetComponent<ConcussiveHitArea>();
         if (hitArea != null)
@@ -1000,6 +1037,69 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
 
         tracker.RecordAction(PlayerActionType.Defensive, WeaponType.Bow);
     }
+
+
+    private void PlayBowDrawSfx()
+    {
+        if (!playSfxFromScript) return;
+        if (SFXManager.Instance == null) return;
+
+        SFXManager.Instance.ResetBowDrawGate();
+        SFXManager.Instance.PlayBowDrawGuarded();
+    }
+
+    private void PlayConcussiveJumpSfxOnce()
+    {
+        if (jumpSfxPlayed) return;
+        if (!playJumpLaunchSfx) return;
+
+        jumpSfxPlayed = true;
+        PlaySfx(SFXManager.Instance != null ? SFXManager.Instance.arrowLaunchCharged : null);
+    }
+
+    private void PlayConcussiveLaunchSfx()
+    {
+        PlaySfx(SFXManager.Instance != null ? SFXManager.Instance.concussiveLaunch : null);
+    }
+
+    private void PlayConcussiveExplodeSfx()
+    {
+        PlaySfx(SFXManager.Instance != null ? SFXManager.Instance.concussiveExplode : null);
+    }
+
+    private void PlayBowHitSfx()
+    {
+        PlaySfx(SFXManager.Instance != null ? SFXManager.Instance.swordHit : null);
+    }
+
+    private bool HasExplosionHitTarget(Vector3 position)
+    {
+        Collider2D[] hits = Physics2D.OverlapCircleAll(position, explosionRadius);
+
+        for (int i = 0; i < hits.Length; i++)
+        {
+            if (hits[i] == null)
+                continue;
+
+            CharacterBase target = hits[i].GetComponentInParent<CharacterBase>();
+
+            if (target != null && target != character)
+                return true;
+        }
+
+        return false;
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.sfxSource == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
+    }
+
 
     private IEnumerator CameraBumpRoutine()
     {

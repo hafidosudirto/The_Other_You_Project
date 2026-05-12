@@ -32,6 +32,16 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
     private Vector3 dashStart;
     private Vector3 dashTarget;
 
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX Riposte ingin dikendalikan dari script ini, bukan dari Animation Event.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara tebasan Riposte diputar saat counter attack benar-benar berhasil dieksekusi.")]
+    public bool playCounterSlashSfxOnSuccess = true;
+
+    [Tooltip("Suara hit hanya dimainkan satu kali untuk satu counter attack, walaupun musuh yang terkena lebih dari satu.")]
+    public bool playHitSfxOncePerCounter = true;
+
     [Header("Energy")]
     [SerializeField, Min(0f)] private float energyCost = 10f;
 
@@ -219,6 +229,11 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
 
         if (character != null)
             character.isRiposteStance = false;
+
+        // SFX tebasan Riposte diputar hanya ketika counter attack berhasil dieksekusi,
+        // bukan ketika karakter baru masuk ke stance Riposte Ready.
+        if (playCounterSlashSfxOnSuccess)
+            PlayCounterSlashSfx();
     }
 
     private void DashForward()
@@ -280,6 +295,8 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
             enemyLayer
         );
 
+        bool hasHit = false;
+
         foreach (RaycastHit2D h in hits)
         {
             CharacterBase enemy = h.collider.GetComponent<CharacterBase>();
@@ -287,8 +304,38 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
             if (enemy != null && enemy != character)
             {
                 enemy.TakeDamage(character.attack);
+                hasHit = true;
+
+                if (!playHitSfxOncePerCounter)
+                    PlayHitSfx();
             }
         }
+
+        // SFX hit telak Riposte hanya diputar jika follow-up counter benar-benar mengenai minimal satu musuh.
+        if (hasHit && playHitSfxOncePerCounter)
+            PlayHitSfx();
+    }
+
+    private void PlayCounterSlashSfx()
+    {
+        if (SFXManager.Instance == null) return;
+        PlaySfx(SFXManager.Instance.swordSlash2);
+    }
+
+    private void PlayHitSfx()
+    {
+        if (SFXManager.Instance == null) return;
+        PlaySfx(SFXManager.Instance.swordHit);
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.sfxSource == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
     }
 
     private bool HasEnoughEnergyToStart()

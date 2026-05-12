@@ -579,6 +579,11 @@ MonoBehaviour:
   cooldown: 0.35
   postShotLock: 0.05
   releaseTimeout: 0.65
+  playSfxFromScript: 1
+  playBowDrawOnCastStart: 1
+  playLaunchSfxOnRelease: 1
+  playGroundMissSfx: 1
+  playHitSfx: 1
 --- !u!114 &7446648338375621929
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -629,6 +634,11 @@ MonoBehaviour:
   postReleaseLock: 0.08
   releaseTimeout: 0.7
   useAnimationEvent: 1
+  playSfxFromScript: 1
+  playBowDrawOnChargeStart: 1
+  playLaunchSfxOnRelease: 1
+  playGroundMissSfx: 1
+  playHitSfx: 1
   defaultMode: 0
 --- !u!114 &3805940983556006463
 MonoBehaviour:
@@ -690,6 +700,12 @@ MonoBehaviour:
   stun: 0.35
   explosionRadius: 5
   cooldown: 1
+  playSfxFromScript: 1
+  playBowDrawOnCastStart: 1
+  playJumpLaunchSfx: 1
+  playConcussiveLaunchSfxOnRelease: 1
+  playConcussiveExplodeSfx: 1
+  playHitSfxOnExplosionHit: 1
   debugLog: 0
 --- !u!114 &7767739646929134362
 MonoBehaviour:
@@ -743,6 +759,11 @@ MonoBehaviour:
   lumpuhSingkat: 0.1
   panahMenembus: 0
   cooldown: 3
+  playSfxFromScript: 1
+  playBowDrawOnCastStart: 1
+  playSpreadLaunchSfxOnRelease: 1
+  playGroundMissSfx: 1
+  playHitSfx: 1
 --- !u!1 &5632209356851836178
 GameObject:
   m_ObjectHideFlags: 0
@@ -756,6 +777,7 @@ GameObject:
   - component: {fileID: 891478525830658006}
   - component: {fileID: 4944247718903230885}
   - component: {fileID: 4636523973762786944}
+  - component: {fileID: 2061521139306005644}
   m_Layer: 3
   m_Name: Visual
   m_TagString: Untagged
@@ -888,6 +910,18 @@ MonoBehaviour:
   logMissingParameters: 0
   resetBowTriggersOnEnable: 1
   clearChargeFlagsOnEnable: 1
+--- !u!114 &2061521139306005644
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5632209356851836178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d52830573cb3692409a25dd33d4346d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &8094252895751690279
 GameObject:
   m_ObjectHideFlags: 0

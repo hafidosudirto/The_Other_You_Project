@@ -157,6 +157,20 @@ public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill
     [SerializeField, Min(0f)]
     private float biayaEnergi = 8f;
 
+
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX Quick Shot ingin dikendalikan dari script ini.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara tarikan busur diputar satu kali saat casting Quick Shot dimulai.")]
+    public bool playBowDrawOnCastStart = true;
+
+    [Tooltip("Suara panah meluncur diputar saat Quick Shot benar-benar melepas panah.")]
+    public bool playLaunchSfxOnRelease = true;
+
+    [Tooltip("Jika aktif, prefab panah diberi BowProjectileSFX agar suara hit/miss muncul dari tabrakan projectile.")]
+    public bool enableProjectileImpactSfx = true;
+
     [Header("Debug")]
     [SerializeField] private bool debugLog = false;
 
@@ -240,6 +254,9 @@ public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill
         sedangCast = true;
         menungguReleaseEvent = pakaiAnimationEvent;
         panahSudahDilepas = false;
+
+        if (playBowDrawOnCastStart)
+            PlayBowDrawSfx();
 
         pemain.lockMovement = true;
         HentikanGerakPemain();
@@ -378,6 +395,11 @@ public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill
             damagePanah.SetOwner(pemilikEnergi);
             damagePanah.SetStats(damageQuickShot, dorongMundur, lumpuhSingkat, false, false);
         }
+
+        if (playLaunchSfxOnRelease)
+            PlayArrowLaunchNormalSfx();
+
+        SetupProjectileSfx(panahObj, true, true);
 
         CatatDataQuickShot();
 
@@ -593,6 +615,8 @@ public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill
         rb.angularVelocity = 0f;
         rb.simulated = false;
 
+        PlayGroundMissIfArrowStillActive(panahObj);
+
         Collider2D col = panahObj.GetComponent<Collider2D>();
         if (col != null)
             col.enabled = false;
@@ -734,6 +758,54 @@ public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill
 
         return lengkap;
     }
+
+
+    private void PlayBowDrawSfx()
+    {
+        if (!playSfxFromScript) return;
+        if (SFXManager.Instance == null) return;
+
+        SFXManager.Instance.ResetBowDrawGate();
+        SFXManager.Instance.PlayBowDrawGuarded();
+    }
+
+    private void PlayArrowLaunchNormalSfx()
+    {
+        PlaySfx(SFXManager.Instance != null ? SFXManager.Instance.arrowLaunchNormal : null);
+    }
+
+    private void SetupProjectileSfx(GameObject arrowObj, bool enableGroundMissSfx, bool enableHitSfx)
+    {
+        if (!enableProjectileImpactSfx) return;
+        if (arrowObj == null) return;
+
+        BowProjectileSFX reporter = arrowObj.GetComponent<BowProjectileSFX>();
+        if (reporter == null)
+            reporter = arrowObj.AddComponent<BowProjectileSFX>();
+
+        reporter.Setup(pemilikEnergi, enableGroundMissSfx, enableHitSfx);
+    }
+
+    private void PlayGroundMissIfArrowStillActive(GameObject arrowObj)
+    {
+        if (!enableProjectileImpactSfx) return;
+        if (arrowObj == null) return;
+
+        BowProjectileSFX reporter = arrowObj.GetComponent<BowProjectileSFX>();
+        if (reporter != null)
+            reporter.PlayGroundMissIfNotPlayed();
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.sfxSource == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
+    }
+
 
     private bool CobaKurangiEnergi()
     {

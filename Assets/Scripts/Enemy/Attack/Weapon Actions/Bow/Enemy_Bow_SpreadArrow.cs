@@ -110,6 +110,22 @@ public class Enemy_Bow_SpreadArrow : MonoBehaviour, ISkill
     [Header("Timing")]
     public float cooldown = 3f;
 
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX Spread Arrow musuh ingin dikendalikan dari script ini.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara tarikan busur diputar satu kali saat casting Spread Arrow dimulai.")]
+    public bool playBowDrawOnCastStart = true;
+
+    [Tooltip("Suara panah meluncur opsi 2 diputar satu kali saat formasi Spread Arrow dilepas.")]
+    public bool playSpreadLaunchSfxOnRelease = true;
+
+    [Tooltip("Suara panah menancap diputar untuk panah yang tidak mengenai target sampai akhir durasi terbang.")]
+    public bool playGroundMissSfx = true;
+
+    [Tooltip("Suara hit diputar oleh projectile saat panah mengenai target.")]
+    public bool playHitSfx = true;
+
     public bool IsActive => sedangCast;
 
     private NodeManager ai;
@@ -211,6 +227,9 @@ public class Enemy_Bow_SpreadArrow : MonoBehaviour, ISkill
 
         StopOwnerMovement();
         StartCoroutine(CooldownRoutine());
+
+        if (playBowDrawOnCastStart)
+            PlayBowDrawSfx();
 
         /*
          * Hanya memutar clip SpreadArrow.
@@ -367,6 +386,9 @@ public class Enemy_Bow_SpreadArrow : MonoBehaviour, ISkill
 
         if (titikTembak == null || prefabPanah == null)
             return;
+
+        if (playSpreadLaunchSfxOnRelease)
+            PlaySpreadLaunchSfx();
 
         List<DataPanah> formasi = BangunFormasiPanah();
         float arah = AmbilArahHadap();
@@ -539,6 +561,8 @@ public class Enemy_Bow_SpreadArrow : MonoBehaviour, ISkill
             );
         }
 
+        SetupProjectileSfx(panahObj);
+
         if (rb != null)
             StartCoroutine(RoutinePanah(rb, panahObj, arah, data.sudut, data.bonusVy));
         else
@@ -611,6 +635,8 @@ public class Enemy_Bow_SpreadArrow : MonoBehaviour, ISkill
                 yield return null;
             }
         }
+
+        PlayGroundMissIfArrowStillActive(panahObj);
 
         if (panahObj != null)
             Destroy(panahObj);
@@ -712,6 +738,52 @@ public class Enemy_Bow_SpreadArrow : MonoBehaviour, ISkill
         }
 
         return null;
+    }
+
+    private void PlayBowDrawSfx()
+    {
+        if (!playSfxFromScript) return;
+        if (SFXManager.Instance == null) return;
+
+        SFXManager.Instance.ResetBowDrawGate();
+        SFXManager.Instance.PlayBowDrawGuarded();
+    }
+
+    private void PlaySpreadLaunchSfx()
+    {
+        PlaySfx(SFXManager.Instance != null ? SFXManager.Instance.arrowLaunchCharged : null);
+    }
+
+    private void SetupProjectileSfx(GameObject arrowObj)
+    {
+        if (arrowObj == null) return;
+        if (!playSfxFromScript) return;
+
+        BowProjectileSFX reporter = arrowObj.GetComponent<BowProjectileSFX>();
+        if (reporter == null)
+            reporter = arrowObj.AddComponent<BowProjectileSFX>();
+
+        reporter.Setup(enemyCharacter, playGroundMissSfx, playHitSfx);
+    }
+
+    private void PlayGroundMissIfArrowStillActive(GameObject arrowObj)
+    {
+        if (arrowObj == null) return;
+        if (!playSfxFromScript) return;
+
+        BowProjectileSFX reporter = arrowObj.GetComponent<BowProjectileSFX>();
+        if (reporter != null)
+            reporter.PlayGroundMissIfNotPlayed();
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.sfxSource == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
     }
 
     private void OnDisable()
