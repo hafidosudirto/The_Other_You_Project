@@ -395,6 +395,8 @@ MonoBehaviour:
   attackRange: 1.8
   swordSenseRange: 2.5
   attackRangeOffset: {x: 0, y: 0}
+  useLegacyAttackOffsetFallback: 1
+  legacyForwardAttackOffset: 1
 --- !u!1 &5269776961220928416
 GameObject:
   m_ObjectHideFlags: 0
@@ -497,7 +499,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &721536974599694162
 RectTransform:
   m_ObjectHideFlags: 0
@@ -647,6 +649,9 @@ MonoBehaviour:
   gizmoColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   arcSegments: 20
   gizmoArcAngle: 60
+  playSfxFromScript: 1
+  playSlashSfxOnActiveFrame: 1
+  playHitSfxOncePerSlash: 1
 --- !u!114 &8238309777232854303
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -672,6 +677,12 @@ MonoBehaviour:
   hitMask:
     serializedVersion: 2
     m_Bits: 4294967295
+  playSfxFromScript: 1
+  playChargeSfxDuringWindup: 1
+  loopChargeSfx: 1
+  chargeSfxVolume: 1
+  playReleaseSfxOnActiveFrame: 1
+  playHitSfxOncePerStrike: 1
 --- !u!114 &4999943360712908657
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -696,6 +707,9 @@ MonoBehaviour:
   extraRangeTolerance: 0.25
   gizmoShowTime: 0.06
   gizmoColor: {r: 1, g: 0, b: 1, a: 1}
+  playSfxFromScript: 1
+  playCounterSlashSfxOnSuccess: 1
+  playHitSfxOncePerCounter: 1
 --- !u!114 &3443164050013538122
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -717,6 +731,9 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   gizmoColor: {r: 0, g: 1, b: 1, a: 1}
+  playSfxFromScript: 1
+  playWhirlwindSfxOnStart: 1
+  playHitSfxOncePerTick: 1
 --- !u!1 &8000750785686306608
 GameObject:
   m_ObjectHideFlags: 0

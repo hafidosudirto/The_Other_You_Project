@@ -41,6 +41,17 @@ public class StageManager : MonoBehaviour
     public GameObject bossPrefabBow;
     public Transform bossSpawnPoint;
 
+    [Header("Boss UI")]
+    [SerializeField] private BossHPBarUI bossHPBarUI;
+    [SerializeField] private bool autoFindBossHPBarUI = true;
+
+    [Header("Boss Defeat Progression Fix")]
+    [Tooltip("Jika aktif, collider boss dimatikan setelah boss kalah agar player tidak tertahan mayat/collider boss ketika berjalan ke area next stage.")]
+    [SerializeField] private bool disableBossCollidersOnDefeat = true;
+
+    [Tooltip("Jika aktif, tag boss diubah menjadi Untagged setelah kalah agar tidak lagi dihitung sebagai Enemy aktif.")]
+    [SerializeField] private bool untagBossOnDefeat = true;
+
     [Header("Progression Formula")]
     public int startingStageNumber = 0;
     public int baseSpawnToken = 3;
@@ -105,6 +116,11 @@ public class StageManager : MonoBehaviour
     private bool isTransitioningToBoss = false;
     private bool bossSpawnConfigurationFailed = false;
 
+    // Runtime boss yang benar adalah instance hasil Instantiate, bukan prefab asset di Project.
+    private GameObject currentBossObject;
+    private CharacterBase currentBossCharacter;
+    private bool bossDefeatHandled = false;
+
     private readonly List<StageEnemyRuntimeDebugData> enemyRuntimeDebugData = new List<StageEnemyRuntimeDebugData>();
     private readonly List<StageFloatingDebugLine> floatingDebugLines = new List<StageFloatingDebugLine>();
 
@@ -137,6 +153,7 @@ public class StageManager : MonoBehaviour
         bossSpawnConfigurationFailed = false;
 
         SetBlackScreenInstant(0f, false);
+        EnsureBossUIReference();
 
         EnsurePlayerReference();
         CachePlayerHealthForTokenDebug();
@@ -152,10 +169,48 @@ public class StageManager : MonoBehaviour
             showEnemyWorldDebugLabels = showStageRuntimeDebug;
         }
 
+        // --- REVISI: Cek apakah musuh sudah mati semua ---
+        if (currentState == StageState.FightingMinions || currentState == StageState.FightingBoss)
+        {
+            ValidateEnemyCount();
+        }
+
         CheckStageTransition();
         CheckMinionWaveClearedFallback();
+        CheckBossDefeatedFallback();
         RefreshConcurrentAttackTokenDebugState();
         PruneRuntimeDebugData();
+
+    }
+
+
+    private void ValidateEnemyCount()
+    {
+        // Mencari objek secara langsung yang masih memiliki tag "Enemy" atau "Boss"
+        GameObject[] activeEnemies = GameObject.FindGameObjectsWithTag("Enemy");
+        int totalActive = activeEnemies.Length;
+
+        // Jika tidak ada lagi musuh dengan tag tersebut (sudah di-untag atau destroy)
+        if (totalActive <= 0 && currentState != StageState.StageCleared)
+        {
+            currentState = StageState.StageCleared;
+            Debug.Log("[StageManager] Semua musuh mati! State -> StageCleared. Berjalanlah ke titik X: " + rightTransitionX);
+        }
+    }
+
+
+    private void EnsureBossUIReference()
+    {
+        if (bossHPBarUI == null && autoFindBossHPBarUI)
+        {
+            bossHPBarUI = FindObjectOfType<BossHPBarUI>();
+        }
+
+        if (bossHPBarUI != null)
+        {
+            bossHPBarUI.SetBossPrefabs(bossPrefabSword, bossPrefabBow);
+            bossHPBarUI.Hide();
+        }
     }
 
     private void EnsurePlayerReference()
@@ -257,11 +312,20 @@ public class StageManager : MonoBehaviour
         activeEnemiesCount = 0;
         isTransitioningToBoss = false;
         bossSpawnConfigurationFailed = false;
+        currentBossObject = null;
+        currentBossCharacter = null;
+        bossDefeatHandled = false;
         enemyRuntimeDebugData.Clear();
         activeConcurrentAttackTokens = 0;
         currentConcurrentAttackTokenLimit = 0;
         lastAttackTokenDeniedDebugTime = -999f;
         lastTokenDebugMessage = "Belum ada minion yang memakai token serangan pada stage ini.";
+
+        if (bossHPBarUI != null)
+        {
+            bossHPBarUI.SetBossPrefabs(bossPrefabSword, bossPrefabBow);
+            bossHPBarUI.Hide();
+        }
 
         currentState = StageState.SpawningMinions;
         AddFloatingDebugLine($"[STAGE] Mulai Stage {GetDisplayedStageNumber()}.");
@@ -612,9 +676,16 @@ public class StageManager : MonoBehaviour
         }
         else if (currentState == StageState.FightingBoss)
         {
-            if (activeEnemiesCount <= 0)
+            // Beberapa prefab boss hanya memanggil OnEnemyDied(), tetapi objeknya tidak langsung Destroy.
+            // Karena itu, validasi utama tetap memakai HP/runtime boss yang sedang dilawan.
+            if (IsCurrentBossDefeatedForProgression())
             {
                 HandleBossDefeated();
+            }
+            else if (activeEnemiesCount <= 0)
+            {
+                // Pengaman jika event kematian minion lama terlambat masuk ketika boss sudah aktif.
+                activeEnemiesCount = 1;
             }
         }
     }
@@ -692,6 +763,45 @@ public class StageManager : MonoBehaviour
         return aliveCount;
     }
 
+    private void CheckBossDefeatedFallback()
+    {
+        if (currentState != StageState.FightingBoss)
+            return;
+
+        if (bossDefeatHandled)
+            return;
+
+        if (IsCurrentBossDefeatedForProgression())
+        {
+            Debug.LogWarning(
+                "[STAGE MANAGER] Fallback mendeteksi boss sudah kalah. " +
+                "Stage akan dipaksa menjadi StageCleared."
+            );
+
+            activeEnemiesCount = 0;
+            HandleBossDefeated();
+        }
+    }
+
+    private bool IsCurrentBossDefeatedForProgression()
+    {
+        if (currentBossObject == null)
+            return true;
+
+        if (currentBossCharacter == null)
+        {
+            currentBossCharacter = currentBossObject.GetComponent<CharacterBase>();
+
+            if (currentBossCharacter == null)
+                currentBossCharacter = currentBossObject.GetComponentInChildren<CharacterBase>(true);
+        }
+
+        if (currentBossCharacter == null)
+            return false;
+
+        return currentBossCharacter.currentHP <= 0f;
+    }
+
     private void TryStartBossTransition(string reason)
     {
         if (currentState != StageState.FightingMinions)
@@ -737,6 +847,12 @@ public class StageManager : MonoBehaviour
         {
             bossSpawnConfigurationFailed = true;
             isTransitioningToBoss = false;
+
+            if (bossHPBarUI != null)
+            {
+                bossHPBarUI.Hide();
+            }
+
             Debug.LogError(
                 "[STAGE MANAGER] Boss prefab belum diisi. " +
                 "Isi bossPrefabSword dan bossPrefabBow di Inspector."
@@ -748,6 +864,12 @@ public class StageManager : MonoBehaviour
         {
             bossSpawnConfigurationFailed = true;
             isTransitioningToBoss = false;
+
+            if (bossHPBarUI != null)
+            {
+                bossHPBarUI.Hide();
+            }
+
             Debug.LogError(
                 "[STAGE MANAGER] Boss spawn point belum diisi. " +
                 "Isi bossSpawnPoint di Inspector."
@@ -763,8 +885,15 @@ public class StageManager : MonoBehaviour
 
         if (bossCharacter == null)
         {
-            bossCharacter = boss.GetComponentInChildren<CharacterBase>();
+            bossCharacter = boss.GetComponentInChildren<CharacterBase>(true);
         }
+
+        currentBossObject = boss;
+        currentBossCharacter = bossCharacter;
+        bossDefeatHandled = false;
+        activeEnemiesCount = 1;
+        currentState = StageState.FightingBoss;
+        isTransitioningToBoss = false;
 
         if (bossCharacter != null)
         {
@@ -773,18 +902,24 @@ public class StageManager : MonoBehaviour
             StatsSnapshot afterStats = CaptureStats(bossCharacter);
 
             InitializeStageCombatController(boss, bossCharacter, 999, true);
+            InitializeDeathHandler(boss);
             RegisterRuntimeEnemyDebug(boss, bossCharacter, 999, statMultiplier, beforeStats, afterStats, true);
+
+            if (bossHPBarUI != null)
+            {
+                bossHPBarUI.ShowBossByPrefab(bossToSpawn, boss, bossCharacter);
+            }
         }
         else
         {
             Debug.LogWarning("[STAGE MANAGER] Boss tidak memiliki CharacterBase atau turunannya.");
+            InitializeDeathHandler(boss);
+
+            if (bossHPBarUI != null)
+            {
+                bossHPBarUI.Hide();
+            }
         }
-
-        InitializeDeathHandler(boss);
-
-        activeEnemiesCount = 1;
-        currentState = StageState.FightingBoss;
-        isTransitioningToBoss = false;
 
         Debug.Log(
             "[STAGE MANAGER] BOSS MUNCUL. " +
@@ -794,11 +929,34 @@ public class StageManager : MonoBehaviour
 
     private void HandleBossDefeated()
     {
+        if (bossDefeatHandled)
+            return;
+
+        bossDefeatHandled = true;
+        activeEnemiesCount = 0;
+        ReleaseAllConcurrentAttackTokens("Boss kalah");
+
+        // PENTING: boss sering masih menyisakan collider ketika animasi mati berjalan.
+        // Jika collider tetap aktif, player dapat tertahan dan tidak pernah mencapai rightTransitionX.
+        PrepareDefeatedBossForStageTransition();
+
         if (finalizeDataAfterBoss)
         {
             Debug.Log("DDA Data Difinalisasi Setelah Boss");
+
+            if (DataTracker.Instance != null)
+            {
+                DataTracker.Instance.FinalizeStageData();
+            }
         }
 
+        if (bossHPBarUI != null)
+        {
+            bossHPBarUI.Hide();
+        }
+
+        currentBossCharacter = null;
+        currentBossObject = null;
         currentState = StageState.StageCleared;
 
         if (resetDDAAndDataTrackerOnStageCleared)
@@ -806,7 +964,47 @@ public class StageManager : MonoBehaviour
             ResetDDAAndDataTracker();
         }
 
-        Debug.Log("STAGE CLEAR! DDA dan DataTracker direset. Berjalanlah ke kanan untuk lanjut.");
+        Debug.Log(
+            "STAGE CLEAR! Boss sudah kalah. " +
+            $"State sekarang: {currentState}. Player harus melewati X >= {rightTransitionX:0.##} untuk lanjut stage."
+        );
+    }
+
+    private void PrepareDefeatedBossForStageTransition()
+    {
+        if (currentBossObject == null)
+            return;
+
+        if (untagBossOnDefeat)
+        {
+            try
+            {
+                currentBossObject.tag = "Untagged";
+            }
+            catch (UnityException)
+            {
+                // Diabaikan; tag Untagged selalu ada, tetapi try-catch tetap aman untuk prefab lama.
+            }
+        }
+
+        if (!disableBossCollidersOnDefeat)
+            return;
+
+        Collider2D[] colliders2D = currentBossObject.GetComponentsInChildren<Collider2D>(true);
+
+        foreach (Collider2D collider2D in colliders2D)
+        {
+            if (collider2D != null)
+                collider2D.enabled = false;
+        }
+
+        Collider[] colliders3D = currentBossObject.GetComponentsInChildren<Collider>(true);
+
+        foreach (Collider collider3D in colliders3D)
+        {
+            if (collider3D != null)
+                collider3D.enabled = false;
+        }
     }
 
     private void CheckStageTransition()
@@ -814,9 +1012,18 @@ public class StageManager : MonoBehaviour
         if (isChangingStage)
             return;
 
-        if (currentState == StageState.StageCleared &&
-            playerTransform != null &&
-            playerTransform.position.x >= rightTransitionX)
+        if (currentState != StageState.StageCleared)
+            return;
+
+        if (playerTransform == null)
+        {
+            EnsurePlayerReference();
+        }
+
+        if (playerTransform == null)
+            return;
+
+        if (playerTransform.position.x >= rightTransitionX)
         {
             NextStage();
         }

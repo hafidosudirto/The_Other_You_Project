@@ -91,9 +91,9 @@ Transform:
   - {fileID: 5432282122991037403}
   - {fileID: 4010695762645510429}
   - {fileID: 8526268752133191413}
-  - {fileID: 6300368307221256618}
   - {fileID: 3472388342588695655}
   - {fileID: 6273007678049884091}
+  - {fileID: 6300368307221256618}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!50 &4007388749144626707
@@ -971,7 +971,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &6300368307221256618
 RectTransform:
   m_ObjectHideFlags: 0
