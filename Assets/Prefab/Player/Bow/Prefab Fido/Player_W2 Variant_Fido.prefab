@@ -42,7 +42,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1718376399928103269, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: m_Name
-      value: Player_W2 Variant
+      value: Player_W2 Variant_Fido
       objectReference: {fileID: 0}
     - target: {fileID: 2394147951062621979, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: m_Size.x

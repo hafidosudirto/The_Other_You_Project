@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 3019785914136632114}
   - component: {fileID: 5387256162423111338}
   - component: {fileID: 4160140468893309881}
+  - component: {fileID: 4277615226763847193}
   m_Layer: 6
   m_Name: Player_W1_Sprite
   m_TagString: Player
@@ -133,6 +134,11 @@ MonoBehaviour:
   attack: 10
   defense: 5
   moveSpeed: 5
+  maxEnergy: 100
+  currentEnergy: 100
+  regenPerSecond: 8
+  useUnscaledTime: 0
+  energyRegenBlocked: 0
   isFacingRight: 1
   isStaggered: 0
   isRiposteStance: 0
@@ -157,8 +163,11 @@ MonoBehaviour:
   dashSpeed: 10
   dashDuration: 0.2
   dashCooldown: 1
+  dashEnergyCost: 15
+  energyOwner: {fileID: 0}
   anim: {fileID: 0}
   player: {fileID: 0}
+  useDirectInput: 1
   dashKey: 304
 --- !u!114 &4160140468893309881
 MonoBehaviour:
@@ -173,8 +182,25 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 4
+  useYLimit: 1
+  maxYPosition: 1.6
+  minYPosition: -6.809996
   anim: {fileID: 0}
   player: {fileID: 0}
+--- !u!114 &4277615226763847193
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1718376399928103269}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5aafffb448134f4fb262d0507dcd012, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  currentWeapon: 1
+  canPickupWeapon: 0
 --- !u!1 &7955049090739457126
 GameObject:
   m_ObjectHideFlags: 0
@@ -244,6 +270,7 @@ MonoBehaviour:
     actionType: 1
     weaponType: 1
     dValue: 1
+  owner: {fileID: 0}
   slot1Key: 49
   slot2Key: 50
   slot3Key: 51
@@ -260,18 +287,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ff44c40872936ab47829836a1eec09cc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  attackRadius: 1.5
-  attackAngle: 90
+  attackRadius1: 1.5
+  attackAngle1: 90
+  hitOffset1: {x: 0.5, y: 0}
+  attackRadius2: 1.5
+  attackAngle2: 90
+  hitOffset2: {x: 0.5, y: 0}
   delaySlash1: 0.1
   delaySlash2: 0.15
   chainWindow: 0.6
-  hitOffset: {x: 0.5, y: 0}
   gizmoShowTime: 0.08
   chain1Color: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   chain2Color: {r: 0.21960786, g: 0.21960786, b: 0.21960786, a: 1}
   arcSegments: 20
   comboCooldown: 0.2
   minTimeBeforeChain: 0.15
+  playSfxFromScript: 1
+  playHitSfxOncePerSlash: 1
+  energyCost: 10
 --- !u!114 &3802485017805506531
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -284,6 +317,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 91089e1298318c84891c3f612e2f34cb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  energyCost: 25
   maxChargeTime: 2
   minDamageMultiplier: 1
   maxDamageMultiplier: 3
@@ -291,10 +325,20 @@ MonoBehaviour:
   attackAngle: 100
   knockbackForce: 8
   stunDuration: 0.4
+  strikeActiveStart: 0.35
+  strikeActiveEnd: 0.55
+  strikeClipFallbackLength: 0.35
+  playSfxFromScript: 1
+  playChargeSfxWhileCharging: 1
+  loopChargeSfx: 1
+  chargeSfxVolume: 1
+  playReleaseSfxOnActiveFrame: 1
+  playHitSfxOncePerStrike: 1
   gizmoColor: {r: 1, g: 0.6, b: 0, a: 1}
   gizmoRadius: 1.4
   gizmoAngle: 100
   gizmoSegments: 20
+  strikeGizmoShowTime: 0.08
 --- !u!114 &5032635997263216504
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -315,6 +359,10 @@ MonoBehaviour:
   knockForce: 2.5
   staggerDuration: 0.35
   staggerCooldown: 0.7
+  playSfxFromScript: 1
+  playWhirlwindSfxOnStart: 1
+  playHitSfxOncePerTick: 1
+  energyCost: 10
 --- !u!114 &497706870744875888
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -336,6 +384,10 @@ MonoBehaviour:
   enemyLayer:
     serializedVersion: 2
     m_Bits: 8
+  playSfxFromScript: 1
+  playCounterSlashSfxOnSuccess: 1
+  playHitSfxOncePerCounter: 1
+  energyCost: 10
 --- !u!1 &8000750785686306608
 GameObject:
   m_ObjectHideFlags: 0
@@ -457,3 +509,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 3180929586462168031}
+  spriteRenderer: {fileID: 8597872111708491915}
+  logMissingParameters: 0
+  resetBowTriggersOnEnable: 1
+  clearChargeFlagsOnEnable: 1

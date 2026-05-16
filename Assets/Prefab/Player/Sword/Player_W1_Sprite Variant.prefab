@@ -146,7 +146,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4216314037193274967, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.09
+      value: -0.83
+      objectReference: {fileID: 0}
+    - target: {fileID: 4216314037193274967, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5387256162423111338, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: anim
@@ -211,7 +215,7 @@ PrefabInstance:
     - target: {fileID: 8597872111708491915, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: m_Sprite
       value: 
-      objectReference: {fileID: 1988705241, guid: a36a84d2f648c6642b092ba42a61336a, type: 3}
+      objectReference: {fileID: 705749865, guid: 71d90d1344f707b4d834f81e5b226e1d, type: 3}
     - target: {fileID: 8806357304377255571, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: slots.Array.data[3].skillBehaviour
       value: 

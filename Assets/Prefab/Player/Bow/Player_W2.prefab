@@ -59,6 +59,7 @@ GameObject:
   - component: {fileID: 4160140468893309881}
   - component: {fileID: 5387256162423111338}
   - component: {fileID: 2394147951062621979}
+  - component: {fileID: 7328912928926094548}
   m_Layer: 6
   m_Name: Player_W2
   m_TagString: Player
@@ -219,6 +220,20 @@ CapsuleCollider2D:
   m_Offset: {x: 0, y: 0}
   m_Size: {x: 0.5336993, y: 1.2853394}
   m_Direction: 0
+--- !u!114 &7328912928926094548
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1718376399928103269}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5aafffb448134f4fb262d0507dcd012, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  currentWeapon: 2
+  canPickupWeapon: 0
 --- !u!1 &3047793432696247020
 GameObject:
   m_ObjectHideFlags: 0
@@ -394,6 +409,10 @@ MonoBehaviour:
   jedaSkill: 0.2
   lockSetelahTembak: 0.05
   biayaEnergi: 8
+  playSfxFromScript: 1
+  playBowDrawOnCastStart: 1
+  playLaunchSfxOnRelease: 1
+  enableProjectileImpactSfx: 1
   debugLog: 0
 --- !u!114 &8539281897314106846
 MonoBehaviour:
@@ -469,6 +488,10 @@ MonoBehaviour:
   biayaEnergi: 18
   biayaEnergiFullCharge: 30
   blokirRegenEnergiSelamaCasting: 1
+  playSfxFromScript: 1
+  playBowDrawOnChargeStart: 1
+  playLaunchSfxOnRelease: 1
+  enableProjectileImpactSfx: 1
   debugLog: 0
 --- !u!114 &1067902324421283712
 MonoBehaviour:
@@ -537,6 +560,10 @@ MonoBehaviour:
   panahMenembus: 0
   jedaSkill: 0.8
   lockGerakSetelahTembak: 0.08
+  playSfxFromScript: 1
+  playBowDrawOnCastStart: 1
+  playLaunchSfxOnRelease: 1
+  enableProjectileImpactSfx: 1
   biayaEnergi: 18
 --- !u!114 &5298149805424230708
 MonoBehaviour:
@@ -611,6 +638,12 @@ MonoBehaviour:
   cameraBumpDuration: 0.12
   jedaSkill: 1
   energyCost: 25
+  playSfxFromScript: 1
+  playBowDrawOnCastStart: 1
+  playJumpLaunchSfx: 1
+  playConcussiveLaunchSfxOnRelease: 1
+  playConcussiveExplodeSfx: 1
+  playHitSfxOnExplosionHit: 1
   debugLog: 0
 --- !u!1 &5632209356851836178
 GameObject:
