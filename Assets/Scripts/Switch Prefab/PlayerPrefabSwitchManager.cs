@@ -69,22 +69,12 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
         if (enteringCollider == null)
             return false;
 
-        if (onlyAllowOneSwitch && hasSwitched)
-            return false;
-
-        if (targetWeapon != WeaponType.Sword && targetWeapon != WeaponType.Bow)
-        {
-            Debug.LogWarning("[PLAYER SWITCH MANAGER] Target weapon pickup harus Sword atau Bow.");
-            return false;
-        }
-
         PlayerWeaponIdentity oldIdentity = enteringCollider.GetComponentInParent<PlayerWeaponIdentity>();
 
         if (oldIdentity == null)
         {
             Debug.LogWarning(
-                "[PLAYER SWITCH MANAGER] Objek yang masuk pickup tidak memiliki PlayerWeaponIdentity. " +
-                "Tambahkan PlayerWeaponIdentity pada root Player_W0."
+                "[PLAYER SWITCH MANAGER] Objek yang masuk pickup tidak memiliki PlayerWeaponIdentity."
             );
             return false;
         }
@@ -96,6 +86,81 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
             );
             return false;
         }
+
+        activePlayerTransform = oldIdentity.transform;
+
+        return SwitchFromIdentity(oldIdentity, targetWeapon);
+    }
+    public void RegisterActivePlayer(Transform newActivePlayer)
+    {
+        if (newActivePlayer == null)
+            return;
+
+        activePlayerTransform = newActivePlayer;
+        BindRuntimeSystems(activePlayerTransform, GetWeaponFromPlayer(activePlayerTransform));
+    }
+    public bool TrySwitchFromUI(WeaponType targetWeapon)
+    {
+        if (onlyAllowOneSwitch && hasSwitched)
+            return false;
+
+        if (targetWeapon != WeaponType.Sword && targetWeapon != WeaponType.Bow)
+        {
+            Debug.LogWarning("[PLAYER SWITCH MANAGER] Pilihan UI harus Sword atau Bow.");
+            return false;
+        }
+
+        if (activePlayerTransform == null)
+            activePlayerTransform = FindInitialPlayer();
+
+        if (activePlayerTransform == null)
+        {
+            Debug.LogWarning("[PLAYER SWITCH MANAGER] Active Player belum ditemukan. Isi Active Player dengan Player_W0.");
+            return false;
+        }
+
+        PlayerWeaponIdentity oldIdentity = activePlayerTransform.GetComponent<PlayerWeaponIdentity>();
+
+        if (oldIdentity == null)
+            oldIdentity = activePlayerTransform.GetComponentInChildren<PlayerWeaponIdentity>(true);
+
+        if (oldIdentity == null)
+            oldIdentity = activePlayerTransform.GetComponentInParent<PlayerWeaponIdentity>();
+
+        if (oldIdentity == null)
+        {
+            Debug.LogWarning(
+                "[PLAYER SWITCH MANAGER] Player aktif tidak memiliki PlayerWeaponIdentity. " +
+                "Tambahkan PlayerWeaponIdentity pada root Player_W0."
+            );
+            return false;
+        }
+
+        if (!oldIdentity.CanUseWeaponPickup)
+        {
+            Debug.Log(
+                "[PLAYER SWITCH MANAGER] Pilihan UI ditolak karena player aktif bukan Unarmed atau sudah pernah memilih senjata."
+            );
+            return false;
+        }
+
+        return SwitchFromIdentity(oldIdentity, targetWeapon);
+    }
+
+    public void ChooseSwordFromUI()
+    {
+        TrySwitchFromUI(WeaponType.Sword);
+    }
+
+    public void ChooseBowFromUI()
+    {
+        TrySwitchFromUI(WeaponType.Bow);
+    }
+
+    private bool SwitchFromIdentity(PlayerWeaponIdentity oldIdentity, WeaponType targetWeapon)
+    {
+        if (oldIdentity == null)
+            return false;
 
         GameObject selectedPrefab = GetPrefabForWeapon(targetWeapon);
 
@@ -119,14 +184,8 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
         newPlayerObject.name = selectedPrefab.name;
 
         TrySetPlayerTag(newPlayerObject);
-
-        // Jangan ubah layer semua child, karena child skill/visual bisa punya kebutuhan layer sendiri.
         newPlayerObject.layer = oldPlayerObject.layer;
-
-        // Pastikan player baru aktif.
         newPlayerObject.SetActive(true);
-
-        // Paksa root scale normal agar tidak mengikuti scale yang salah.
         newPlayerObject.transform.localScale = Vector3.one;
 
         PlayerWeaponIdentity newIdentity = newPlayerObject.GetComponent<PlayerWeaponIdentity>();
@@ -135,6 +194,7 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
             newIdentity = newPlayerObject.AddComponent<PlayerWeaponIdentity>();
 
         newIdentity.Initialize(targetWeapon, false);
+
         RebindNewPlayerComponents(newPlayerObject);
 
         CharacterBase newCharacter = GetCharacterBase(newPlayerObject);
@@ -160,22 +220,13 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
         }
 
         Debug.Log(
-            "[PLAYER SWITCH MANAGER] Player berhasil switch dari Unarmed ke " +
+            "[PLAYER SWITCH MANAGER] Player berhasil switch dari UI ke " +
             targetWeapon +
             ". Prefab baru: " +
             newPlayerObject.name
         );
 
         return true;
-    }
-
-    public void RegisterActivePlayer(Transform newActivePlayer)
-    {
-        if (newActivePlayer == null)
-            return;
-
-        activePlayerTransform = newActivePlayer;
-        BindRuntimeSystems(activePlayerTransform, GetWeaponFromPlayer(activePlayerTransform));
     }
 
     public void BindRuntimeSystems(Transform playerTransform, WeaponType currentWeapon)
