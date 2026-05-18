@@ -5,11 +5,12 @@ using UnityEngine;
 public class PlayerPrefabSwitchManager : MonoBehaviour
 {
     public static PlayerPrefabSwitchManager Instance { get; private set; }
-    public static System.Action<WeaponType> OnActiveWeaponChanged;
+
+    public static Action<WeaponType> OnActiveWeaponChanged;
     public static WeaponType CurrentWeapon { get; private set; } = WeaponType.None;
 
     [Header("Pickup Cleanup")]
-    [SerializeField] private bool destroyAllPickupZonesAfterSwitch = true;
+    [SerializeField] private bool destroyAllPickupZonesAfterSwitch = false;
     [SerializeField] private float destroyPickupDelay = 0f;
 
     [Header("Active Player")]
@@ -50,13 +51,12 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
     private void Start()
     {
         if (activePlayerTransform == null)
-        {
             activePlayerTransform = FindInitialPlayer();
-        }
 
         if (activePlayerTransform != null)
         {
-            BindRuntimeSystems(activePlayerTransform, GetWeaponFromPlayer(activePlayerTransform));
+            WeaponType currentWeapon = GetWeaponFromPlayer(activePlayerTransform);
+            BindRuntimeSystems(activePlayerTransform, currentWeapon);
         }
         else
         {
@@ -64,47 +64,29 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
         }
     }
 
-    public bool TrySwitchFromPickup(Collider2D enteringCollider, WeaponType targetWeapon)
+    // =========================================================
+    // PUBLIC API UNTUK UI BUTTON
+    // =========================================================
+
+    public void ChooseSwordFromUI()
     {
-        if (enteringCollider == null)
-            return false;
-
-        PlayerWeaponIdentity oldIdentity = enteringCollider.GetComponentInParent<PlayerWeaponIdentity>();
-
-        if (oldIdentity == null)
-        {
-            Debug.LogWarning(
-                "[PLAYER SWITCH MANAGER] Objek yang masuk pickup tidak memiliki PlayerWeaponIdentity."
-            );
-            return false;
-        }
-
-        if (!oldIdentity.CanUseWeaponPickup)
-        {
-            Debug.Log(
-                "[PLAYER SWITCH MANAGER] Switch ditolak. Player ini bukan Player_W0 / Unarmed, atau canPickupWeapon tidak aktif."
-            );
-            return false;
-        }
-
-        activePlayerTransform = oldIdentity.transform;
-
-        return SwitchFromIdentity(oldIdentity, targetWeapon);
+        TrySwitchFromUI(WeaponType.Sword);
     }
-    public void RegisterActivePlayer(Transform newActivePlayer)
+
+    public void ChooseBowFromUI()
     {
-        if (newActivePlayer == null)
-            return;
-
-        activePlayerTransform = newActivePlayer;
-        BindRuntimeSystems(activePlayerTransform, GetWeaponFromPlayer(activePlayerTransform));
+        TrySwitchFromUI(WeaponType.Bow);
     }
+
     public bool TrySwitchFromUI(WeaponType targetWeapon)
     {
         if (onlyAllowOneSwitch && hasSwitched)
+        {
+            Debug.Log("[PLAYER SWITCH MANAGER] Switch ditolak karena player sudah pernah memilih senjata.");
             return false;
+        }
 
-        if (targetWeapon != WeaponType.Sword && targetWeapon != WeaponType.Bow)
+        if (!IsValidTargetWeapon(targetWeapon))
         {
             Debug.LogWarning("[PLAYER SWITCH MANAGER] Pilihan UI harus Sword atau Bow.");
             return false;
@@ -119,13 +101,7 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
             return false;
         }
 
-        PlayerWeaponIdentity oldIdentity = activePlayerTransform.GetComponent<PlayerWeaponIdentity>();
-
-        if (oldIdentity == null)
-            oldIdentity = activePlayerTransform.GetComponentInChildren<PlayerWeaponIdentity>(true);
-
-        if (oldIdentity == null)
-            oldIdentity = activePlayerTransform.GetComponentInParent<PlayerWeaponIdentity>();
+        PlayerWeaponIdentity oldIdentity = GetPlayerWeaponIdentity(activePlayerTransform);
 
         if (oldIdentity == null)
         {
@@ -144,20 +120,71 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
             return false;
         }
 
-        return SwitchFromIdentity(oldIdentity, targetWeapon);
+        return SwitchFromIdentity(oldIdentity, targetWeapon, "UI");
     }
 
-    public void ChooseSwordFromUI()
+    // =========================================================
+    // PUBLIC API UNTUK PICKUP TRIGGER
+    // Boleh tetap ada, tetapi untuk scene WeaponChoice UI tidak wajib dipakai.
+    // =========================================================
+
+    public bool TrySwitchFromPickup(Collider2D enteringCollider, WeaponType targetWeapon)
     {
-        TrySwitchFromUI(WeaponType.Sword);
+        if (enteringCollider == null)
+            return false;
+
+        if (onlyAllowOneSwitch && hasSwitched)
+        {
+            Debug.Log("[PLAYER SWITCH MANAGER] Switch ditolak karena player sudah pernah memilih senjata.");
+            return false;
+        }
+
+        if (!IsValidTargetWeapon(targetWeapon))
+        {
+            Debug.LogWarning("[PLAYER SWITCH MANAGER] Target weapon pickup harus Sword atau Bow.");
+            return false;
+        }
+
+        PlayerWeaponIdentity oldIdentity = enteringCollider.GetComponentInParent<PlayerWeaponIdentity>();
+
+        if (oldIdentity == null)
+        {
+            Debug.LogWarning(
+                "[PLAYER SWITCH MANAGER] Objek yang masuk pickup tidak memiliki PlayerWeaponIdentity. " +
+                "Tambahkan PlayerWeaponIdentity pada root Player_W0."
+            );
+            return false;
+        }
+
+        if (!oldIdentity.CanUseWeaponPickup)
+        {
+            Debug.Log(
+                "[PLAYER SWITCH MANAGER] Switch ditolak. Player ini bukan Player_W0 / Unarmed, atau canPickupWeapon tidak aktif."
+            );
+            return false;
+        }
+
+        activePlayerTransform = oldIdentity.transform;
+
+        return SwitchFromIdentity(oldIdentity, targetWeapon, "Pickup");
     }
 
-    public void ChooseBowFromUI()
+    public void RegisterActivePlayer(Transform newActivePlayer)
     {
-        TrySwitchFromUI(WeaponType.Bow);
+        if (newActivePlayer == null)
+            return;
+
+        activePlayerTransform = newActivePlayer;
+
+        WeaponType currentWeapon = GetWeaponFromPlayer(activePlayerTransform);
+        BindRuntimeSystems(activePlayerTransform, currentWeapon);
     }
 
-    private bool SwitchFromIdentity(PlayerWeaponIdentity oldIdentity, WeaponType targetWeapon)
+    // =========================================================
+    // CORE SWITCH LOGIC
+    // =========================================================
+
+    private bool SwitchFromIdentity(PlayerWeaponIdentity oldIdentity, WeaponType targetWeapon, string switchSource)
     {
         if (oldIdentity == null)
             return false;
@@ -174,6 +201,7 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
         }
 
         GameObject oldPlayerObject = oldIdentity.gameObject;
+
         CharacterBase oldCharacter = GetCharacterBase(oldPlayerObject);
         Player oldPlayer = GetPlayer(oldPlayerObject);
 
@@ -184,6 +212,7 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
         newPlayerObject.name = selectedPrefab.name;
 
         TrySetPlayerTag(newPlayerObject);
+
         newPlayerObject.layer = oldPlayerObject.layer;
         newPlayerObject.SetActive(true);
         newPlayerObject.transform.localScale = Vector3.one;
@@ -210,17 +239,15 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
         BindRuntimeSystems(activePlayerTransform, targetWeapon);
 
         if (destroyAllPickupZonesAfterSwitch)
-        {
             DestroyAllPickupZones();
-        }
 
         if (destroyOldPlayer)
-        {
             Destroy(oldPlayerObject);
-        }
 
         Debug.Log(
-            "[PLAYER SWITCH MANAGER] Player berhasil switch dari UI ke " +
+            "[PLAYER SWITCH MANAGER] Player berhasil switch dari " +
+            switchSource +
+            " ke " +
             targetWeapon +
             ". Prefab baru: " +
             newPlayerObject.name
@@ -228,6 +255,15 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
 
         return true;
     }
+
+    private bool IsValidTargetWeapon(WeaponType weapon)
+    {
+        return weapon == WeaponType.Sword || weapon == WeaponType.Bow;
+    }
+
+    // =========================================================
+    // BIND ULANG SISTEM RUNTIME
+    // =========================================================
 
     public void BindRuntimeSystems(Transform playerTransform, WeaponType currentWeapon)
     {
@@ -253,25 +289,23 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
         }
 
         if (DataTracker.Instance != null)
-        {
             AssignDataTrackerTarget(DataTracker.Instance, playerTransform);
-        }
 
-        PlayerHPBarUI[] hpBars = FindObjectsOfType<PlayerHPBarUI>();
+        PlayerHPBarUI[] hpBars = FindObjectsOfType<PlayerHPBarUI>(true);
 
         foreach (PlayerHPBarUI hpBar in hpBars)
         {
             AssignCharacterTargetToComponent(hpBar, playerTransform, character);
         }
 
-        EnergyBarUI[] energyBars = FindObjectsOfType<EnergyBarUI>();
+        EnergyBarUI[] energyBars = FindObjectsOfType<EnergyBarUI>(true);
 
         foreach (EnergyBarUI energyBar in energyBars)
         {
             AssignCharacterTargetToComponent(energyBar, playerTransform, character);
         }
 
-        GameOverOnPlayerDeath[] gameOverHandlers = FindObjectsOfType<GameOverOnPlayerDeath>();
+        GameOverOnPlayerDeath[] gameOverHandlers = FindObjectsOfType<GameOverOnPlayerDeath>(true);
 
         foreach (GameOverOnPlayerDeath gameOverHandler in gameOverHandlers)
         {
@@ -289,18 +323,24 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
         NotifyActiveWeaponChanged(currentWeapon);
     }
 
+    // =========================================================
+    // FINDER
+    // =========================================================
+
     private Transform FindInitialPlayer()
     {
-        PlayerWeaponIdentity[] identities = FindObjectsOfType<PlayerWeaponIdentity>();
+        PlayerWeaponIdentity[] identities = FindObjectsOfType<PlayerWeaponIdentity>(true);
 
         foreach (PlayerWeaponIdentity identity in identities)
         {
-            if (identity != null &&
-                identity.gameObject.activeInHierarchy &&
-                identity.currentWeapon == WeaponType.None)
-            {
+            if (identity == null)
+                continue;
+
+            if (!identity.gameObject.activeInHierarchy)
+                continue;
+
+            if (identity.currentWeapon == WeaponType.None)
                 return identity.transform;
-            }
         }
 
         GameObject taggedPlayer = null;
@@ -339,6 +379,79 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
                 return null;
         }
     }
+
+    private PlayerWeaponIdentity GetPlayerWeaponIdentity(Transform source)
+    {
+        if (source == null)
+            return null;
+
+        PlayerWeaponIdentity identity = source.GetComponent<PlayerWeaponIdentity>();
+
+        if (identity == null)
+            identity = source.GetComponentInChildren<PlayerWeaponIdentity>(true);
+
+        if (identity == null)
+            identity = source.GetComponentInParent<PlayerWeaponIdentity>();
+
+        return identity;
+    }
+
+    private WeaponType GetWeaponFromPlayer(Transform playerTransform)
+    {
+        if (playerTransform == null)
+            return WeaponType.None;
+
+        PlayerWeaponIdentity identity = GetPlayerWeaponIdentity(playerTransform);
+
+        if (identity != null)
+            return identity.currentWeapon;
+
+        Player player = playerTransform.GetComponent<Player>();
+
+        if (player == null)
+            player = playerTransform.GetComponentInChildren<Player>(true);
+
+        if (player != null)
+            return player.weaponType;
+
+        return WeaponType.None;
+    }
+
+    private CharacterBase GetCharacterBase(GameObject source)
+    {
+        if (source == null)
+            return null;
+
+        CharacterBase character = source.GetComponent<CharacterBase>();
+
+        if (character == null)
+            character = source.GetComponentInChildren<CharacterBase>(true);
+
+        if (character == null)
+            character = source.GetComponentInParent<CharacterBase>();
+
+        return character;
+    }
+
+    private Player GetPlayer(GameObject source)
+    {
+        if (source == null)
+            return null;
+
+        Player player = source.GetComponent<Player>();
+
+        if (player == null)
+            player = source.GetComponentInChildren<Player>(true);
+
+        if (player == null)
+            player = source.GetComponentInParent<Player>();
+
+        return player;
+    }
+
+    // =========================================================
+    // STATE TRANSFER
+    // =========================================================
 
     private void CopyPlayerRuntimeState(
         CharacterBase oldCharacter,
@@ -394,90 +507,79 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
         }
     }
 
-    private WeaponType GetWeaponFromPlayer(Transform playerTransform)
+    private void RebindNewPlayerComponents(GameObject newPlayerObject)
     {
-        if (playerTransform == null)
-            return WeaponType.None;
+        if (newPlayerObject == null)
+            return;
 
-        PlayerWeaponIdentity identity = playerTransform.GetComponent<PlayerWeaponIdentity>();
-
-        if (identity == null)
-            identity = playerTransform.GetComponentInChildren<PlayerWeaponIdentity>(true);
-
-        if (identity != null)
-            return identity.currentWeapon;
-
-        Player player = playerTransform.GetComponent<Player>();
+        Player player = newPlayerObject.GetComponent<Player>();
 
         if (player == null)
-            player = playerTransform.GetComponentInChildren<Player>(true);
+            player = newPlayerObject.GetComponentInChildren<Player>(true);
+
+        CharacterBase character = newPlayerObject.GetComponent<CharacterBase>();
+
+        if (character == null)
+            character = newPlayerObject.GetComponentInChildren<CharacterBase>(true);
+
+        PlayerAnimation anim = newPlayerObject.GetComponentInChildren<PlayerAnimation>(true);
+
+        MoveKeyboard mover = newPlayerObject.GetComponent<MoveKeyboard>();
+
+        if (mover == null)
+            mover = newPlayerObject.GetComponentInChildren<MoveKeyboard>(true);
+
+        if (mover != null)
+        {
+            mover.player = player;
+            mover.anim = anim;
+        }
+
+        Dash dash = newPlayerObject.GetComponent<Dash>();
+
+        if (dash == null)
+            dash = newPlayerObject.GetComponentInChildren<Dash>(true);
+
+        if (dash != null)
+        {
+            dash.player = player;
+            dash.anim = anim;
+        }
+
+        SkillBase[] skillBases = newPlayerObject.GetComponentsInChildren<SkillBase>(true);
+
+        foreach (SkillBase skillBase in skillBases)
+        {
+            if (skillBase != null)
+                skillBase.enabled = true;
+        }
+
+        MonoBehaviour[] behaviours = newPlayerObject.GetComponentsInChildren<MonoBehaviour>(true);
+
+        foreach (MonoBehaviour behaviour in behaviours)
+        {
+            if (behaviour != null)
+                behaviour.enabled = true;
+        }
 
         if (player != null)
-            return player.weaponType;
-
-        return WeaponType.None;
-    }
-
-    private CharacterBase GetCharacterBase(GameObject source)
-    {
-        if (source == null)
-            return null;
-
-        CharacterBase character = source.GetComponent<CharacterBase>();
-
-        if (character == null)
-            character = source.GetComponentInChildren<CharacterBase>(true);
-
-        if (character == null)
-            character = source.GetComponentInParent<CharacterBase>();
-
-        return character;
-    }
-
-    private Player GetPlayer(GameObject source)
-    {
-        if (source == null)
-            return null;
-
-        Player player = source.GetComponent<Player>();
-
-        if (player == null)
-            player = source.GetComponentInChildren<Player>(true);
-
-        if (player == null)
-            player = source.GetComponentInParent<Player>();
-
-        return player;
-    }
-
-    private void TrySetPlayerTag(GameObject playerObject)
-    {
-        if (playerObject == null)
-            return;
-
-        try
         {
-            playerObject.tag = "Player";
+            player.lockMovement = false;
+            player.isAttacking = false;
         }
-        catch (UnityException)
+
+        if (character != null)
         {
-            Debug.LogWarning("[PLAYER SWITCH MANAGER] Tag Player belum dibuat. Buat tag Player di Project Settings > Tags and Layers.");
+            Rigidbody2D rb = character.GetComponent<Rigidbody2D>();
+
+            if (rb != null)
+                rb.velocity = Vector2.zero;
         }
     }
 
-    private void SetLayerRecursively(GameObject root, int layer)
-    {
-        if (root == null)
-            return;
-
-        root.layer = layer;
-
-        foreach (Transform child in root.transform)
-        {
-            if (child != null)
-                SetLayerRecursively(child.gameObject, layer);
-        }
-    }
+    // =========================================================
+    // ASSIGN VIA REFLECTION
+    // =========================================================
 
     private void AssignDataTrackerTarget(DataTracker tracker, Transform playerTransform)
     {
@@ -514,9 +616,7 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
         TrySetField(component, "target", character);
 
         if (isEnergyBar)
-        {
             TryInvokeNoParameterMethod(component, "OnEnable");
-        }
 
         TryInvokeNoParameterMethod(component, "ForceRefreshImmediate");
     }
@@ -629,71 +729,26 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
             return false;
         }
     }
-    private void RebindNewPlayerComponents(GameObject newPlayerObject)
+
+    // =========================================================
+    // UTILITY
+    // =========================================================
+
+    private void TrySetPlayerTag(GameObject playerObject)
     {
-        if (newPlayerObject == null)
+        if (playerObject == null)
             return;
 
-        Player player = newPlayerObject.GetComponent<Player>();
-        if (player == null)
-            player = newPlayerObject.GetComponentInChildren<Player>(true);
-
-        CharacterBase character = newPlayerObject.GetComponent<CharacterBase>();
-        if (character == null)
-            character = newPlayerObject.GetComponentInChildren<CharacterBase>(true);
-
-        PlayerAnimation anim = newPlayerObject.GetComponentInChildren<PlayerAnimation>(true);
-
-        MoveKeyboard mover = newPlayerObject.GetComponent<MoveKeyboard>();
-        if (mover == null)
-            mover = newPlayerObject.GetComponentInChildren<MoveKeyboard>(true);
-
-        if (mover != null)
+        try
         {
-            mover.player = player;
-            mover.anim = anim;
+            playerObject.tag = "Player";
         }
-
-        Dash dash = newPlayerObject.GetComponent<Dash>();
-        if (dash == null)
-            dash = newPlayerObject.GetComponentInChildren<Dash>(true);
-
-        if (dash != null)
+        catch (UnityException)
         {
-            dash.player = player;
-            dash.anim = anim;
-        }
-
-        SkillBase[] skillBases = newPlayerObject.GetComponentsInChildren<SkillBase>(true);
-
-        foreach (SkillBase skillBase in skillBases)
-        {
-            if (skillBase != null)
-                skillBase.enabled = true;
-        }
-
-        MonoBehaviour[] behaviours = newPlayerObject.GetComponentsInChildren<MonoBehaviour>(true);
-
-        foreach (MonoBehaviour behaviour in behaviours)
-        {
-            if (behaviour != null)
-                behaviour.enabled = true;
-        }
-
-        if (player != null)
-        {
-            player.lockMovement = false;
-            player.isAttacking = false;
-        }
-
-        if (character != null)
-        {
-            Rigidbody2D rb = character.GetComponent<Rigidbody2D>();
-
-            if (rb != null)
-                rb.velocity = Vector2.zero;
+            Debug.LogWarning("[PLAYER SWITCH MANAGER] Tag Player belum dibuat. Buat tag Player di Project Settings > Tags and Layers.");
         }
     }
+
     private void DestroyAllPickupZones()
     {
         WeaponPickupZone[] pickupZones = FindObjectsOfType<WeaponPickupZone>(true);
