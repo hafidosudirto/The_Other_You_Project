@@ -906,6 +906,37 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7686073481702737145, guid: c7bacff34b953d149a7fb99df2c756e5, type: 3}
   m_PrefabInstance: {fileID: 1303456728}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &342031990
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 342031991}
+  m_Layer: 0
+  m_Name: SpawnBoss
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &342031991
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 342031990}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 32, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1842716739}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &416677782
 GameObject:
   m_ObjectHideFlags: 0
@@ -1526,6 +1557,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 724989954}
   m_CullTransparentMesh: 1
+--- !u!1 &813617838
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 813617839}
+  m_Layer: 0
+  m_Name: SpawnPlayer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &813617839
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 813617838}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -7, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1842716739}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &838361483
 GameObject:
   m_ObjectHideFlags: 0
@@ -1660,6 +1722,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 838361483}
   m_CullTransparentMesh: 1
+--- !u!1 &862718971
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 862718972}
+  m_Layer: 0
+  m_Name: MinionSpawn
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &862718972
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 862718971}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 10, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1842716739}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &924861632
 GameObject:
   m_ObjectHideFlags: 0
@@ -1981,6 +2074,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1000617548}
   m_CullTransparentMesh: 1
+--- !u!1 &1017857285
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1017857286}
+  m_Layer: 0
+  m_Name: MinionSpawn (2)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1017857286
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1017857285}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 10, y: -4, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1842716739}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1184789560
 GameObject:
   m_ObjectHideFlags: 0
@@ -2922,6 +3046,160 @@ MonoBehaviour:
   smoothSpeed: 10
   hideOnAwake: 1
   hideWhenBossDead: 1
+--- !u!1 &1444621001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1444621002}
+  - component: {fileID: 1444621004}
+  - component: {fileID: 1444621003}
+  m_Layer: 0
+  m_Name: Sfx
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1444621002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1444621001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1842716739}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!82 &1444621003
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1444621001}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_PlayOnAwake: 1
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!114 &1444621004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1444621001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77a9eb3e03af2fd47aa639cd6d1220dc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sfxSource: {fileID: 1444621003}
+  swordSlash1: {fileID: 8300000, guid: b96bef8d6c84d6c4ab2cd8dee82d64a5, type: 3}
+  swordSlash2: {fileID: 8300000, guid: 3eb28231d7f05fe40b00cb4c256fd121, type: 3}
+  swordCharge: {fileID: 8300000, guid: c2ae39eb79f265143a0e16ed98c796b1, type: 3}
+  swordWhirlwind: {fileID: 8300000, guid: 6c532828e6af54e4ca699af5c6352a90, type: 3}
+  swordHit: {fileID: 8300000, guid: e5ec4c1b3c545e74a99a891ce6130d1c, type: 3}
+  bowDraw: {fileID: 8300000, guid: 5c45172d99417d64c9c5f61f5ea1b1ab, type: 3}
+  arrowLaunchNormal: {fileID: 8300000, guid: 37a656ffb886419478368dcc8dc77d8b, type: 3}
+  arrowLaunchCharged: {fileID: 8300000, guid: b27b5ca40c7e0504e8d654056e8f9c83, type: 3}
+  concussiveLaunch: {fileID: 8300000, guid: 343acf4b41e2cec46862844f2db417fd, type: 3}
+  concussiveExplode: {fileID: 8300000, guid: 992d778ab1b984a4ca1df7c76537ca30, type: 3}
+  arrowHitGround: {fileID: 8300000, guid: 5d5ef00d6c42dd741a7737921ec17c70, type: 3}
+  bowDrawAntiStackWindow: 1.25
 --- !u!1001 &1448483338
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3197,6 +3475,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1622936990}
   m_CullTransparentMesh: 1
+--- !u!1 &1629161080
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1629161081}
+  m_Layer: 0
+  m_Name: SpawnPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1629161081
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1629161080}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.008726558, y: 0, z: 0, w: 0.999962}
+  m_LocalPosition: {x: 10, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1842716739}
+  m_LocalEulerAnglesHint: {x: 1, y: 0, z: 0}
 --- !u!1 &1674044201
 GameObject:
   m_ObjectHideFlags: 0
@@ -3272,6 +3581,178 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1674044201}
   m_CullTransparentMesh: 1
+--- !u!1 &1842716735
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1842716739}
+  - component: {fileID: 1842716738}
+  - component: {fileID: 1842716737}
+  - component: {fileID: 1842716736}
+  m_Layer: 0
+  m_Name: GameManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!114 &1842716736
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1842716735}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ae1004dfd9a15f4b99347eebb077232, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1842716737
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1842716735}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70a5707e5ff26f24ba568ca053f237ed, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  currentState: 0
+  playerTransform: {fileID: 0}
+  nextStagePlayerStartPoint: {fileID: 813617839}
+  fallbackPlayerStartX: -8
+  rightTransitionX: 18
+  playerSwordPrefab: {fileID: 0}
+  playerBowPrefab: {fileID: 0}
+  selectedPlayerWeapon: 1
+  playerSpawnPoint: {fileID: 813617839}
+  meleeMinionPrefab: {fileID: 4509274736977115155, guid: 3f024f814d5040d439008106d80e715f, type: 3}
+  rangeMinionPrefab: {fileID: 4509274736977115155, guid: 3f024f814d5040d439008106d80e715f, type: 3}
+  minionSpawnPoints:
+  - {fileID: 862718972}
+  - {fileID: 1945668068}
+  - {fileID: 1017857286}
+  bossPrefabSword: {fileID: 1718376399928103269, guid: 5ac3b8af5f0075e4db0d8d669fd9126b, type: 3}
+  bossPrefabBow: {fileID: 1718376399928103269, guid: 31cdc560879ab6041935da80e59b4b70, type: 3}
+  bossSpawnPoint: {fileID: 342031991}
+  bossHPBarUI: {fileID: 0}
+  autoFindBossHPBarUI: 1
+  disableBossCollidersOnDefeat: 1
+  untagBossOnDefeat: 1
+  startingStageNumber: 0
+  baseSpawnToken: 3
+  spawnTokenIncreasePerStage: 1
+  statAmplifyPerStage: 0.1
+  deriveBaseMinionAttackTokenFromBaseMinionRatio: 1
+  initialTokenRatioFromBaseMinion: 0.7
+  baseMinionAttackToken: 3
+  minionAttackTokenIncreasePerStage: 2
+  dominantVariantRatio: 0.6
+  finalizeDataBeforeBoss: 1
+  finalizeDataAfterBoss: 0
+  resetDDAAndDataTrackerOnStageCleared: 1
+  blackScreenCanvasGroup: {fileID: 0}
+  blackScreenFadeDuration: 0.5
+  blackScreenHoldDuration: 0.5
+  minionSpawnDelayOnStageStart: 1
+  regenPlayerOnNextStage: 1
+  nextStagePlayerFlatHPRegen: 25
+  nextStagePlayerPercentHPRegen: 0.5
+  clampPlayerRegenToMaxHP: 1
+  allowAttackWhenRuntimeDataMissing: 1
+  attackTokenDeniedDebugCooldown: 0.25
+  showStageRuntimeDebug: 1
+  showEnemyWorldDebugLabels: 1
+  toggleDebugOverlayKey: 287
+  debugPanelPosition: {x: 14, y: 14}
+  debugPanelWidth: 430
+  maxEnemyRowsInDebugPanel: 10
+  maxFloatingDebugLines: 8
+  floatingDebugLineDuration: 4
+--- !u!114 &1842716738
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1842716735}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7fce31fd51c9834e9adf3b60c416059, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  swordSkillDebugText: {fileID: 0}
+  swordSkillDebugPanel: {fileID: 0}
+  showSwordSkillDebugPanel: 0
+  swordSkillDebugTitle: SWORD SKILL DEBUG
+  bowSkillDebugText: {fileID: 0}
+  bowSkillDebugPanel: {fileID: 0}
+  showBowSkillDebugPanel: 0
+  bowSkillDebugTitle: BOW SKILL DEBUG
+  playerTransform: {fileID: 0}
+  enemyTransform: {fileID: 7686073481702737145, guid: 5ac3b8af5f0075e4db0d8d669fd9126b, type: 3}
+  distanceCheckInterval: 0.1
+  idleMovementThreshold: 0.03
+--- !u!4 &1842716739
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1842716735}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1629161081}
+  - {fileID: 813617839}
+  - {fileID: 342031991}
+  - {fileID: 862718972}
+  - {fileID: 1945668068}
+  - {fileID: 1017857286}
+  - {fileID: 1444621002}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1945668067
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1945668068}
+  m_Layer: 0
+  m_Name: MinionSpawn (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1945668068
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1945668067}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 10, y: -2, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1842716739}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1963590696
 GameObject:
   m_ObjectHideFlags: 0
@@ -5439,3 +5920,4 @@ SceneRoots:
   - {fileID: 1448483338}
   - {fileID: 3252050730093052377}
   - {fileID: 1321556955}
+  - {fileID: 1842716739}
