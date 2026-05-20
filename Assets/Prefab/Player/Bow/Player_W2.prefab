@@ -293,6 +293,7 @@ GameObject:
   - component: {fileID: 8539281897314106846}
   - component: {fileID: 1067902324421283712}
   - component: {fileID: 5298149805424230708}
+  - component: {fileID: 793496407880314747}
   m_Layer: 6
   m_Name: SkillRoot_Bow
   m_TagString: Untagged
@@ -645,6 +646,22 @@ MonoBehaviour:
   playConcussiveExplodeSfx: 1
   playHitSfxOnExplosionHit: 1
   debugLog: 0
+--- !u!114 &793496407880314747
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3692325758305768845}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e31c32b4a55b87b4c87cafe382cec35d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  primaryIcon: {fileID: 0}
+  secondaryIcon: {fileID: 0}
+  skillAIcon: {fileID: 0}
+  skillBIcon: {fileID: 0}
 --- !u!1 &5632209356851836178
 GameObject:
   m_ObjectHideFlags: 0

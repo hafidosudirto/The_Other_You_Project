@@ -132,6 +132,74 @@ PrefabInstance:
       propertyPath: m_Sprite
       value: 
       objectReference: {fileID: 705749865, guid: 71d90d1344f707b4d834f81e5b226e1d, type: 3}
+    - target: {fileID: 8679005174884400675, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: skillAIcon
+      value: 
+      objectReference: {fileID: 973332062, guid: 71d90d1344f707b4d834f81e5b226e1d, type: 3}
+    - target: {fileID: 8679005174884400675, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: skillBIcon
+      value: 
+      objectReference: {fileID: 453996395, guid: 71d90d1344f707b4d834f81e5b226e1d, type: 3}
+    - target: {fileID: 8679005174884400675, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: primaryIcon
+      value: 
+      objectReference: {fileID: -1495838132, guid: 71d90d1344f707b4d834f81e5b226e1d, type: 3}
+    - target: {fileID: 8679005174884400675, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: secondaryIcon
+      value: 
+      objectReference: {fileID: 1112011342, guid: 71d90d1344f707b4d834f81e5b226e1d, type: 3}
+    - target: {fileID: 8679005174884400675, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: slots.Array.data[0].icon
+      value: 
+      objectReference: {fileID: -1495838132, guid: 71d90d1344f707b4d834f81e5b226e1d, type: 3}
+    - target: {fileID: 8679005174884400675, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: slots.Array.data[1].icon
+      value: 
+      objectReference: {fileID: 1112011342, guid: 71d90d1344f707b4d834f81e5b226e1d, type: 3}
+    - target: {fileID: 8679005174884400675, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: slots.Array.data[2].icon
+      value: 
+      objectReference: {fileID: 973332062, guid: 71d90d1344f707b4d834f81e5b226e1d, type: 3}
+    - target: {fileID: 8679005174884400675, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: slots.Array.data[3].icon
+      value: 
+      objectReference: {fileID: 453996395, guid: 71d90d1344f707b4d834f81e5b226e1d, type: 3}
+    - target: {fileID: 8679005174884400675, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: slots.Array.data[0].displayName
+      value: Slash Combo
+      objectReference: {fileID: 0}
+    - target: {fileID: 8679005174884400675, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: slots.Array.data[1].displayName
+      value: Charged Strike
+      objectReference: {fileID: 0}
+    - target: {fileID: 8679005174884400675, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: slots.Array.data[2].displayName
+      value: Whirlwind
+      objectReference: {fileID: 0}
+    - target: {fileID: 8679005174884400675, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: slots.Array.data[3].displayName
+      value: Riposte
+      objectReference: {fileID: 0}
+    - target: {fileID: 8679005174884400675, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: slots.Array.data[0].tags.Array.size
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8806357304377255571, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: slot1Key
+      value: 323
+      objectReference: {fileID: 0}
+    - target: {fileID: 8806357304377255571, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: slot2Key
+      value: 324
+      objectReference: {fileID: 0}
+    - target: {fileID: 8806357304377255571, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: slot3Key
+      value: 113
+      objectReference: {fileID: 0}
+    - target: {fileID: 8806357304377255571, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: slot4Key
+      value: 101
+      objectReference: {fileID: 0}
     - target: {fileID: 8806357304377255571, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: slots.Array.data[3].skillBehaviour
       value: 

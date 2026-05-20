@@ -8,6 +8,38 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 793496407880314747, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: skillAIcon
+      value: 
+      objectReference: {fileID: -1557183701, guid: 70761416bc0545f479b5fad7548a3869, type: 3}
+    - target: {fileID: 793496407880314747, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: skillBIcon
+      value: 
+      objectReference: {fileID: -8359811, guid: 70761416bc0545f479b5fad7548a3869, type: 3}
+    - target: {fileID: 793496407880314747, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: primaryIcon
+      value: 
+      objectReference: {fileID: -817971454, guid: 70761416bc0545f479b5fad7548a3869, type: 3}
+    - target: {fileID: 793496407880314747, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: secondaryIcon
+      value: 
+      objectReference: {fileID: 1782468478, guid: 70761416bc0545f479b5fad7548a3869, type: 3}
+    - target: {fileID: 793496407880314747, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: slots.Array.data[0].icon
+      value: 
+      objectReference: {fileID: 448887807, guid: 70761416bc0545f479b5fad7548a3869, type: 3}
+    - target: {fileID: 793496407880314747, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: slots.Array.data[1].icon
+      value: 
+      objectReference: {fileID: 1513911395, guid: 70761416bc0545f479b5fad7548a3869, type: 3}
+    - target: {fileID: 793496407880314747, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: slots.Array.data[2].icon
+      value: 
+      objectReference: {fileID: -150204735, guid: 70761416bc0545f479b5fad7548a3869, type: 3}
+    - target: {fileID: 793496407880314747, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: slots.Array.data[3].icon
+      value: 
+      objectReference: {fileID: -434036381, guid: 70761416bc0545f479b5fad7548a3869, type: 3}
     - target: {fileID: 1067902324421283712, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: polaTembak
       value: 0
@@ -46,19 +78,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2394147951062621979, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: m_Size.x
-      value: 0.6507164
+      value: 0.7192865
       objectReference: {fileID: 0}
     - target: {fileID: 2394147951062621979, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: m_Size.y
-      value: 1.3677473
+      value: 1.813451
       objectReference: {fileID: 0}
     - target: {fileID: 2394147951062621979, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: m_Offset.x
-      value: 0.36575675
+      value: 0.21147482
       objectReference: {fileID: 0}
     - target: {fileID: 2394147951062621979, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: m_Offset.y
-      value: 0.10139894
+      value: -0.121452935
       objectReference: {fileID: 0}
     - target: {fileID: 2908936654555270434, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: animator

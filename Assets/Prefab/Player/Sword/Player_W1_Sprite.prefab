@@ -300,6 +300,7 @@ GameObject:
   - component: {fileID: 3802485017805506531}
   - component: {fileID: 5032635997263216504}
   - component: {fileID: 497706870744875888}
+  - component: {fileID: 8679005174884400675}
   m_Layer: 6
   m_Name: SkillRoot_Sword
   m_TagString: Untagged
@@ -473,6 +474,73 @@ MonoBehaviour:
   playCounterSlashSfxOnSuccess: 1
   playHitSfxOncePerCounter: 1
   energyCost: 10
+--- !u!114 &8679005174884400675
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7955049090739457126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e31c32b4a55b87b4c87cafe382cec35d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  weaponType: 1
+  skillBase: {fileID: 8806357304377255571}
+  slotConfigs:
+  - skillId: 
+    displayName: 
+    icon: {fileID: 0}
+    useSkillBaseKeyLabel: 1
+    keyLabelOverride: 
+    useCooldownVisual: 1
+    blockByCooldownInPrototype: 1
+    cooldownFallback: 1
+    useEnergyVisual: 0
+    blockByEnergyInPrototype: 0
+    energyCostFallback: 0
+    hideWhenSkillBehaviourMissing: 1
+    flashWhenNotified: 1
+  - skillId: 
+    displayName: 
+    icon: {fileID: 0}
+    useSkillBaseKeyLabel: 1
+    keyLabelOverride: 
+    useCooldownVisual: 1
+    blockByCooldownInPrototype: 1
+    cooldownFallback: 1
+    useEnergyVisual: 0
+    blockByEnergyInPrototype: 0
+    energyCostFallback: 0
+    hideWhenSkillBehaviourMissing: 1
+    flashWhenNotified: 1
+  - skillId: 
+    displayName: 
+    icon: {fileID: 0}
+    useSkillBaseKeyLabel: 1
+    keyLabelOverride: 
+    useCooldownVisual: 1
+    blockByCooldownInPrototype: 1
+    cooldownFallback: 1
+    useEnergyVisual: 0
+    blockByEnergyInPrototype: 0
+    energyCostFallback: 0
+    hideWhenSkillBehaviourMissing: 1
+    flashWhenNotified: 1
+  - skillId: 
+    displayName: 
+    icon: {fileID: 0}
+    useSkillBaseKeyLabel: 1
+    keyLabelOverride: 
+    useCooldownVisual: 1
+    blockByCooldownInPrototype: 1
+    cooldownFallback: 1
+    useEnergyVisual: 0
+    blockByEnergyInPrototype: 0
+    energyCostFallback: 0
+    hideWhenSkillBehaviourMissing: 1
+    flashWhenNotified: 1
 --- !u!1 &8000750785686306608
 GameObject:
   m_ObjectHideFlags: 0
