@@ -1,13 +1,24 @@
 using UnityEngine;
 using System.Collections;
 
-public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
+public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldownInfo, ISkillReadinessInfo
 {
     [Header("Energy (ChargedStrike pays on Release)")]
     [SerializeField, Min(0f)] private float energyCost = 25f;
 
     public float EnergyCost => energyCost;
     public bool PayEnergyInSkillBase => false;
+
+    // Data baca untuk SkillIndexHUDController.
+    // Tidak menambah angka tuning baru. Durasi visual diambil dari durasi clip/fallback yang sudah ada.
+    public bool HasCooldown => cooldownDuration > 0.05f;
+    public float CooldownDuration => Mathf.Max(0f, cooldownDuration);
+    public float CooldownRemaining => Mathf.Max(0f, recoveryEndTime - Time.time);
+    public bool IsCooldownReady => CooldownRemaining <= 0.05f;
+    public bool IsSkillBusy => isCharging || isRecovering;
+    public bool IsSkillReady => !IsSkillBusy && IsCooldownReady && HasEnoughEnergyToStart();
+    public bool isCasting => IsSkillBusy;
+    public float cooldownDuration => Mathf.Max(0f, GetCurrentClipLengthOrFallback());
 
     [Header("Charge Settings")]
     public float maxChargeTime = 2.0f;
@@ -63,7 +74,9 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
     private Animator unityAnimator;
 
     private bool isCharging = false;
+    private bool isRecovering = false;
     private float chargeTimer = 0f;
+    private float recoveryEndTime = -999f;
 
     private bool showGizmo = false;
     private Coroutine gizmoRoutine;
@@ -84,16 +97,23 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
             unityAnimator = anim.animator;
     }
 
+    private bool HasEnoughEnergyToStart()
+    {
+        float cost = Mathf.Max(0f, EnergyCost);
+        if (cost <= 0f) return true;
+
+        CharacterBase character = GetComponentInParent<CharacterBase>();
+        if (character == null) return true;
+
+        return character.CurrentEnergy + 1e-6f >= cost;
+    }
+
     public void TriggerSkill(int slotIndex)
     {
-        if (skillBase != null && EnergyCost > 0f)
+        if (!HasEnoughEnergyToStart())
         {
-            var character = GetComponentInParent<CharacterBase>();
-            if (character != null && character.CurrentEnergy < EnergyCost)
-            {
-                DebugHub.Warning($"ENERGY KURANG: ChargedStrike butuh {EnergyCost}.");
-                return;
-            }
+            DebugHub.Warning($"ENERGY KURANG: ChargedStrike butuh {EnergyCost}.");
+            return;
         }
 
         if (isCharging) return;
@@ -226,11 +246,16 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
 
     private IEnumerator StrikeRoutine(float multiplier)
     {
+        isRecovering = true;
+
         yield return null;
         yield return null;
 
         float clipLen = GetCurrentClipLengthOrFallback();
         if (clipLen <= 0f) clipLen = strikeClipFallbackLength;
+
+        recoveryEndTime = Time.time + Mathf.Max(0f, clipLen);
+        SkillIndexHUDController.NotifyGlobalSkillUsed(this);
 
         float startP = Mathf.Clamp01(strikeActiveStart);
         float endP = Mathf.Clamp01(strikeActiveEnd);
@@ -261,6 +286,9 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
 
         if (player != null)
             player.isAttacking = false;
+
+        isRecovering = false;
+        recoveryEndTime = -999f;
     }
 
     private float GetCurrentClipLengthOrFallback()
@@ -424,7 +452,9 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
         StopChargeSfx();
 
         isCharging = false;
+        isRecovering = false;
         chargeTimer = 0f;
+        recoveryEndTime = -999f;
         showGizmo = false;
 
         if (anim != null)

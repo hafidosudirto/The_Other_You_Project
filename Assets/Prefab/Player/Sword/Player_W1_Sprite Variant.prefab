@@ -13,6 +13,10 @@ PrefabInstance:
       value: Player_W1_Sprite Variant
       objectReference: {fileID: 0}
     - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: energyCost
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: chainWindow
       value: 0.35
       objectReference: {fileID: 0}
@@ -151,7 +155,7 @@ PrefabInstance:
     - target: {fileID: 8679005174884400675, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: slots.Array.data[0].icon
       value: 
-      objectReference: {fileID: -1495838132, guid: 71d90d1344f707b4d834f81e5b226e1d, type: 3}
+      objectReference: {fileID: -609151240, guid: 71d90d1344f707b4d834f81e5b226e1d, type: 3}
     - target: {fileID: 8679005174884400675, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: slots.Array.data[1].icon
       value: 
@@ -184,6 +188,10 @@ PrefabInstance:
       propertyPath: slots.Array.data[0].tags.Array.size
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 8806357304377255571, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: owner
+      value: 
+      objectReference: {fileID: 7456105813554528496}
     - target: {fileID: 8806357304377255571, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: slot1Key
       value: 323

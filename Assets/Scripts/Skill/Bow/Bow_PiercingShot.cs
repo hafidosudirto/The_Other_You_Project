@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class Bow_PiercingShot : MonoBehaviour, ISkill, IEnergySkill
+public class Bow_PiercingShot : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldownInfo, ISkillReadinessInfo
 {
     [Header("Piercing Shot Settings")]
     public GameObject arrowPrefab;
@@ -27,6 +27,17 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill, IEnergySkill
 
     public float EnergyCost => energyCost;
     public bool PayEnergyInSkillBase => false;
+
+    public bool HasCooldown => shootCooldown > 0.05f;
+    public float CooldownDuration => Mathf.Max(0f, shootCooldown);
+    public float CooldownRemaining => Mathf.Max(0f, (lastShootTime + shootCooldown) - Time.time);
+    public bool IsCooldownReady => CooldownRemaining <= 0.05f;
+    public bool IsSkillBusy => isCasting || waitingAnimationRelease;
+    public bool IsSkillReady => !IsSkillBusy && IsCooldownReady && HasEnoughEnergyToStart();
+
+    // Alias sederhana agar HUD yang membaca lewat reflection tetap aman.
+    public bool isCooldown => !IsCooldownReady;
+    public float cooldownDuration => CooldownDuration;
 
     private CharacterBase character;
     private Player player;
@@ -62,6 +73,8 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill, IEnergySkill
             return;
 
         lastShootTime = Time.time;
+        SkillIndexHUDController.NotifyGlobalSkillUsed(this);
+
         isCasting = true;
         waitingAnimationRelease = true;
 
@@ -184,6 +197,17 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill, IEnergySkill
         SpriteRenderer[] renderers = arrowObj.GetComponentsInChildren<SpriteRenderer>(true);
         foreach (var sr in renderers)
             sr.flipX = false;
+    }
+
+    private bool HasEnoughEnergyToStart()
+    {
+        if (energyCost <= 0f)
+            return true;
+
+        if (character == null)
+            character = player != null ? player : GetComponentInParent<CharacterBase>();
+
+        return character == null || character.HasEnergy(energyCost);
     }
 
     private void StopOwnerMovement()

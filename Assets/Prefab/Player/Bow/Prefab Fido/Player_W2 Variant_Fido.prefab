@@ -27,7 +27,7 @@ PrefabInstance:
     - target: {fileID: 793496407880314747, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: slots.Array.data[0].icon
       value: 
-      objectReference: {fileID: 448887807, guid: 70761416bc0545f479b5fad7548a3869, type: 3}
+      objectReference: {fileID: 21300000, guid: b36571f157232d749a55b77e187c3065, type: 3}
     - target: {fileID: 793496407880314747, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: slots.Array.data[1].icon
       value: 
@@ -39,7 +39,23 @@ PrefabInstance:
     - target: {fileID: 793496407880314747, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: slots.Array.data[3].icon
       value: 
-      objectReference: {fileID: -434036381, guid: 70761416bc0545f479b5fad7548a3869, type: 3}
+      objectReference: {fileID: 21300000, guid: 1418f4ccc303d874fa0a5d06d6920faf, type: 3}
+    - target: {fileID: 793496407880314747, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: slots.Array.data[0].displayName
+      value: Quick Shot
+      objectReference: {fileID: 0}
+    - target: {fileID: 793496407880314747, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: slots.Array.data[1].displayName
+      value: Full Draw
+      objectReference: {fileID: 0}
+    - target: {fileID: 793496407880314747, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: slots.Array.data[2].displayName
+      value: Spread Arrow
+      objectReference: {fileID: 0}
+    - target: {fileID: 793496407880314747, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: slots.Array.data[3].displayName
+      value: Concussive Shot
+      objectReference: {fileID: 0}
     - target: {fileID: 1067902324421283712, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: polaTembak
       value: 0

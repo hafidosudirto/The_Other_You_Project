@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 
 [DisallowMultipleComponent]
-public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
+public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldownInfo, ISkillReadinessInfo
 {
     public enum ConcussiveJumpMode
     {
@@ -190,6 +190,16 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
     public float EnergyCost => energyCost;
     public bool PayEnergyInSkillBase => false;
 
+    public bool HasCooldown => jedaSkill > 0.05f;
+    public float CooldownDuration => Mathf.Max(0f, jedaSkill);
+    public float CooldownRemaining => isCooldown ? Mathf.Max(0f, cooldownEndTime - Time.time) : 0f;
+    public bool IsCooldownReady => !isCooldown && CooldownRemaining <= 0.05f;
+    public bool IsSkillBusy => isCasting;
+    public bool IsSkillReady => !IsSkillBusy && IsCooldownReady && HasEnoughEnergyToStart();
+
+    // Alias sederhana agar HUD yang membaca lewat reflection tetap aman.
+    public float cooldownDuration => CooldownDuration;
+
     private CharacterBase character;
     private Rigidbody2D playerRb;
 
@@ -204,6 +214,7 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
     private bool startPopReceived;
     private bool dataSudahTercatat;
     private bool jumpSfxPlayed;
+    private float cooldownEndTime;
 
     private Vector3 visualLocalAwal;
     private float visualYOffset;
@@ -288,6 +299,7 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
         StopOwnerMovement();
 
         MulaiCooldown();
+        SkillIndexHUDController.NotifyGlobalSkillUsed(this);
 
         if (playBowDrawOnCastStart)
             PlayBowDrawSfx();
@@ -914,6 +926,7 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
         if (cooldownRoutine != null)
             StopCoroutine(cooldownRoutine);
 
+        cooldownEndTime = Time.time + Mathf.Max(0f, jedaSkill);
         cooldownRoutine = StartCoroutine(CooldownRoutine());
     }
 
@@ -926,6 +939,17 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
 
         isCooldown = false;
         cooldownRoutine = null;
+    }
+
+    private bool HasEnoughEnergyToStart()
+    {
+        if (energyCost <= 0f)
+            return true;
+
+        if (character == null)
+            character = player != null ? player : GetComponentInParent<CharacterBase>(true);
+
+        return character == null || character.HasEnergy(energyCost);
     }
 
     private void StopOwnerMovement()
@@ -1163,6 +1187,7 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill
 
         isCasting = false;
         isCooldown = false;
+        cooldownEndTime = 0f;
         releaseExecuted = false;
         //endRecoveryExecuted = false;
 

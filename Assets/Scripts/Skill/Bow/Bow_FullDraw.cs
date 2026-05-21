@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.Serialization;
 
 [DisallowMultipleComponent]
-public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
+public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldownInfo, ISkillReadinessInfo
 {
     [Header("Charge UI")]
     [Tooltip("UI charge bar kecil. Isi dengan object ChargeBarRoot yang memiliki script BowChargeBar.")]
@@ -246,8 +246,22 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
     [Header("Debug")]
     [SerializeField] private bool debugLog = false;
 
-    public float EnergyCost => Mathf.Max(biayaEnergi, biayaEnergiFullCharge);
+    public float EnergyCost => Mathf.Max(0f, biayaEnergi);
+    public float FullChargeEnergyCost => Mathf.Max(EnergyCost, biayaEnergiFullCharge);
     public bool PayEnergyInSkillBase => false;
+
+    public bool HasCooldown => jedaSkill > 0.05f;
+    public float CooldownDuration => Mathf.Max(0f, jedaSkill);
+    public float CooldownRemaining => sedangCooldown ? Mathf.Max(0f, cooldownEndTime - Time.time) : 0f;
+    public bool IsCooldownReady => !sedangCooldown && CooldownRemaining <= 0.05f;
+    public bool IsSkillBusy => sedangCharge || sedangRelease;
+    public bool IsSkillReady => !IsSkillBusy && IsCooldownReady && HasEnoughEnergyToStart();
+
+    // Alias sederhana agar HUD yang membaca lewat reflection tetap aman.
+    public bool isCasting => IsSkillBusy;
+    public bool isCharging => sedangCharge;
+    public bool isCooldown => sedangCooldown;
+    public float cooldownDuration => CooldownDuration;
 
     private CharacterBase pemilikEnergi;
     private SkillBase skillBase;
@@ -271,6 +285,7 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
     private bool pendingPakaiPiercing;
 
     private KeyCode tombolCharge = KeyCode.None;
+    private float cooldownEndTime;
 
     private void Awake()
     {
@@ -352,6 +367,7 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
         }
 
         MulaiCooldown();
+        SkillIndexHUDController.NotifyGlobalSkillUsed(this);
 
         if (chargeBar != null)
         {
@@ -577,6 +593,7 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
         if (routineCooldown != null)
             StopCoroutine(routineCooldown);
 
+        cooldownEndTime = Time.time + Mathf.Max(0f, jedaSkill);
         routineCooldown = StartCoroutine(RoutineCooldown());
     }
 
@@ -1103,6 +1120,17 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
         return true;
     }
 
+    private bool HasEnoughEnergyToStart()
+    {
+        if (biayaEnergi <= 0f)
+            return true;
+
+        if (pemilikEnergi == null)
+            pemilikEnergi = pemain != null ? pemain : GetComponentInParent<CharacterBase>(true);
+
+        return pemilikEnergi == null || pemilikEnergi.HasEnergy(biayaEnergi);
+    }
+
     private void HentikanGerakPemain()
     {
         if (pemain == null)
@@ -1290,6 +1318,7 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
             pemain.lockMovement = false;
 
         sedangCooldown = false;
+        cooldownEndTime = 0f;
         sedangCharge = false;
         sedangRelease = false;
         menungguReleaseEvent = false;

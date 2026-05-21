@@ -7,6 +7,52 @@ public class SkillIndexHUDController : MonoBehaviour
 {
     public static SkillIndexHUDController Instance { get; private set; }
 
+    public enum SkillReadyDisplay
+    {
+        EnergyMode,
+        CooldownMode,
+        AnimationMode
+    }
+
+    public enum IconFlashTiming
+    {
+        Off,
+        WhenUsed,
+        WhenReady,
+        UsedAndReady
+    }
+
+    public enum BasicAttackSlotDisplay
+    {
+        Separate,
+        Merged
+    }
+
+    public enum MergedIconStatus
+    {
+        EachIcon,
+        WholeSlot
+    }
+
+    public enum BasicAttackCooldownDisplay
+    {
+        AutoFromSkill,
+        Hide,
+        OnlyWhenFound
+    }
+
+    private struct SlotState
+    {
+        public bool hasSkill;
+        public bool energyReady;
+        public bool cooldownReady;
+        public bool animationReady;
+        public bool finalReady;
+        public bool hasCooldownSource;
+        public float cooldownDuration;
+        public float cooldownRemaining;
+    }
+
     [Header("HUD Slot References")]
     [Tooltip("Isi dengan Slot_Primary. Jika nama object benar, script akan mencoba mencari otomatis.")]
     [SerializeField] private SkillHUDSlotUI primarySlot;
@@ -21,34 +67,48 @@ public class SkillIndexHUDController : MonoBehaviour
     [SerializeField] private SkillHUDSlotUI skillBSlot;
 
     [Header("Active Profile Binding")]
-    [Tooltip("Aktifkan agar HUD otomatis membaca SkillRootHUDProfile dari player aktif.")]
+    [Tooltip("HUD otomatis membaca SkillRootHUDProfile dari player aktif. Aktifkan ini untuk scene yang memakai switch prefab.")]
     [SerializeField] private bool autoFindActiveProfile = true;
 
-    [Tooltip("Interval pencarian ulang profile aktif. Berguna setelah switch prefab player.")]
+    [Tooltip("Interval pencarian ulang profile aktif setelah player berganti prefab.")]
     [SerializeField, Min(0.05f)] private float autoFindInterval = 0.25f;
 
-    [Tooltip("Khusus debugging. Jika diisi, HUD akan memakai profile ini dan mengabaikan player aktif.")]
+    [Tooltip("Khusus debugging. Jika diisi, HUD memakai profile ini dan tidak mencari player aktif.")]
     [SerializeField] private SkillRootHUDProfile forcedProfile;
 
-    [Header("Cooldown Presentation")]
-    [Tooltip("Menampilkan lapisan cooldown pada ikon. Durasi tetap dibaca dari script skill asli.")]
-    [SerializeField] private bool showCooldownFill = true;
+    [Header("Skill Ready Display")]
+    [Tooltip("Menentukan cara ikon skill memberi tahu pemain bahwa skill siap atau belum siap digunakan.")]
+    [SerializeField] private SkillReadyDisplay skillReadyDisplay = SkillReadyDisplay.EnergyMode;
 
-    [Tooltip("Menampilkan angka sisa cooldown. Angka tetap berasal dari durasi script skill asli.")]
+    [Tooltip("Energy Mode: ikon redup jika energy tidak cukup. Cooldown Mode: ikon memakai overlay cooldown dari script skill. Animation Mode: ikon mengikuti status cast/recovery dari script skill.")]
+    [SerializeField] private bool showModeHelper = true;
+
+    [Header("Flash")]
+    [Tooltip("Menentukan kapan ikon memberi flash singkat.")]
+    [SerializeField] private IconFlashTiming iconFlashTiming = IconFlashTiming.WhenReady;
+
+    [Header("Basic Attack Display")]
+    [Tooltip("Menentukan apakah basic attack dan charged attack tampil terpisah atau digabung dalam satu kotak HUD.")]
+    [SerializeField] private BasicAttackSlotDisplay basicAttackSlotDisplay = BasicAttackSlotDisplay.Separate;
+
+    [Tooltip("Saat basic attack digabung, Each Icon membuat ikon kiri/kanan bisa redup sendiri-sendiri. Whole Slot membuat satu kotak redup bersama.")]
+    [SerializeField] private MergedIconStatus mergedIconStatus = MergedIconStatus.EachIcon;
+
+    [Tooltip("Mengatur tampilan cooldown untuk basic attack dan charged attack. Nilai cooldown tetap dibaca dari script skill asli.")]
+    [SerializeField] private BasicAttackCooldownDisplay basicAttackCooldownDisplay = BasicAttackCooldownDisplay.OnlyWhenFound;
+
+    [Header("Cooldown Visual")]
+    [Tooltip("Menampilkan angka sisa cooldown di atas ikon.")]
     [SerializeField] private bool showCooldownNumber = true;
+
+    [Tooltip("Arah overlay cooldown. TopToBottom berarti lapisan gelap turun/hilang dari atas ke bawah.")]
+    [SerializeField] private SkillHUDSlotUI.CooldownFillDirection cooldownFillDirection = SkillHUDSlotUI.CooldownFillDirection.TopToBottom;
 
     [Tooltip("Aktifkan hanya jika cooldown HUD harus tetap berjalan ketika Time.timeScale = 0.")]
     [SerializeField] private bool useUnscaledTimeForCooldown = false;
 
-    [Header("Energy Presentation")]
-    [Tooltip("Jika aktif, slot Skill A dan Skill B akan diredupkan ketika energy player tidak cukup.")]
-    [SerializeField] private bool dimSkillAAndSkillBWhenEnergyIsLow = true;
-
-    [Tooltip("Biasanya dimatikan karena Primary dan Secondary tidak perlu diredupkan oleh energy pada prototype saat ini.")]
-    [SerializeField] private bool dimPrimaryAndSecondaryWhenEnergyIsLow = false;
-
     [Header("Optional Presentation Forwarding")]
-    [Tooltip("Mengirim displayName, description, dan tag ke SkillHUDSlotUI jika script slot UI punya method penerima. Aman walaupun method tidak ada.")]
+    [Tooltip("Mengirim nama, deskripsi, dan tag ke slot UI jika object slot menyediakan teks tambahan.")]
     [SerializeField] private bool forwardPresentationTextToSlot = true;
 
     [Header("Debug")]
@@ -61,6 +121,9 @@ public class SkillIndexHUDController : MonoBehaviour
     private const int SlotCount = 4;
 
     private readonly float[] remainingCooldowns = new float[SlotCount];
+    private readonly float[] cachedCooldownDurations = new float[SlotCount];
+    private readonly bool[] lastReadyStates = new bool[SlotCount];
+    private readonly bool[] hasLastReadyStates = new bool[SlotCount];
 
     private SkillRootHUDProfile activeProfile;
     private CharacterBase energyTarget;
@@ -71,21 +134,48 @@ public class SkillIndexHUDController : MonoBehaviour
         "jedaSkill",
         "comboCooldown",
         "cooldownTime",
-        "shootCooldown",
         "cooldownDuration",
+        "cooldownTimeAfterUse",
         "skillCooldown",
+        "shootCooldown",
         "cooldown",
         "cooldownSeconds",
-        "duration"
+        "cooldownDelay"
     };
 
     private static readonly string[] EnergyMemberNames =
     {
+        "EnergyCost",
         "energyCost",
         "biayaEnergi",
         "manaCost",
         "costEnergy",
         "skillEnergyCost"
+    };
+
+    private static readonly string[] BusyBoolMemberNames =
+    {
+        "sedangCast",
+        "sedangCharge",
+        "sedangCooldown",
+        "isCasting",
+        "isCharging",
+        "isCooldown",
+        "isOnCooldown",
+        "isAttacking",
+        "isBusy",
+        "isRecovering"
+    };
+
+    private static readonly string[] ActionDurationMemberNames =
+    {
+        "duration",
+        "stanceDuration",
+        "castDuration",
+        "recoveryDuration",
+        "attackDuration",
+        "maxChargeTime",
+        "durasiChargePenuh"
     };
 
     private const BindingFlags MemberFlags =
@@ -106,19 +196,25 @@ public class SkillIndexHUDController : MonoBehaviour
         }
 
         Instance = this;
-
         AutoAssignSlots();
+        ConfigureAllSlotFillDirections();
         BindProfile(true);
     }
 
     private void OnEnable()
     {
         Instance = this;
+        PlayerPrefabSwitchManager.OnActiveWeaponChanged -= HandleActiveWeaponChanged;
+        PlayerPrefabSwitchManager.OnActiveWeaponChanged += HandleActiveWeaponChanged;
+
+        ConfigureAllSlotFillDirections();
         BindProfile(true);
     }
 
     private void OnDisable()
     {
+        PlayerPrefabSwitchManager.OnActiveWeaponChanged -= HandleActiveWeaponChanged;
+
         if (Instance == this)
             Instance = null;
     }
@@ -127,6 +223,7 @@ public class SkillIndexHUDController : MonoBehaviour
     private void OnValidate()
     {
         AutoAssignSlots();
+        ConfigureAllSlotFillDirections();
     }
 #endif
 
@@ -190,6 +287,12 @@ public class SkillIndexHUDController : MonoBehaviour
         Instance.NotifySkillUsedByName(skillTypeNameOrDisplayName, cooldownOverride, true);
     }
 
+    public bool IsSlotReady(int zeroBasedSlotIndex)
+    {
+        SlotState state = BuildSlotState(zeroBasedSlotIndex);
+        return state.hasSkill && state.finalReady;
+    }
+
     private void NotifySkillUsed(MonoBehaviour skillBehaviour, float cooldownOverride, bool hasOverride)
     {
         if (skillBehaviour == null)
@@ -197,7 +300,9 @@ public class SkillIndexHUDController : MonoBehaviour
 
         BindProfile(false);
 
-        int slotIndex = FindSlotIndexBySkillBehaviour(skillBehaviour);
+        int slotIndex = activeProfile != null
+            ? activeProfile.FindSlotIndexBySkillBehaviour(skillBehaviour)
+            : -1;
 
         if (slotIndex < 0)
         {
@@ -246,6 +351,11 @@ public class SkillIndexHUDController : MonoBehaviour
     // PROFILE BINDING
     // =========================================================
 
+    private void HandleActiveWeaponChanged(WeaponType weapon)
+    {
+        BindProfile(true);
+    }
+
     private void AutoRebindProfileTick()
     {
         if (!autoFindActiveProfile)
@@ -281,6 +391,7 @@ public class SkillIndexHUDController : MonoBehaviour
 
         energyTarget = activeProfile.GetComponentInParent<CharacterBase>();
         ClearCooldowns();
+        ResetReadyTracking();
 
         if (debugLog)
         {
@@ -353,10 +464,81 @@ public class SkillIndexHUDController : MonoBehaviour
 
     private void UpdateAllSlots()
     {
+        if (activeProfile == null)
+        {
+            HideAllSlots();
+            return;
+        }
+
+        if (basicAttackSlotDisplay == BasicAttackSlotDisplay.Merged)
+        {
+            UpdateMergedBasicSlot();
+            SetSlotActive(secondarySlot, false);
+            UpdateSlot(2, skillASlot);
+            UpdateSlot(3, skillBSlot);
+            return;
+        }
+
         UpdateSlot(0, primarySlot);
         UpdateSlot(1, secondarySlot);
         UpdateSlot(2, skillASlot);
         UpdateSlot(3, skillBSlot);
+    }
+
+    private void UpdateMergedBasicSlot()
+    {
+        if (primarySlot == null)
+            return;
+
+        SlotState primaryState = BuildSlotState(0);
+        SlotState secondaryState = BuildSlotState(1);
+
+        if (!primaryState.hasSkill && !secondaryState.hasSkill)
+        {
+            primarySlot.gameObject.SetActive(false);
+            return;
+        }
+
+        primarySlot.gameObject.SetActive(true);
+
+        primarySlot.SetMergedIcons(activeProfile.GetIcon(0), activeProfile.GetIcon(1));
+        primarySlot.SetKeyText(ConvertKeyToLabel(activeProfile.GetSlotKey(0)));
+        primarySlot.SetSecondaryKeyText(ConvertKeyToLabel(activeProfile.GetSlotKey(1)));
+
+        if (mergedIconStatus == MergedIconStatus.EachIcon)
+        {
+            primarySlot.SetIconAvailable(!primaryState.hasSkill || primaryState.finalReady);
+            primarySlot.SetSecondaryIconAvailable(!secondaryState.hasSkill || secondaryState.finalReady);
+            primarySlot.SetDarkOverlayVisible(
+                (primaryState.hasSkill && !primaryState.finalReady) &&
+                (secondaryState.hasSkill && !secondaryState.finalReady)
+            );
+        }
+        else
+        {
+            bool wholeReady =
+                (!primaryState.hasSkill || primaryState.finalReady) &&
+                (!secondaryState.hasSkill || secondaryState.finalReady);
+
+            primarySlot.SetAvailable(wholeReady);
+        }
+
+        float visibleRemaining = Mathf.Max(primaryState.cooldownRemaining, secondaryState.cooldownRemaining);
+        float visibleDuration = Mathf.Max(primaryState.cooldownDuration, secondaryState.cooldownDuration);
+
+        bool showCooldown = ShouldShowCooldownForMerged(primaryState, secondaryState);
+
+        primarySlot.SetCooldown(
+            showCooldown ? visibleRemaining : 0f,
+            showCooldown ? visibleDuration : 0f,
+            showCooldownNumber
+        );
+
+        if (forwardPresentationTextToSlot)
+            ForwardPresentationToSlot(0, primarySlot);
+
+        TrackReadyFlash(0, primaryState.finalReady, primarySlot);
+        TrackReadyFlash(1, secondaryState.finalReady, primarySlot);
     }
 
     private void UpdateSlot(int slotIndex, SkillHUDSlotUI slotUI)
@@ -364,15 +546,9 @@ public class SkillIndexHUDController : MonoBehaviour
         if (slotUI == null)
             return;
 
-        if (activeProfile == null)
-        {
-            slotUI.gameObject.SetActive(false);
-            return;
-        }
+        SlotState state = BuildSlotState(slotIndex);
 
-        MonoBehaviour skillBehaviour = activeProfile.GetSkillBehaviour(slotIndex);
-
-        if (skillBehaviour == null)
+        if (!state.hasSkill)
         {
             slotUI.gameObject.SetActive(false);
             return;
@@ -381,23 +557,109 @@ public class SkillIndexHUDController : MonoBehaviour
         slotUI.gameObject.SetActive(true);
 
         slotUI.SetIcon(activeProfile.GetIcon(slotIndex));
+        slotUI.SetSecondaryIcon(null);
         slotUI.SetKeyText(ConvertKeyToLabel(activeProfile.GetSlotKey(slotIndex)));
+        slotUI.SetSecondaryKeyText(string.Empty);
 
-        float cooldownDuration = GetCooldownDuration(skillBehaviour);
-        float visibleRemainingCooldown = showCooldownFill ? remainingCooldowns[slotIndex] : 0f;
-        float visibleCooldownDuration = showCooldownFill ? cooldownDuration : 0f;
+        slotUI.SetAvailable(state.finalReady);
+
+        bool showCooldown = ShouldShowCooldownForSlot(slotIndex, state);
 
         slotUI.SetCooldown(
-            visibleRemainingCooldown,
-            visibleCooldownDuration,
+            showCooldown ? state.cooldownRemaining : 0f,
+            showCooldown ? state.cooldownDuration : 0f,
             showCooldownNumber
         );
 
-        bool energyAvailable = IsEnergyAvailableForSlot(slotIndex, skillBehaviour);
-        slotUI.SetEnergyAvailable(energyAvailable);
-
         if (forwardPresentationTextToSlot)
             ForwardPresentationToSlot(slotIndex, slotUI);
+
+        TrackReadyFlash(slotIndex, state.finalReady, slotUI);
+    }
+
+    private SlotState BuildSlotState(int slotIndex)
+    {
+        SlotState state = new SlotState();
+
+        if (activeProfile == null)
+            return state;
+
+        MonoBehaviour skillBehaviour = activeProfile.GetSkillBehaviour(slotIndex);
+
+        if (skillBehaviour == null)
+            return state;
+
+        state.hasSkill = true;
+
+        state.hasCooldownSource = TryGetCooldownDuration(skillBehaviour, out state.cooldownDuration);
+        state.cooldownDuration = Mathf.Max(0f, state.cooldownDuration);
+        state.cooldownRemaining = Mathf.Clamp(remainingCooldowns[slotIndex], 0f, Mathf.Max(0f, state.cooldownDuration));
+
+        state.cooldownReady = state.cooldownRemaining <= 0.05f;
+        state.energyReady = IsEnergyAvailable(skillBehaviour);
+        state.animationReady = IsAnimationReady(skillBehaviour, slotIndex, state);
+
+        switch (skillReadyDisplay)
+        {
+            case SkillReadyDisplay.EnergyMode:
+                state.finalReady = state.energyReady;
+                break;
+
+            case SkillReadyDisplay.CooldownMode:
+                state.finalReady = state.cooldownReady;
+                break;
+
+            case SkillReadyDisplay.AnimationMode:
+                state.finalReady = state.animationReady;
+                break;
+
+            default:
+                state.finalReady = state.energyReady;
+                break;
+        }
+
+        return state;
+    }
+
+    private bool ShouldShowCooldownForSlot(int slotIndex, SlotState state)
+    {
+        if (skillReadyDisplay != SkillReadyDisplay.CooldownMode &&
+            skillReadyDisplay != SkillReadyDisplay.AnimationMode)
+        {
+            return false;
+        }
+
+        if (!state.hasCooldownSource || state.cooldownDuration <= 0.05f)
+            return false;
+
+        if (slotIndex <= 1)
+        {
+            if (basicAttackCooldownDisplay == BasicAttackCooldownDisplay.Hide)
+                return false;
+
+            if (basicAttackCooldownDisplay == BasicAttackCooldownDisplay.OnlyWhenFound && !state.hasCooldownSource)
+                return false;
+        }
+
+        return state.cooldownRemaining > 0.05f;
+    }
+
+    private bool ShouldShowCooldownForMerged(SlotState primaryState, SlotState secondaryState)
+    {
+        if (skillReadyDisplay != SkillReadyDisplay.CooldownMode &&
+            skillReadyDisplay != SkillReadyDisplay.AnimationMode)
+        {
+            return false;
+        }
+
+        if (basicAttackCooldownDisplay == BasicAttackCooldownDisplay.Hide)
+            return false;
+
+        bool hasAnyCooldown =
+            (primaryState.hasCooldownSource && primaryState.cooldownRemaining > 0.05f) ||
+            (secondaryState.hasCooldownSource && secondaryState.cooldownRemaining > 0.05f);
+
+        return hasAnyCooldown;
     }
 
     private void TriggerSlotVisual(int slotIndex, float cooldownOverride, bool hasOverride)
@@ -415,15 +677,30 @@ public class SkillIndexHUDController : MonoBehaviour
         if (skillBehaviour == null)
             return;
 
-        float cooldownDuration = hasOverride
-            ? Mathf.Max(0f, cooldownOverride)
-            : GetCooldownDuration(skillBehaviour);
+        float cooldownDuration = 0f;
+        bool hasCooldown = false;
 
-        remainingCooldowns[slotIndex] = Mathf.Max(0f, cooldownDuration);
+        if (hasOverride)
+        {
+            cooldownDuration = Mathf.Max(0f, cooldownOverride);
+            hasCooldown = cooldownDuration > 0.05f;
+        }
+        else
+        {
+            hasCooldown = TryGetCooldownDuration(skillBehaviour, out cooldownDuration);
+            cooldownDuration = Mathf.Max(0f, cooldownDuration);
+        }
 
-        SkillHUDSlotUI slotUI = GetSlotUI(slotIndex);
+        cachedCooldownDurations[slotIndex] = cooldownDuration;
 
-        if (slotUI != null)
+        if (hasCooldown && cooldownDuration > 0.05f)
+            remainingCooldowns[slotIndex] = cooldownDuration;
+        else
+            remainingCooldowns[slotIndex] = 0f;
+
+        SkillHUDSlotUI slotUI = GetVisibleSlotUI(slotIndex);
+
+        if (slotUI != null && ShouldFlashWhenUsed())
             slotUI.Flash();
 
         if (debugLog)
@@ -433,11 +710,19 @@ public class SkillIndexHUDController : MonoBehaviour
                 slotIndex +
                 " | Skill: " +
                 skillBehaviour.GetType().Name +
-                " | Cooldown UI: " +
-                remainingCooldowns[slotIndex].ToString("0.00"),
+                " | Cooldown terbaca: " +
+                (hasCooldown ? cooldownDuration.ToString("0.00") : "tidak ada"),
                 this
             );
         }
+    }
+
+    private SkillHUDSlotUI GetVisibleSlotUI(int slotIndex)
+    {
+        if (basicAttackSlotDisplay == BasicAttackSlotDisplay.Merged && slotIndex <= 1)
+            return primarySlot;
+
+        return GetSlotUI(slotIndex);
     }
 
     private void UpdateCooldownTimers()
@@ -464,7 +749,19 @@ public class SkillIndexHUDController : MonoBehaviour
     private void ClearCooldowns()
     {
         for (int i = 0; i < remainingCooldowns.Length; i++)
+        {
             remainingCooldowns[i] = 0f;
+            cachedCooldownDurations[i] = 0f;
+        }
+    }
+
+    private void ResetReadyTracking()
+    {
+        for (int i = 0; i < hasLastReadyStates.Length; i++)
+        {
+            hasLastReadyStates[i] = false;
+            lastReadyStates[i] = true;
+        }
     }
 
     private void HideAllSlots()
@@ -481,9 +778,40 @@ public class SkillIndexHUDController : MonoBehaviour
             slotUI.gameObject.SetActive(active);
     }
 
+    private void TrackReadyFlash(int slotIndex, bool isReady, SkillHUDSlotUI slotUI)
+    {
+        if (slotIndex < 0 || slotIndex >= SlotCount || slotUI == null)
+            return;
+
+        if (!hasLastReadyStates[slotIndex])
+        {
+            hasLastReadyStates[slotIndex] = true;
+            lastReadyStates[slotIndex] = isReady;
+            return;
+        }
+
+        bool becameReady = !lastReadyStates[slotIndex] && isReady;
+
+        if (becameReady && ShouldFlashWhenReady())
+            slotUI.Flash();
+
+        lastReadyStates[slotIndex] = isReady;
+    }
+
+    private bool ShouldFlashWhenUsed()
+    {
+        return iconFlashTiming == IconFlashTiming.WhenUsed ||
+               iconFlashTiming == IconFlashTiming.UsedAndReady;
+    }
+
+    private bool ShouldFlashWhenReady()
+    {
+        return iconFlashTiming == IconFlashTiming.WhenReady ||
+               iconFlashTiming == IconFlashTiming.UsedAndReady;
+    }
+
     // =========================================================
     // PRESENTATION FORWARDING
-    // Aman walau SkillHUDSlotUI belum punya method ini.
     // =========================================================
 
     private void ForwardPresentationToSlot(int slotIndex, SkillHUDSlotUI slotUI)
@@ -495,43 +823,47 @@ public class SkillIndexHUDController : MonoBehaviour
         string description = activeProfile.GetShortDescription(slotIndex);
         string tagLine = activeProfile.GetTagLine(slotIndex);
 
-        slotUI.SendMessage("SetSkillName", displayName, SendMessageOptions.DontRequireReceiver);
-        slotUI.SendMessage("SetDisplayName", displayName, SendMessageOptions.DontRequireReceiver);
-
-        slotUI.SendMessage("SetSkillDescription", description, SendMessageOptions.DontRequireReceiver);
-        slotUI.SendMessage("SetDescription", description, SendMessageOptions.DontRequireReceiver);
-
-        slotUI.SendMessage("SetTagLine", tagLine, SendMessageOptions.DontRequireReceiver);
-        slotUI.SendMessage("SetTagText", tagLine, SendMessageOptions.DontRequireReceiver);
+        slotUI.SetSkillName(displayName);
+        slotUI.SetDescription(description);
+        slotUI.SetTagLine(tagLine);
     }
 
     // =========================================================
-    // COOLDOWN READER
-    // Sumber angka tetap script skill asli, bukan Inspector HUD.
+    // MECHANIC READERS
+    // Angka tetap dibaca dari script skill asli.
     // =========================================================
 
-    private float GetCooldownDuration(MonoBehaviour skillBehaviour)
+    private bool TryGetCooldownDuration(MonoBehaviour skillBehaviour, out float cooldown)
     {
+        cooldown = 0f;
+
         if (skillBehaviour == null)
-            return 0f;
+            return false;
 
-        if (TryReadSpecialCooldown(skillBehaviour, out float specialCooldown))
-            return Mathf.Max(0f, specialCooldown);
+        if (TryReadSpecialCooldown(skillBehaviour, out cooldown))
+        {
+            cooldown = Mathf.Max(0f, cooldown);
+            return cooldown > 0.05f;
+        }
 
-        if (TryReadFirstFloatMember(skillBehaviour, CooldownMemberNames, out float cooldown))
-            return Mathf.Max(0f, cooldown);
+        if (TryReadFirstFloatMember(skillBehaviour, CooldownMemberNames, out cooldown))
+        {
+            cooldown = Mathf.Max(0f, cooldown);
+            return cooldown > 0.05f;
+        }
 
         if (debugMissingMechanicSource)
         {
             Debug.LogWarning(
                 "[SKILL INDEX HUD] Tidak menemukan field cooldown pada " +
                 skillBehaviour.GetType().Name +
-                ". Cooldown HUD dianggap 0.",
+                ". HUD tidak membuat cooldown palsu.",
                 skillBehaviour
             );
         }
 
-        return 0f;
+        cooldown = 0f;
+        return false;
     }
 
     private bool TryReadSpecialCooldown(MonoBehaviour skillBehaviour, out float cooldown)
@@ -564,20 +896,8 @@ public class SkillIndexHUDController : MonoBehaviour
         return false;
     }
 
-    // =========================================================
-    // ENERGY READER
-    // Sumber angka tetap script skill asli, bukan Inspector HUD.
-    // =========================================================
-
-    private bool IsEnergyAvailableForSlot(int slotIndex, MonoBehaviour skillBehaviour)
+    private bool IsEnergyAvailable(MonoBehaviour skillBehaviour)
     {
-        bool shouldCheckEnergy =
-            (slotIndex <= 1 && dimPrimaryAndSecondaryWhenEnergyIsLow) ||
-            (slotIndex >= 2 && dimSkillAAndSkillBWhenEnergyIsLow);
-
-        if (!shouldCheckEnergy)
-            return true;
-
         float energyCost = GetEnergyCost(skillBehaviour);
 
         if (energyCost <= 0f)
@@ -616,6 +936,20 @@ public class SkillIndexHUDController : MonoBehaviour
         }
 
         return 0f;
+    }
+
+    private bool IsAnimationReady(MonoBehaviour skillBehaviour, int slotIndex, SlotState state)
+    {
+        if (skillBehaviour == null)
+            return true;
+
+        if (TryReadAnyBusyBool(skillBehaviour, out bool busy))
+            return !busy;
+
+        if (state.cooldownRemaining > 0.05f)
+            return false;
+
+        return true;
     }
 
     private CharacterBase FindEnergyTarget()
@@ -728,6 +1062,44 @@ public class SkillIndexHUDController : MonoBehaviour
         return false;
     }
 
+    private bool TryReadAnyBusyBool(MonoBehaviour target, out bool busy)
+    {
+        busy = false;
+
+        if (target == null)
+            return false;
+
+        for (int i = 0; i < BusyBoolMemberNames.Length; i++)
+        {
+            if (TryReadBoolMember(target, BusyBoolMemberNames[i], out busy))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool TryReadBoolMember(MonoBehaviour target, string memberName, out bool value)
+    {
+        value = false;
+
+        if (target == null || string.IsNullOrWhiteSpace(memberName))
+            return false;
+
+        Type type = target.GetType();
+
+        FieldInfo field = type.GetField(memberName, MemberFlags);
+
+        if (field != null)
+            return TryConvertToBool(field.GetValue(target), out value);
+
+        PropertyInfo property = type.GetProperty(memberName, MemberFlags);
+
+        if (property != null && property.CanRead)
+            return TryConvertToBool(property.GetValue(target, null), out value);
+
+        return false;
+    }
+
     private bool TryConvertToFloat(object rawValue, out float value)
     {
         value = 0f;
@@ -746,31 +1118,27 @@ public class SkillIndexHUDController : MonoBehaviour
         }
     }
 
+    private bool TryConvertToBool(object rawValue, out bool value)
+    {
+        value = false;
+
+        if (rawValue == null)
+            return false;
+
+        try
+        {
+            value = Convert.ToBoolean(rawValue);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     // =========================================================
     // SLOT FINDER
     // =========================================================
-
-    private int FindSlotIndexBySkillBehaviour(MonoBehaviour skillBehaviour)
-    {
-        if (activeProfile == null || skillBehaviour == null)
-            return -1;
-
-        for (int i = 0; i < SlotCount; i++)
-        {
-            MonoBehaviour candidate = activeProfile.GetSkillBehaviour(i);
-
-            if (candidate == null)
-                continue;
-
-            if (candidate == skillBehaviour)
-                return i;
-
-            if (candidate.GetInstanceID() == skillBehaviour.GetInstanceID())
-                return i;
-        }
-
-        return -1;
-    }
 
     private int FindSlotIndexByName(string skillTypeNameOrDisplayName)
     {
@@ -865,6 +1233,21 @@ public class SkillIndexHUDController : MonoBehaviour
         return null;
     }
 
+    private void ConfigureAllSlotFillDirections()
+    {
+        if (primarySlot != null)
+            primarySlot.SetFillDirection(cooldownFillDirection);
+
+        if (secondarySlot != null)
+            secondarySlot.SetFillDirection(cooldownFillDirection);
+
+        if (skillASlot != null)
+            skillASlot.SetFillDirection(cooldownFillDirection);
+
+        if (skillBSlot != null)
+            skillBSlot.SetFillDirection(cooldownFillDirection);
+    }
+
     // =========================================================
     // KEY LABEL
     // =========================================================
@@ -877,13 +1260,13 @@ public class SkillIndexHUDController : MonoBehaviour
                 return string.Empty;
 
             case KeyCode.Mouse0:
-                return "M1";
+                return "LMB";
 
             case KeyCode.Mouse1:
-                return "M2";
+                return "RMB";
 
             case KeyCode.Mouse2:
-                return "M3";
+                return "MMB";
 
             case KeyCode.LeftShift:
             case KeyCode.RightShift:

@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
+public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldownInfo, ISkillReadinessInfo
 {
     private CharacterBase character;
     private Player player;
@@ -47,11 +47,23 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
 
     public float EnergyCost => energyCost;
 
+    // Data baca untuk SkillIndexHUDController.
+    // Durasi berasal dari cooldownTime + stanceDuration yang sudah ada di mekanik Riposte.
+    public bool HasCooldown => CooldownDuration > 0.05f;
+    public float CooldownDuration => Mathf.Max(0f, cooldownTime + stanceDuration);
+    public float CooldownRemaining => Mathf.Max(0f, cooldownEndTime - Time.time);
+    public bool IsCooldownReady => !isOnCooldown && CooldownRemaining <= 0.05f;
+    public bool IsSkillBusy => isActive || isDashing || isOnCooldown;
+    public bool IsSkillReady => !IsSkillBusy && character != null && character.CanAct() && character.canRiposte && HasEnoughEnergyToStart();
+    public bool isCasting => IsSkillBusy;
+    public float cooldownDuration => CooldownDuration;
+
     // Energy dipotong langsung di script ini,
     // supaya hanya berkurang kalau Riposte benar-benar berhasil aktif.
     public bool PayEnergyInSkillBase => false;
 
     private bool movementLockedByThisSkill = false;
+    private float cooldownEndTime = -999f;
     private Coroutine cooldownRoutine;
 
     private void Awake()
@@ -169,6 +181,7 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
         if (DataTracker.Instance != null)
             DataTracker.Instance.RecordSwordRiposte();
 
+        SkillIndexHUDController.NotifyGlobalSkillUsed(this);
         StartRiposteCooldown();
     }
 
@@ -416,6 +429,7 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
         isActive = false;
         isDashing = false;
         stanceTimer = 0f;
+        cooldownEndTime = -999f;
 
         if (character != null)
         {
@@ -448,10 +462,13 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill
     private IEnumerator StartCooldown()
     {
         isOnCooldown = true;
+        cooldownEndTime = Time.time + CooldownDuration;
 
-        yield return new WaitForSeconds(cooldownTime + stanceDuration);
+        while (Time.time < cooldownEndTime)
+            yield return null;
 
         isOnCooldown = false;
+        cooldownEndTime = -999f;
         cooldownRoutine = null;
     }
 
