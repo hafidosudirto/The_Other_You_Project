@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
+public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldownInfo, ISkillReadinessInfo
 {
     [Header("Slash1 Settings")]
     public float attackRadius1 = 1.5f;
@@ -68,6 +68,16 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
     public float EnergyCost => energyCost;
     public bool PayEnergyInSkillBase => true;
 
+    // Data baca untuk SkillIndexHUDController.
+    // Cooldown tetap memakai comboCooldown dari mekanik asli, bukan angka HUD tambahan.
+    public bool HasCooldown => comboCooldown > 0.05f;
+    public float CooldownDuration => Mathf.Max(0f, comboCooldown);
+    public float CooldownRemaining => Mathf.Max(0f, (lastComboTime + comboCooldown) - Time.time);
+    public bool IsCooldownReady => CooldownRemaining <= 0.05f;
+    public bool IsSkillBusy => isBusy;
+    public bool IsSkillReady => !isBusy && IsCooldownReady && character != null && character.CanAct() && HasEnoughEnergyToStart();
+    public float cooldownDuration => CooldownDuration;
+
     private void OnValidate()
     {
         if (gizmoShowTime >= minTimeBeforeChain)
@@ -95,6 +105,16 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
     {
         if (character == null) return false;
         return character.CurrentEnergy > 0f;
+    }
+
+    private bool ShouldStopBecauseEnergyEmpty()
+    {
+        // Jika energy sudah dibayar oleh SkillBase, skill tetap boleh berjalan
+        // walaupun sisa energy menjadi 0. Ini mencegah skill gagal setelah pembayaran yang sah.
+        if (PayEnergyInSkillBase && skillBase != null)
+            return false;
+
+        return !HasAnyEnergyLeft();
     }
 
     private void PlaySfx(AudioClip clip)
@@ -152,7 +172,7 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         if (character == null || !character.CanAct())
             return;
 
-        if (!HasEnoughEnergyToStart())
+        if (skillBase == null && !HasEnoughEnergyToStart())
         {
             DebugHub.Warning($"ENERGY KURANG: Slash Combo butuh {energyCost}.");
             return;
@@ -160,6 +180,8 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
 
         mySlotIndex = slotIndex;
         StartCoroutine(ComboRoutine());
+
+        SkillIndexHUDController.NotifyGlobalSkillUsed(this);
 
         if (DataTracker.Instance != null)
             DataTracker.Instance.RecordSwordSlashCombo();
@@ -172,7 +194,7 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         chainRequested = false;
         bufferedChainInput = false;
 
-        if (!HasAnyEnergyLeft())
+        if (ShouldStopBecauseEnergyEmpty())
         {
             ForceStopCombo();
             yield break;
@@ -192,7 +214,7 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         if (skillBase != null)
             DebugHub.Skill("[SlashCombo] Slash1 CAST");
 
-        if (!HasAnyEnergyLeft())
+        if (ShouldStopBecauseEnergyEmpty())
         {
             ForceStopCombo();
             yield break;
@@ -200,7 +222,7 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
 
         yield return new WaitForSeconds(delaySlash1);
 
-        if (!HasAnyEnergyLeft())
+        if (ShouldStopBecauseEnergyEmpty())
         {
             ForceStopCombo();
             yield break;
@@ -234,7 +256,7 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
             yield break;
         }
 
-        if (!HasAnyEnergyLeft())
+        if (ShouldStopBecauseEnergyEmpty())
         {
             ForceStopCombo();
             lastComboTime = Time.time;
@@ -256,7 +278,7 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
 
         yield return new WaitForSeconds(delaySlash2);
 
-        if (!HasAnyEnergyLeft())
+        if (ShouldStopBecauseEnergyEmpty())
         {
             ForceStopCombo();
             lastComboTime = Time.time;
@@ -312,7 +334,7 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
 
         while (timer < chainWindow)
         {
-            if (!HasAnyEnergyLeft())
+            if (ShouldStopBecauseEnergyEmpty())
                 yield break;
 
             if (comboKey != KeyCode.None && Input.GetKeyDown(comboKey))

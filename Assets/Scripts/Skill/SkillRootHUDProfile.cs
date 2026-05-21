@@ -19,7 +19,7 @@ public class SkillRootHUDProfile : MonoBehaviour
         [Tooltip("Nama skill yang tampil di HUD. Ini hanya nama tampilan, bukan data mekanik.")]
         public string displayName;
 
-        [Tooltip("Deskripsi pendek untuk membantu pemain memahami fungsi skill. Tidak memengaruhi damage, cooldown, atau energy.")]
+        [Tooltip("Deskripsi pendek untuk membantu pemain memahami fungsi skill. Tidak mengubah damage, cooldown, atau energy.")]
         [TextArea(2, 4)]
         public string shortDescription;
 
@@ -31,7 +31,7 @@ public class SkillRootHUDProfile : MonoBehaviour
         public SkillHUDSlotStyle slotStyle;
 
         [Header("UI Tags")]
-        [Tooltip("Label pendek seperti Melee, Ranged, Counter, AoE, Burst. Ini hanya informasi tampilan.")]
+        [Tooltip("Label pendek seperti Melee, Ranged, Counter, AoE, atau Burst. Ini hanya informasi tampilan.")]
         public string[] tags;
     }
 
@@ -40,7 +40,7 @@ public class SkillRootHUDProfile : MonoBehaviour
     [SerializeField] private SkillBase skillBase;
 
     [Header("HUD Presentation Only")]
-    [Tooltip("Hanya data tampilan. Cooldown dan energy cost tidak diisi di sini karena dibaca langsung dari script skill asli.")]
+    [Tooltip("Hanya data tampilan. Cooldown dan energy cost tetap dibaca langsung dari script skill asli.")]
     [SerializeField] private SkillHUDPresentation[] slots = new SkillHUDPresentation[4];
 
     private const int RequiredSlotCount = 4;
@@ -98,6 +98,11 @@ public class SkillRootHUDProfile : MonoBehaviour
     {
         SkillHUDPresentation presentation = GetPresentation(slotIndex);
         return presentation != null ? presentation.icon : null;
+    }
+
+    public Sprite GetSlotIcon(int slotIndex)
+    {
+        return GetIcon(slotIndex);
     }
 
     public string GetDisplayName(int slotIndex)
@@ -196,6 +201,46 @@ public class SkillRootHUDProfile : MonoBehaviour
             return string.Empty;
 
         return slot.slotName;
+    }
+
+    public WeaponType GetWeaponTypeFromSkillBase(int slotIndex)
+    {
+        SkillBase source = SkillBase;
+
+        if (source == null || source.slots == null)
+            return WeaponType.None;
+
+        if (slotIndex < 0 || slotIndex >= source.slots.Length)
+            return WeaponType.None;
+
+        SkillSlot slot = source.slots[slotIndex];
+
+        if (slot == null)
+            return WeaponType.None;
+
+        return slot.weaponType;
+    }
+
+    public int FindSlotIndexBySkillBehaviour(MonoBehaviour skillBehaviour)
+    {
+        if (skillBehaviour == null)
+            return -1;
+
+        for (int i = 0; i < RequiredSlotCount; i++)
+        {
+            MonoBehaviour candidate = GetSkillBehaviour(i);
+
+            if (candidate == null)
+                continue;
+
+            if (candidate == skillBehaviour)
+                return i;
+
+            if (candidate.GetInstanceID() == skillBehaviour.GetInstanceID())
+                return i;
+        }
+
+        return -1;
     }
 
     private SkillBase FindSkillBase()

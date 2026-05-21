@@ -25,11 +25,24 @@ public class CharacterBase : MonoBehaviour
     [Tooltip("Jika aktif, energi tidak akan regen. Dipakai saat skill seperti Bow Full Draw sedang charge/release.")]
     [SerializeField] private bool energyRegenBlocked = false;
 
+    public event Action OnHealthChanged;
     public event Action OnEnergyChanged;
+    public event Action<CharacterBase> OnDied;
 
     public float MaxEnergy => maxEnergy;
     public float CurrentEnergy => currentEnergy;
     public bool EnergyRegenBlocked => energyRegenBlocked;
+
+    public float HPNormalized
+    {
+        get
+        {
+            if (maxHP <= 0f)
+                return 0f;
+
+            return Mathf.Clamp01(currentHP / maxHP);
+        }
+    }
 
     public bool HasEnergy(float cost)
     {
@@ -63,6 +76,7 @@ public class CharacterBase : MonoBehaviour
 
     private Coroutine stunRoutine;
     private Coroutine staggerRoutine;
+    private bool hasDied = false;
 
     protected virtual void Awake()
     {
@@ -74,11 +88,13 @@ public class CharacterBase : MonoBehaviour
             rb.freezeRotation = true;
         }
 
-        currentHP = maxHP;
+        maxHP = Mathf.Max(1f, maxHP);
+        currentHP = Mathf.Clamp(maxHP, 0f, maxHP);
 
         maxEnergy = Mathf.Max(0f, maxEnergy);
         currentEnergy = Mathf.Clamp(currentEnergy, 0f, maxEnergy);
 
+        OnHealthChanged?.Invoke();
         OnEnergyChanged?.Invoke();
     }
 
@@ -140,6 +156,25 @@ public class CharacterBase : MonoBehaviour
             OnEnergyChanged?.Invoke();
     }
 
+    public void SetMaxEnergy(float value, bool refillCurrentEnergy = false)
+    {
+        float previousMax = maxEnergy;
+        float previousCurrent = currentEnergy;
+
+        maxEnergy = Mathf.Max(0f, value);
+
+        if (refillCurrentEnergy)
+            currentEnergy = maxEnergy;
+        else
+            currentEnergy = Mathf.Clamp(currentEnergy, 0f, maxEnergy);
+
+        if (!Mathf.Approximately(previousMax, maxEnergy) ||
+            !Mathf.Approximately(previousCurrent, currentEnergy))
+        {
+            OnEnergyChanged?.Invoke();
+        }
+    }
+
     public void AddEnergy(float amount)
     {
         if (amount <= 0f)
@@ -164,6 +199,55 @@ public class CharacterBase : MonoBehaviour
         OnEnergyChanged?.Invoke();
 
         return true;
+    }
+
+    public void RestoreFullEnergy()
+    {
+        SetEnergy(maxEnergy);
+    }
+
+    public void SetHP(float value)
+    {
+        float prev = currentHP;
+        currentHP = Mathf.Clamp(value, 0f, Mathf.Max(1f, maxHP));
+
+        if (!Mathf.Approximately(prev, currentHP))
+            OnHealthChanged?.Invoke();
+
+        if (currentHP <= 0f && !hasDied)
+            Die();
+    }
+
+    public void Heal(float amount)
+    {
+        if (amount <= 0f || currentHP <= 0f)
+            return;
+
+        SetHP(currentHP + amount);
+    }
+
+    public void RestoreFullHP()
+    {
+        SetHP(maxHP);
+    }
+
+    public void SetMaxHP(float value, bool refillCurrentHP = false)
+    {
+        float previousMax = maxHP;
+        float previousCurrent = currentHP;
+
+        maxHP = Mathf.Max(1f, value);
+
+        if (refillCurrentHP)
+            currentHP = maxHP;
+        else
+            currentHP = Mathf.Clamp(currentHP, 0f, maxHP);
+
+        if (!Mathf.Approximately(previousMax, maxHP) ||
+            !Mathf.Approximately(previousCurrent, currentHP))
+        {
+            OnHealthChanged?.Invoke();
+        }
     }
 
     public void Flip()
@@ -200,7 +284,8 @@ public class CharacterBase : MonoBehaviour
         }
 
         float finalDamage = Mathf.Max(1f, dmg - defense);
-        currentHP -= finalDamage;
+        currentHP = Mathf.Clamp(currentHP - finalDamage, 0f, Mathf.Max(1f, maxHP));
+        OnHealthChanged?.Invoke();
 
         if (currentHP <= 0f)
             Die();
@@ -326,7 +411,14 @@ public class CharacterBase : MonoBehaviour
 
     public virtual void Die()
     {
+        if (hasDied)
+            return;
+
+        hasDied = true;
+
         Debug.Log($"{name} MATI");
+
+        OnDied?.Invoke(this);
 
         EnemyDeathHandler death = GetComponent<EnemyDeathHandler>();
 
