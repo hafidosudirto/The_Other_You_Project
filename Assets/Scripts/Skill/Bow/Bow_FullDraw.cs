@@ -229,6 +229,20 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
     [SerializeField]
     private bool blokirRegenEnergiSelamaCasting = true;
 
+
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX Full Draw ingin dikendalikan dari script ini.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara tarikan busur diputar satu kali saat proses charge Full Draw dimulai.")]
+    public bool playBowDrawOnChargeStart = true;
+
+    [Tooltip("Suara panah meluncur diputar saat Full Draw benar-benar melepas panah.")]
+    public bool playLaunchSfxOnRelease = true;
+
+    [Tooltip("Jika aktif, prefab panah diberi BowProjectileSFX agar suara hit/miss muncul dari tabrakan projectile.")]
+    public bool enableProjectileImpactSfx = true;
+
     [Header("Debug")]
     [SerializeField] private bool debugLog = false;
 
@@ -346,6 +360,9 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
         }
 
         SetAnimatorFullCharge(false);
+
+        if (playBowDrawOnChargeStart)
+            PlayBowDrawSfx();
 
         if (animasiPemain != null)
             animasiPemain.TriggerBowChargeStart();
@@ -635,7 +652,12 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
             damagePanah.SetStats(damage, knockback, stun, piercing, false);
         }
 
-        CatatDataFullDraw();
+        if (playLaunchSfxOnRelease)
+            PlayFullDrawLaunchSfx(piercing);
+
+        SetupProjectileSfx(panahObj, true, true);
+
+        CatatDataFullDraw(piercing);
 
         if (debugLog)
         {
@@ -875,6 +897,8 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
         rb.velocity = Vector2.zero;
         rb.angularVelocity = 0f;
         rb.simulated = false;
+
+        PlayGroundMissIfArrowStillActive(panahObj);
 
         Collider2D col = panahObj.GetComponent<Collider2D>();
 
@@ -1133,18 +1157,115 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
         return null;
     }
 
-    private void CatatDataFullDraw()
+
+    private void PlayBowDrawSfx()
+    {
+        if (!playSfxFromScript) return;
+        if (SFXManager.Instance == null) return;
+
+        SFXManager.Instance.ResetBowDrawGate();
+        SFXManager.Instance.PlayBowDrawGuarded();
+    }
+
+    private void PlayFullDrawLaunchSfx(bool piercing)
+    {
+        AudioClip clip = piercing
+            ? (SFXManager.Instance != null ? SFXManager.Instance.arrowLaunchCharged : null)
+            : (SFXManager.Instance != null ? SFXManager.Instance.arrowLaunchNormal : null);
+
+        PlaySfx(clip);
+    }
+
+    private void SetupProjectileSfx(GameObject arrowObj, bool enableGroundMissSfx, bool enableHitSfx)
+    {
+        if (!enableProjectileImpactSfx) return;
+        if (arrowObj == null) return;
+
+        BowProjectileSFX reporter = arrowObj.GetComponent<BowProjectileSFX>();
+        if (reporter == null)
+            reporter = arrowObj.AddComponent<BowProjectileSFX>();
+
+        reporter.Setup(pemilikEnergi, enableGroundMissSfx, enableHitSfx);
+    }
+
+    private void PlayGroundMissIfArrowStillActive(GameObject arrowObj)
+    {
+        if (!enableProjectileImpactSfx) return;
+        if (arrowObj == null) return;
+
+        BowProjectileSFX reporter = arrowObj.GetComponent<BowProjectileSFX>();
+        if (reporter != null)
+            reporter.PlayGroundMissIfNotPlayed();
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.sfxSource == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
+    }
+
+
+    private void CatatDataFullDraw(bool piercing)
     {
         DataTracker tracker = DataTracker.Instance;
 
         if (tracker == null)
             return;
 
-        MethodInfo method = tracker.GetType().GetMethod("RecordBowFullDraw");
+        /*
+         * DDA baru membedakan:
+         * - FullDraw biasa
+         * - FullDrawFullCharge / Piercing
+         *
+         * Reflection dipakai agar tetap aman jika ada build lama yang belum
+         * memiliki method baru.
+         */
+        string primaryMethodName = piercing
+            ? "RecordBowFullDrawFullCharge"
+            : "RecordBowFullDrawNormal";
 
-        if (method != null)
+        MethodInfo primaryMethod = tracker.GetType().GetMethod(primaryMethodName);
+
+        if (primaryMethod != null)
         {
-            method.Invoke(tracker, null);
+            primaryMethod.Invoke(tracker, null);
+            return;
+        }
+
+        /*
+         * Alias kompatibilitas untuk full charge / piercing.
+         */
+        if (piercing)
+        {
+            MethodInfo piercingAlias = tracker.GetType().GetMethod("RecordBowPiercingShot");
+
+            if (piercingAlias != null)
+            {
+                piercingAlias.Invoke(tracker, null);
+                return;
+            }
+
+            MethodInfo fullDrawPiercingAlias = tracker.GetType().GetMethod("RecordBowFullDrawPiercing");
+
+            if (fullDrawPiercingAlias != null)
+            {
+                fullDrawPiercingAlias.Invoke(tracker, null);
+                return;
+            }
+        }
+
+        /*
+         * Fallback lama: semua FullDraw dicatat sebagai FullDraw biasa.
+         */
+        MethodInfo legacyMethod = tracker.GetType().GetMethod("RecordBowFullDraw");
+
+        if (legacyMethod != null)
+        {
+            legacyMethod.Invoke(tracker, null);
             return;
         }
 

@@ -40,6 +40,9 @@ TagManager:
   - 
   - 
   m_SortingLayers:
+  - name: health text
+    uniqueID: 3445398227
+    locked: 0
   - name: Default
     uniqueID: 0
     locked: 0

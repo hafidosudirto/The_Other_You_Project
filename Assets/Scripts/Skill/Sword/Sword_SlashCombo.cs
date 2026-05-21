@@ -39,6 +39,13 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
            + "Kalau terlalu besar, Slash2 terasa telat.")]
     public float minTimeBeforeChain = 0.09f;
 
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX ayunan pedang dan hit ingin dikendalikan dari script ini, bukan dari Animation Event.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara hit hanya dimainkan satu kali untuk satu ayunan, walaupun musuh yang terkena lebih dari satu.")]
+    public bool playHitSfxOncePerSlash = true;
+
     private CharacterBase character;
     private SkillBase skillBase;
     private PlayerAnimation anim;
@@ -88,6 +95,26 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
     {
         if (character == null) return false;
         return character.CurrentEnergy > 0f;
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
+    }
+
+    private void PlaySlashSfx()
+    {
+        if (SFXManager.Instance == null) return;
+
+        AudioClip clip = isSlash2Phase
+            ? SFXManager.Instance.swordSlash2
+            : SFXManager.Instance.swordSlash1;
+
+        PlaySfx(clip);
     }
 
     private void ForceStopCombo()
@@ -179,6 +206,8 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
             yield break;
         }
 
+        // SFX ayunan Slash1 diputar pada frame/timing yang sama dengan aktifnya hitbox Slash1.
+        PlaySlashSfx();
         PerformSlash();
 
         yield return new WaitForSeconds(minTimeBeforeChain);
@@ -234,6 +263,8 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
             yield break;
         }
 
+        // SFX ayunan Slash2 diputar pada frame/timing yang sama dengan aktifnya hitbox Slash2.
+        PlaySlashSfx();
         PerformSlash();
 
         yield return new WaitForSeconds(0.05f);
@@ -311,6 +342,7 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         Vector3 dir = character.isFacingRight ? Vector3.right : Vector3.left;
 
         Collider2D[] hits = Physics2D.OverlapCircleAll(origin, radius);
+        bool hasHit = false;
 
         foreach (var h in hits)
         {
@@ -321,8 +353,18 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
             float angleBetween = Vector2.Angle(dir, toTarget);
 
             if (angleBetween <= angle * 0.5f)
+            {
                 target.TakeDamage(character.attack);
+                hasHit = true;
+
+                if (!playHitSfxOncePerSlash)
+                    PlaySfx(SFXManager.Instance != null ? SFXManager.Instance.swordHit : null);
+            }
         }
+
+        // SFX hit hanya dimainkan apabila damage benar-benar masuk ke minimal satu musuh.
+        if (hasHit && playHitSfxOncePerSlash)
+            PlaySfx(SFXManager.Instance != null ? SFXManager.Instance.swordHit : null);
 
         if (gameObject.activeInHierarchy)
             StartCoroutine(ShowHitArcWindow());

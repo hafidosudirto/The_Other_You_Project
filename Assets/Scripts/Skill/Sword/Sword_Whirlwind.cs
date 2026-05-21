@@ -19,6 +19,16 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
     public float staggerDuration = 0.35f;
     public float staggerCooldown = 0.7f;
 
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX Whirlwind ingin dikendalikan dari script ini, bukan dari Animation Event.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara Whirlwind diputar satu kali saat skill pertama kali aktif.")]
+    public bool playWhirlwindSfxOnStart = true;
+
+    [Tooltip("Suara hit hanya dimainkan satu kali untuk satu tick damage, walaupun musuh yang terkena lebih dari satu.")]
+    public bool playHitSfxOncePerTick = true;
+
     private Player player;
     private PlayerAnimation anim;
     private MoveKeyboard mover;
@@ -101,6 +111,9 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
 
     private IEnumerator WhirlwindRoutine()
     {
+        if (player != null)
+            originalSpeed = player.moveSpeed;
+
         isActive = true;
         tDuration = duration;
         tHit = 0f;
@@ -113,8 +126,7 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
 
         if (player != null)
         {
-            originalSpeed = player.moveSpeed;
-            player.moveSpeed *= speedMultiplierWhileActive;
+            player.moveSpeed = originalSpeed * speedMultiplierWhileActive;
             player.isAttacking = true;
         }
 
@@ -125,6 +137,10 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
             anim.PlayWhirlwind();
 
         staggerTimers.Clear();
+
+        // SFX angin putar diputar satu kali saat Whirlwind pertama kali aktif.
+        if (playWhirlwindSfxOnStart)
+            PlayWhirlwindSfx();
 
         while (tDuration > 0f)
         {
@@ -164,6 +180,7 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
         if (player == null) return;
 
         Collider2D[] hits = Physics2D.OverlapCircleAll(player.transform.position, radius);
+        bool hasHit = false;
 
         foreach (Collider2D h in hits)
         {
@@ -173,6 +190,7 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
 
             float dmg = player.attack * damageMultiplier;
             target.TakeDamage(dmg);
+            hasHit = true;
 
             if (CanStagger(target))
             {
@@ -180,7 +198,36 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
                 target.ApplyStagger(dir, knockForce, staggerDuration);
                 staggerTimers[target] = staggerCooldown;
             }
+
+            if (!playHitSfxOncePerTick)
+                PlayHitSfx();
         }
+
+        // SFX hit hanya diputar jika tick damage benar-benar mengenai minimal satu musuh.
+        if (hasHit && playHitSfxOncePerTick)
+            PlayHitSfx();
+    }
+
+    private void PlayWhirlwindSfx()
+    {
+        if (SFXManager.Instance == null) return;
+        PlaySfx(SFXManager.Instance.swordWhirlwind);
+    }
+
+    private void PlayHitSfx()
+    {
+        if (SFXManager.Instance == null) return;
+        PlaySfx(SFXManager.Instance.swordHit);
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.sfxSource == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
     }
 
     private void UpdateStaggerTimers()
