@@ -4,13 +4,13 @@ using UnityEngine;
 
 public class SwordWhirlwindNode : Node
 {
-    private EnemyAI ai;
+    private NodeManager ai;
     private float timer;
 
     private float cdMin = 4f;
     private float cdMax = 5.5f;
 
-    public SwordWhirlwindNode(EnemyAI enemy)
+    public SwordWhirlwindNode(NodeManager enemy)
     {
         ai = enemy;
         ResetCD();

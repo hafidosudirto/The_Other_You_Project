@@ -4,13 +4,13 @@ using UnityEngine;
 
 public class SwordRiposteNode : Node
 {
-    private EnemyAI ai;
+    private NodeManager ai;
     private float timer;
 
     private float cdMin = 2f;
     private float cdMax = 4f;
 
-    public SwordRiposteNode(EnemyAI enemy)
+    public SwordRiposteNode(NodeManager enemy)
     {
         ai = enemy;
         ResetCD();
@@ -42,7 +42,3 @@ public class SwordRiposteNode : Node
         return NodeState.Success;
     }
 }
-
-
-
-

@@ -4,13 +4,13 @@ using UnityEngine;
 
 public class SwordChargedStrikeNode : Node
 {
-    private EnemyAI ai;
+    private NodeManager ai;
     private float timer;
 
     private float cdMin = 2.5f;
     private float cdMax = 3.5f;
 
-    public SwordChargedStrikeNode(EnemyAI enemy)
+    public SwordChargedStrikeNode(NodeManager enemy)
     {
         ai = enemy;
         ResetCD();
@@ -41,7 +41,3 @@ public class SwordChargedStrikeNode : Node
         return NodeState.Success;
     }
 }
-
-
-
-

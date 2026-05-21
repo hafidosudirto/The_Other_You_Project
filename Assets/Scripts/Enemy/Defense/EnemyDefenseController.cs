@@ -8,11 +8,11 @@ using UnityEngine;
 /// maka tidak bisa *defend* dan langsung menerima damage.
 /// Jika tidak, ia mencoba melakukan *defense* (dash/dodge/parry).
 /// </summary>
-[RequireComponent(typeof(EnemyAI))]
+[RequireComponent(typeof(NodeManager))]
 public class EnemyDefenseController : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private EnemyAI ai;
+    [SerializeField] private NodeManager ai;
     [SerializeField] private CharacterBase characterBase;
 
     [Header("Defense Chance Settings")]
@@ -25,7 +25,7 @@ public class EnemyDefenseController : MonoBehaviour
     private void Awake()
     {
         if (ai == null)
-            ai = GetComponent<EnemyAI>();
+            ai = GetComponent<NodeManager>();
 
         if (characterBase == null)
             characterBase = GetComponent<CharacterBase>();

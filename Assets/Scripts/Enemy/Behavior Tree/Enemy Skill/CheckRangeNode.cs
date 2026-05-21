@@ -2,11 +2,11 @@ using UnityEngine;
 
 public class CheckRangeNode : Node
 {
-    private readonly EnemyAI ai;
+    private readonly NodeManager ai;
     private readonly IEnemySkill skill;
     private readonly float tolerance = 0.25f;
 
-    public CheckRangeNode(EnemyAI ai, IEnemySkill skill)
+    public CheckRangeNode(NodeManager ai, IEnemySkill skill)
     {
         this.ai = ai;
         this.skill = skill;

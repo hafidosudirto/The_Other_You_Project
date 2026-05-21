@@ -4,7 +4,7 @@ using UnityEngine;
 
 public abstract class BaseDefenseNode : Node
 {
-    protected EnemyAI ai;
+    protected NodeManager ai;
 
     // cooldown
     protected float cooldown = 1.2f;      // detik
@@ -13,7 +13,7 @@ public abstract class BaseDefenseNode : Node
     // fail chance opsional
     protected float failChance = 0.15f;    // 15% gagal defense
 
-    protected BaseDefenseNode(EnemyAI ai)
+    protected BaseDefenseNode(NodeManager ai)
     {
         this.ai = ai;
     }

@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
-public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
+public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldownInfo, ISkillReadinessInfo
 {
     [Header("Whirlwind Settings")]
     public float radius = 2f;
@@ -38,6 +38,17 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
     public float EnergyCost => energyCost;
     public bool PayEnergyInSkillBase => true;
 
+    // Data baca untuk SkillIndexHUDController.
+    // Whirlwind tidak menambah cooldown baru. Durasi visual mengikuti duration yang sudah ada.
+    public bool HasCooldown => duration > 0.05f;
+    public float CooldownDuration => Mathf.Max(0f, duration);
+    public float CooldownRemaining => isActive ? Mathf.Max(0f, tDuration) : 0f;
+    public bool IsCooldownReady => !isActive && CooldownRemaining <= 0.05f;
+    public bool IsSkillBusy => isActive;
+    public bool IsSkillReady => !isActive && player != null && player.CanAct() && HasEnoughEnergyToStart();
+    public bool isCasting => isActive;
+    public float cooldownDuration => CooldownDuration;
+
     private void Awake()
     {
         player = GetComponentInParent<Player>();
@@ -57,6 +68,16 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
     {
         if (character == null) return false;
         return character.CurrentEnergy > 0f;
+    }
+
+    private bool ShouldStopBecauseEnergyEmpty()
+    {
+        // Jika energy sudah dibayar oleh SkillBase, Whirlwind tetap boleh berjalan
+        // walaupun sisa energy menjadi 0. Ini mencegah skill batal setelah pembayaran yang sah.
+        if (PayEnergyInSkillBase && skillBase != null)
+            return false;
+
+        return !HasAnyEnergyLeft();
     }
 
     private void ForceStopWhirlwind()
@@ -87,7 +108,7 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
         if (player.isAttacking)
             return;
 
-        if (!HasEnoughEnergyToStart())
+        if (skillBase == null && !HasEnoughEnergyToStart())
         {
             DebugHub.Warning($"ENERGY KURANG: Whirlwind butuh {energyCost}.");
             return;
@@ -105,7 +126,9 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
         tDuration = duration;
         tHit = 0f;
 
-        if (!HasAnyEnergyLeft())
+        SkillIndexHUDController.NotifyGlobalSkillUsed(this);
+
+        if (ShouldStopBecauseEnergyEmpty())
         {
             ForceStopWhirlwind();
             yield break;
@@ -128,7 +151,7 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
 
         while (tDuration > 0f)
         {
-            if (!HasAnyEnergyLeft())
+            if (ShouldStopBecauseEnergyEmpty())
             {
                 ForceStopWhirlwind();
                 yield break;

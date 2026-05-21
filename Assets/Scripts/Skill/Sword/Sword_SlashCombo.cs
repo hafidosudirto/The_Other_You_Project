@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
+public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldownInfo, ISkillReadinessInfo
 {
     [Header("Slash1 Settings")]
     public float attackRadius1 = 1.5f;
@@ -39,6 +39,13 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
            + "Kalau terlalu besar, Slash2 terasa telat.")]
     public float minTimeBeforeChain = 0.09f;
 
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX ayunan pedang dan hit ingin dikendalikan dari script ini, bukan dari Animation Event.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara hit hanya dimainkan satu kali untuk satu ayunan, walaupun musuh yang terkena lebih dari satu.")]
+    public bool playHitSfxOncePerSlash = true;
+
     private CharacterBase character;
     private SkillBase skillBase;
     private PlayerAnimation anim;
@@ -60,6 +67,16 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
 
     public float EnergyCost => energyCost;
     public bool PayEnergyInSkillBase => true;
+
+    // Data baca untuk SkillIndexHUDController.
+    // Cooldown tetap memakai comboCooldown dari mekanik asli, bukan angka HUD tambahan.
+    public bool HasCooldown => comboCooldown > 0.05f;
+    public float CooldownDuration => Mathf.Max(0f, comboCooldown);
+    public float CooldownRemaining => Mathf.Max(0f, (lastComboTime + comboCooldown) - Time.time);
+    public bool IsCooldownReady => CooldownRemaining <= 0.05f;
+    public bool IsSkillBusy => isBusy;
+    public bool IsSkillReady => !isBusy && IsCooldownReady && character != null && character.CanAct() && HasEnoughEnergyToStart();
+    public float cooldownDuration => CooldownDuration;
 
     private void OnValidate()
     {
@@ -88,6 +105,36 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
     {
         if (character == null) return false;
         return character.CurrentEnergy > 0f;
+    }
+
+    private bool ShouldStopBecauseEnergyEmpty()
+    {
+        // Jika energy sudah dibayar oleh SkillBase, skill tetap boleh berjalan
+        // walaupun sisa energy menjadi 0. Ini mencegah skill gagal setelah pembayaran yang sah.
+        if (PayEnergyInSkillBase && skillBase != null)
+            return false;
+
+        return !HasAnyEnergyLeft();
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
+    }
+
+    private void PlaySlashSfx()
+    {
+        if (SFXManager.Instance == null) return;
+
+        AudioClip clip = isSlash2Phase
+            ? SFXManager.Instance.swordSlash2
+            : SFXManager.Instance.swordSlash1;
+
+        PlaySfx(clip);
     }
 
     private void ForceStopCombo()
@@ -125,7 +172,7 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         if (character == null || !character.CanAct())
             return;
 
-        if (!HasEnoughEnergyToStart())
+        if (skillBase == null && !HasEnoughEnergyToStart())
         {
             DebugHub.Warning($"ENERGY KURANG: Slash Combo butuh {energyCost}.");
             return;
@@ -133,6 +180,8 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
 
         mySlotIndex = slotIndex;
         StartCoroutine(ComboRoutine());
+
+        SkillIndexHUDController.NotifyGlobalSkillUsed(this);
 
         if (DataTracker.Instance != null)
             DataTracker.Instance.RecordSwordSlashCombo();
@@ -145,7 +194,7 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         chainRequested = false;
         bufferedChainInput = false;
 
-        if (!HasAnyEnergyLeft())
+        if (ShouldStopBecauseEnergyEmpty())
         {
             ForceStopCombo();
             yield break;
@@ -165,7 +214,7 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         if (skillBase != null)
             DebugHub.Skill("[SlashCombo] Slash1 CAST");
 
-        if (!HasAnyEnergyLeft())
+        if (ShouldStopBecauseEnergyEmpty())
         {
             ForceStopCombo();
             yield break;
@@ -173,12 +222,14 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
 
         yield return new WaitForSeconds(delaySlash1);
 
-        if (!HasAnyEnergyLeft())
+        if (ShouldStopBecauseEnergyEmpty())
         {
             ForceStopCombo();
             yield break;
         }
 
+        // SFX ayunan Slash1 diputar pada frame/timing yang sama dengan aktifnya hitbox Slash1.
+        PlaySlashSfx();
         PerformSlash();
 
         yield return new WaitForSeconds(minTimeBeforeChain);
@@ -205,7 +256,7 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
             yield break;
         }
 
-        if (!HasAnyEnergyLeft())
+        if (ShouldStopBecauseEnergyEmpty())
         {
             ForceStopCombo();
             lastComboTime = Time.time;
@@ -227,13 +278,15 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
 
         yield return new WaitForSeconds(delaySlash2);
 
-        if (!HasAnyEnergyLeft())
+        if (ShouldStopBecauseEnergyEmpty())
         {
             ForceStopCombo();
             lastComboTime = Time.time;
             yield break;
         }
 
+        // SFX ayunan Slash2 diputar pada frame/timing yang sama dengan aktifnya hitbox Slash2.
+        PlaySlashSfx();
         PerformSlash();
 
         yield return new WaitForSeconds(0.05f);
@@ -281,7 +334,7 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
 
         while (timer < chainWindow)
         {
-            if (!HasAnyEnergyLeft())
+            if (ShouldStopBecauseEnergyEmpty())
                 yield break;
 
             if (comboKey != KeyCode.None && Input.GetKeyDown(comboKey))
@@ -311,6 +364,7 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
         Vector3 dir = character.isFacingRight ? Vector3.right : Vector3.left;
 
         Collider2D[] hits = Physics2D.OverlapCircleAll(origin, radius);
+        bool hasHit = false;
 
         foreach (var h in hits)
         {
@@ -321,8 +375,18 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill
             float angleBetween = Vector2.Angle(dir, toTarget);
 
             if (angleBetween <= angle * 0.5f)
+            {
                 target.TakeDamage(character.attack);
+                hasHit = true;
+
+                if (!playHitSfxOncePerSlash)
+                    PlaySfx(SFXManager.Instance != null ? SFXManager.Instance.swordHit : null);
+            }
         }
+
+        // SFX hit hanya dimainkan apabila damage benar-benar masuk ke minimal satu musuh.
+        if (hasHit && playHitSfxOncePerSlash)
+            PlaySfx(SFXManager.Instance != null ? SFXManager.Instance.swordHit : null);
 
         if (gameObject.activeInHierarchy)
             StartCoroutine(ShowHitArcWindow());

@@ -39,17 +39,30 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
     [Tooltip("Sudut gizmo (derajat)")]
     public float gizmoArcAngle = 60f;
 
-    private EnemyAI ai;
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX Slash Combo musuh ingin dikendalikan dari script ini, bukan dari Animation Event.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara ayunan pedang diputar pada timing yang sama dengan aktifnya hitbox.")]
+    public bool playSlashSfxOnActiveFrame = true;
+
+    [Tooltip("Suara hit hanya dimainkan satu kali untuk satu ayunan, walaupun target yang terkena lebih dari satu.")]
+    public bool playHitSfxOncePerSlash = true;
+
+    private NodeManager ai;
     private EnemyCombatController combat;
+    private EnemyMovementFSM movementFSM;
     private CharacterBase selfStats;
 
     private bool busy = false;
     private float nextReadyTime = 0f;
 
-    // gizmo window
+    private Coroutine activeRoutine;
+    private bool skillStartInvoked = false;
+    private bool movementLockedByThisSkill = false;
+
     private bool showHitArc = false;
 
-    // snapshot gizmo
     private Vector3 lastOrigin;
     private Vector3 lastDir;
     private float lastRadius;
@@ -57,9 +70,22 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
 
     private void Awake()
     {
-        ai = GetComponentInParent<EnemyAI>();
+        ai = GetComponentInParent<NodeManager>();
         combat = GetComponentInParent<EnemyCombatController>();
+        movementFSM = GetComponentInParent<EnemyMovementFSM>();
         selfStats = GetComponentInParent<CharacterBase>();
+    }
+
+    private void OnDisable()
+    {
+        if (activeRoutine != null)
+        {
+            StopCoroutine(activeRoutine);
+            activeRoutine = null;
+        }
+
+        ForceEndSkillState();
+        showHitArc = false;
     }
 
     public void Trigger()
@@ -67,7 +93,7 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
         if (busy) return;
         if (Time.time < nextReadyTime) return;
 
-        StartCoroutine(ComboRoutine());
+        activeRoutine = StartCoroutine(ComboRoutine());
     }
 
     private IEnumerator ComboRoutine()
@@ -75,16 +101,17 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
         busy = true;
         nextReadyTime = Time.time + cooldown;
 
-        combat?.InvokeSkillStart();
+        BeginSkillState(GetEstimatedLockDuration());
 
-        // ===== HIT 1 =====
         ai?.Animation?.PlaySlash1();
         yield return new WaitForSeconds(windupTime);
+
+        if (playSlashSfxOnActiveFrame)
+            PlaySlash1Sfx();
 
         PerformSlash(ai != null ? ai.AttackPower : 10f);
         yield return new WaitForSeconds(activeTime);
 
-        // ===== HIT 2 (opsional) =====
         bool canChain = false;
         if (ai != null && ai.playerTransform != null)
         {
@@ -99,15 +126,55 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
             ai?.Animation?.PlaySlash2();
             yield return new WaitForSeconds(windupTime * 0.85f);
 
-            // sedikit variasi damage untuk feel combo
+            if (playSlashSfxOnActiveFrame)
+                PlaySlash2Sfx();
+
             PerformSlash((ai != null ? ai.AttackPower : 10f) * 1.05f);
             yield return new WaitForSeconds(activeTime);
         }
 
-        // ===== RECOVERY =====
         yield return new WaitForSeconds(recoveryTime);
 
-        combat?.InvokeSkillEnd();
+        ForceEndSkillState();
+        activeRoutine = null;
+    }
+
+    private float GetEstimatedLockDuration()
+    {
+        float hit1Duration = windupTime + activeTime;
+        float possibleHit2Duration = chainExtraDelay + (windupTime * 0.85f) + activeTime;
+        return Mathf.Max(0.05f, hit1Duration + possibleHit2Duration + recoveryTime + 0.1f);
+    }
+
+    private void BeginSkillState(float lockDuration)
+    {
+        movementLockedByThisSkill = false;
+        skillStartInvoked = false;
+
+        if (movementFSM != null)
+        {
+            movementFSM.LockExternal(lockDuration, true);
+            movementLockedByThisSkill = true;
+        }
+
+        combat?.InvokeSkillStart();
+        skillStartInvoked = true;
+    }
+
+    private void ForceEndSkillState()
+    {
+        if (skillStartInvoked)
+        {
+            combat?.InvokeSkillEnd();
+            skillStartInvoked = false;
+        }
+
+        if (movementLockedByThisSkill)
+        {
+            movementFSM?.UnlockExternal(true);
+            movementLockedByThisSkill = false;
+        }
+
         busy = false;
     }
 
@@ -118,7 +185,6 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
         int sign = ai.ForwardSign;
         Vector3 dir = ai.ForwardDir;
 
-        // Close-contact fix: saat menempel, pusat hit didekatkan ke pivot
         float mul = 1f;
         if (centerAtPivotWhenClose && ai.playerTransform != null)
         {
@@ -129,13 +195,13 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
 
         Vector3 origin = ai.transform.position + new Vector3(hitOffset.x * sign * mul, hitOffset.y, 0f);
 
-        // snapshot untuk gizmo sector kecil (1/5 atau 1/6)
         lastOrigin = origin;
         lastDir = dir;
         lastRadius = attackRadius;
         lastAngleForGizmo = gizmoArcAngle;
 
         Collider2D[] hits = Physics2D.OverlapCircleAll(origin, attackRadius, hitMask);
+        bool hasHit = false;
 
         foreach (var h in hits)
         {
@@ -145,13 +211,49 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
             Vector2 toTarget = cb.transform.position - origin;
             float angle = Vector2.Angle(dir, toTarget);
 
-            // Damage tetap memakai attackAngle (gameplay), gizmo memakai gizmoArcAngle (visual)
             if (angle <= attackAngle * 0.5f)
+            {
                 cb.TakeDamage(damage, ai.gameObject);
+                hasHit = true;
+
+                if (!playHitSfxOncePerSlash)
+                    PlayHitSfx();
+            }
         }
+
+        if (hasHit && playHitSfxOncePerSlash)
+            PlayHitSfx();
 
         if (gameObject.activeInHierarchy)
             StartCoroutine(ShowHitArcWindow());
+    }
+
+    private void PlaySlash1Sfx()
+    {
+        if (SFXManager.Instance == null) return;
+        PlaySfx(SFXManager.Instance.swordSlash1);
+    }
+
+    private void PlaySlash2Sfx()
+    {
+        if (SFXManager.Instance == null) return;
+        PlaySfx(SFXManager.Instance.swordSlash2);
+    }
+
+    private void PlayHitSfx()
+    {
+        if (SFXManager.Instance == null) return;
+        PlaySfx(SFXManager.Instance.swordHit);
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.sfxSource == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
     }
 
     private IEnumerator ShowHitArcWindow()

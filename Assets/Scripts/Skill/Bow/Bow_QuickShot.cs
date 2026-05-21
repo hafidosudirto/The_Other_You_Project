@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Serialization;
 
 [DisallowMultipleComponent]
-public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill
+public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldownInfo, ISkillReadinessInfo
 {
     [Header("Quick Shot / Referensi")]
     [Tooltip("Titik keluarnya panah Quick Shot. Biasanya isi dengan MuzzlePoint.")]
@@ -163,6 +163,17 @@ public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill
     public float EnergyCost => biayaEnergi;
     public bool PayEnergyInSkillBase => false;
 
+    public bool HasCooldown => jedaSkill > 0.05f;
+    public float CooldownDuration => Mathf.Max(0f, jedaSkill);
+    public float CooldownRemaining => sedangCooldown ? Mathf.Max(0f, cooldownEndTime - Time.time) : 0f;
+    public bool IsCooldownReady => !sedangCooldown && CooldownRemaining <= 0.05f;
+    public bool IsSkillBusy => sedangCast;
+    public bool IsSkillReady => !IsSkillBusy && IsCooldownReady && HasEnoughEnergyToStart();
+
+    // Alias sederhana agar HUD yang membaca lewat reflection tetap aman.
+    public bool isCasting => IsSkillBusy;
+    public float cooldownDuration => CooldownDuration;
+
     private CharacterBase pemilikEnergi;
     private Rigidbody2D rbPemain;
 
@@ -173,6 +184,7 @@ public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill
     private bool sedangCast;
     private bool menungguReleaseEvent;
     private bool panahSudahDilepas;
+    private float cooldownEndTime;
 
     private void Awake()
     {
@@ -245,6 +257,7 @@ public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill
         HentikanGerakPemain();
 
         MulaiCooldown();
+        SkillIndexHUDController.NotifyGlobalSkillUsed(this);
 
         if (animasiPemain != null)
             animasiPemain.PlayQuickShot();
@@ -323,6 +336,7 @@ public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill
         if (routineCooldown != null)
             StopCoroutine(routineCooldown);
 
+        cooldownEndTime = Time.time + Mathf.Max(0f, jedaSkill);
         routineCooldown = StartCoroutine(RoutineCooldown());
     }
 
@@ -744,6 +758,17 @@ public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill
         return true;
     }
 
+    private bool HasEnoughEnergyToStart()
+    {
+        if (biayaEnergi <= 0f)
+            return true;
+
+        if (pemilikEnergi == null)
+            pemilikEnergi = pemain != null ? pemain : GetComponentInParent<CharacterBase>(true);
+
+        return pemilikEnergi == null || pemilikEnergi.HasEnergy(biayaEnergi);
+    }
+
     private void HentikanGerakPemain()
     {
         if (pemain == null)
@@ -783,6 +808,7 @@ public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill
         menungguReleaseEvent = false;
         panahSudahDilepas = false;
         sedangCooldown = false;
+        cooldownEndTime = 0f;
 
         routineCast = null;
         routineCooldown = null;

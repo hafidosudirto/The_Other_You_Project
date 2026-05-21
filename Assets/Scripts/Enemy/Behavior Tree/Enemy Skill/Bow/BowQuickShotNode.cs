@@ -2,9 +2,9 @@ using UnityEngine;
 
 public class BowQuickShotNode : Node
 {
-    private readonly EnemyAI ai;
+    private readonly NodeManager ai;
 
-    public BowQuickShotNode(EnemyAI ai)
+    public BowQuickShotNode(NodeManager ai)
     {
         this.ai = ai;
     }
