@@ -6,12 +6,21 @@ public class GameOverLoader : MonoBehaviour
     [Header("Scene Names")]
     [SerializeField] private string gameOverSceneName = "GameOver";
 
-    // Dipanggil saat player mati
+    private bool isLoading;
+
     public void LoadGameOver()
     {
-        // Jika sebelumnya Anda memakai pause (Time.timeScale = 0), ini mencegah UI/animasi terkunci setelah pindah scene
-        Time.timeScale = 1f;
+        if (isLoading)
+            return;
 
+        isLoading = true;
+
+        Time.timeScale = 1f;
+        AudioListener.pause = false;
+
+        StageManager.RequestFreshRunOnNextGameplayLoad();
+
+        Debug.Log("[GAME OVER LOADER] Player mati. Fresh run sudah ditandai. Memuat scene: " + gameOverSceneName);
         SceneManager.LoadSceneAsync(gameOverSceneName, LoadSceneMode.Single);
     }
 }
