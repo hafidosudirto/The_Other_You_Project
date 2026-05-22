@@ -7,6 +7,35 @@ using UnityEngine;
 // Revisi: attack token berfungsi sebagai batas jumlah minion yang boleh menyerang bersamaan.
 public class StageManager : MonoBehaviour
 {
+    private const string FreshRunRequestPrefsKey = "THE_OTHER_YOU_STAGE_MANAGER_FRESH_RUN_REQUEST";
+    private static bool freshRunRequestedInMemory;
+
+    public static void RequestFreshRunOnNextGameplayLoad()
+    {
+        freshRunRequestedInMemory = true;
+        PlayerPrefs.SetInt(FreshRunRequestPrefsKey, 1);
+        PlayerPrefs.Save();
+
+        Debug.Log("[STAGE MANAGER] Fresh run diminta. StageManager berikutnya akan reset dari stage awal.");
+    }
+
+    private static bool ConsumeFreshRunRequest()
+    {
+        bool requested =
+            freshRunRequestedInMemory ||
+            PlayerPrefs.GetInt(FreshRunRequestPrefsKey, 0) == 1;
+
+        freshRunRequestedInMemory = false;
+
+        if (PlayerPrefs.HasKey(FreshRunRequestPrefsKey))
+        {
+            PlayerPrefs.DeleteKey(FreshRunRequestPrefsKey);
+            PlayerPrefs.Save();
+        }
+
+        return requested;
+    }
+
     public enum StageState
     {
         SpawningMinions,
@@ -79,6 +108,39 @@ public class StageManager : MonoBehaviour
     [Header("DDA Reset Timing")]
     public bool resetDDAAndDataTrackerOnStageCleared = true;
 
+    [Tooltip("Wajib true jika data adaptasi ingin dipakai untuk stage berikutnya. Jika false, DDAController akan ikut direset dan musuh kembali tidak adaptif.")]
+    [SerializeField] private bool preserveDDAProfileForNextStage = true;
+
+    [Header("Fresh Run Reset")]
+    [Tooltip("Jika true, permintaan Play Again/Game Over akan memaksa StageManager memulai ulang dari startingStageNumber.")]
+    [SerializeField] private bool consumeFreshRunRequestOnStart = true;
+
+    [Tooltip("Jika true, DataTracker dan DDAController ikut direset saat Play Again agar run baru tidak membawa data adaptasi run sebelumnya.")]
+    [SerializeField] private bool resetDDAProfileOnFreshRun = true;
+
+    [Tooltip("Jika true, player dipindahkan lagi ke playerSpawnPoint/fallbackPlayerStartX ketika run baru dimulai.")]
+    [SerializeField] private bool movePlayerToSpawnOnFreshRun = true;
+
+    [Tooltip("Jika true, HP player dikembalikan ke maxHP ketika run baru dimulai.")]
+    [SerializeField] private bool resetPlayerHealthOnFreshRun = true;
+
+    [Tooltip("Jika true, enemy/proyektil lama yang masih hidup karena DontDestroyOnLoad akan dihapus saat run baru dimulai.")]
+    [SerializeField] private bool destroyRuntimeCombatObjectsOnFreshRun = true;
+
+    [SerializeField]
+    private string[] freshRunDestroyTags =
+    {
+        "Enemy",
+        "Spawn",
+        "Projectile"
+    };
+
+    [Header("Prefab Switch Integration")]
+    [SerializeField] private bool waitUntilPlayerWeaponSelectedBeforeStart = true;
+    [SerializeField] private bool preferPrefabSwitchActivePlayer = true;
+
+    private bool stageHasStarted;
+
     [Header("Stage Transition")]
     [SerializeField] private CanvasGroup blackScreenCanvasGroup;
     [SerializeField] private float blackScreenFadeDuration = 0.5f;
@@ -116,6 +178,10 @@ public class StageManager : MonoBehaviour
     private bool isTransitioningToBoss = false;
     private bool bossSpawnConfigurationFailed = false;
 
+    // Perlindungan Grace Period agar stage tidak tereksekusi oleh data kadaluwarsa saat frame pertama
+    private float stateEnterTime = 0f;
+    private const float GRACE_PERIOD_DURATION = 1.5f;
+
     // Runtime boss yang benar adalah instance hasil Instantiate, bukan prefab asset di Project.
     private GameObject currentBossObject;
     private CharacterBase currentBossCharacter;
@@ -144,21 +210,363 @@ public class StageManager : MonoBehaviour
     private GUIStyle debugWarningStyle;
     private GUIStyle worldDebugLabelStyle;
 
+    private void OnEnable()
+    {
+        PlayerPrefabSwitchManager.OnActiveWeaponChanged += HandleActiveWeaponChanged;
+    }
+
+    private void OnDisable()
+    {
+        PlayerPrefabSwitchManager.OnActiveWeaponChanged -= HandleActiveWeaponChanged;
+    }
+
     private void Start()
     {
+        // FIX FRESH RUN: hentikan semua coroutine lama agar tidak ada NextStageTransition
+        // atau SpawnMinionWave dari run sebelumnya yang masih menggantung (defensif).
+        StopAllCoroutines();
+
+        // FIX FRESH RUN: paksa flag stageHasStarted = false sejak awal agar Update()
+        // tidak menjalankan CheckStageTransition / CheckMinionWaveClearedFallback /
+        // CheckBossDefeatedFallback sebelum stage benar-benar dimulai oleh StartStage().
+        stageHasStarted = false;
+        currentState = StageState.SpawningMinions;
+
+        bool freshRunRequested = consumeFreshRunRequestOnStart && ConsumeFreshRunRequest();
+        StartCoroutine(InitStageRoutine(freshRunRequested));
+    }
+
+    public void ForceRestartFromFirstStage()
+    {
+        StopAllCoroutines();
+
+        RequestFreshRunOnNextGameplayLoad();
+        bool freshRunRequested = ConsumeFreshRunRequest();
+
+        StartCoroutine(InitStageRoutine(freshRunRequested));
+    }
+
+    private IEnumerator InitStageRoutine(bool freshRunRequested)
+    {
+        // Tunggu 2 frame agar Unity sempat memproses 100% Destroy objek memori lama
+        // sebelum kita men-spawn stage baru
+        yield return new WaitForEndOfFrame();
+        yield return new WaitForEndOfFrame();
+
+        ResetStageManagerRuntimeToInitialState(freshRunRequested);
+        yield return StartCoroutine(StartStageAfterPlayerWeaponReady());
+    }
+
+    private void ResetStageManagerRuntimeToInitialState(bool freshRunRequested)
+    {
+        // FIX FRESH RUN: pastikan stage belum dianggap "berjalan" selama proses reset.
+        // Tanpa ini, Update() bisa memanggil CheckStageTransition pada milidetik di antara
+        // baris-baris reset dan men-trigger NextStage karena player sempat berada
+        // di posisi lama (>= rightTransitionX) atau enemy lama yang baru saja didestroy
+        // sempat memicu OnEnemyDied.
+        stageHasStarted = false;
+
         currentStage = startingStageNumber;
+        currentState = StageState.SpawningMinions;
+        stateEnterTime = Time.time;
+
         activeEnemiesCount = 0;
         isChangingStage = false;
         isTransitioningToBoss = false;
         bossSpawnConfigurationFailed = false;
+        bossDefeatHandled = false;
+
+        currentBossObject = null;
+        currentBossCharacter = null;
+
+        playerCharacterCache = null;
+        previousPlayerHP = -1f;
+
+        lastStageTotalMinions = 0;
+        lastStageMeleeCount = 0;
+        lastStageRangeCount = 0;
+        lastStageMinionAttackTokens = 0;
+        lastStageStatMultiplier = 1f;
+        lastStagePlaystyle = "Balanced";
+        lastPlayerRegenAmount = 0f;
+        lastTokenDebugMessage = "Belum ada pemakaian token serangan bersamaan.";
+        activeConcurrentAttackTokens = 0;
+        currentConcurrentAttackTokenLimit = 0;
+        lastAttackTokenDeniedDebugTime = -999f;
+
+        enemyRuntimeDebugData.Clear();
+        floatingDebugLines.Clear();
 
         SetBlackScreenInstant(0f, false);
         EnsureBossUIReference();
 
+        if (freshRunRequested)
+        {
+            Debug.Log("[STAGE MANAGER] Fresh run diproses. Stage direset ke: " + startingStageNumber);
+
+            if (destroyRuntimeCombatObjectsOnFreshRun)
+            {
+                DestroyFreshRunRuntimeCombatObjects();
+            }
+
+            ResetRuntimeDataForFreshRun();
+            ResetPlayerForFreshRun();
+        }
+        else
+        {
+            // FIX FRESH RUN: walau bukan fresh run formal (mis. user memuat ulang scene
+            // manual tanpa lewat GameOverLoader), tetap pastikan player diposisikan
+            // di spawn point agar tidak ter-trigger NextStage karena posisi lama.
+            EnsurePlayerPositionedAtSpawnSafely();
+        }
+    }
+
+    // FIX FRESH RUN: helper untuk memindahkan player ke spawn point apabila playerTransform
+    // masih ada dan posisinya berada >= rightTransitionX (mis. karena Player DontDestroyOnLoad
+    // membawa posisi lama dari run sebelumnya saat scene gameplay di-load ulang).
+    private void EnsurePlayerPositionedAtSpawnSafely()
+    {
+        EnsurePlayerReference();
+
+        if (playerTransform == null)
+            return;
+
+        if (playerTransform.position.x < rightTransitionX - 1f)
+            return;
+
+        Vector3 spawnPosition = playerSpawnPoint != null
+            ? playerSpawnPoint.position
+            : new Vector3(fallbackPlayerStartX, playerTransform.position.y, playerTransform.position.z);
+
+        playerTransform.position = spawnPosition;
+
+        Debug.Log(
+            "[STAGE MANAGER] Player dipindahkan ke spawn point pengaman karena posisi lama " +
+            "mendekati/melewati rightTransitionX. Posisi baru: " + playerTransform.position
+        );
+    }
+
+    private void ResetRuntimeDataForFreshRun()
+    {
+        if (resetDDAProfileOnFreshRun)
+        {
+            ResetDDAAndDataTracker();
+        }
+        else
+        {
+            ResetDataTrackerOnly();
+        }
+
+        TryResetSkillDebugData();
+    }
+
+    private void ResetPlayerForFreshRun()
+    {
+        EnsurePlayerReference();
+
+        if (playerTransform == null)
+        {
+            SpawnFallbackPlayerFromSelectedWeapon();
+        }
+
+        if (playerTransform == null)
+        {
+            Debug.LogWarning("[STAGE MANAGER] Fresh run tidak bisa mereset player karena playerTransform masih null.");
+            return;
+        }
+
+        if (!playerTransform.gameObject.activeSelf)
+        {
+            playerTransform.gameObject.SetActive(true);
+        }
+
+        // FIX FRESH RUN: jika movePlayerToSpawnOnFreshRun aktif, player WAJIB dipindahkan
+        // ke spawn point. Tanpa ini, kalau Player object adalah DontDestroyOnLoad dan
+        // membawa posisi lama dari sebelum mati (misalnya tepat di rightTransitionX karena
+        // baru saja menyelesaikan stage), CheckStageTransition akan langsung memicu
+        // NextStage begitu stageHasStarted = true → stage 1 dilompati.
+        if (movePlayerToSpawnOnFreshRun)
+        {
+            Vector3 spawnPosition = playerSpawnPoint != null
+                ? playerSpawnPoint.position
+                : new Vector3(fallbackPlayerStartX, playerTransform.position.y, playerTransform.position.z);
+
+            playerTransform.position = spawnPosition;
+        }
+        else if (playerTransform.position.x >= rightTransitionX - 1f)
+        {
+            // Pengaman tambahan jika movePlayerToSpawnOnFreshRun di-disable: tetap geser
+            // player kembali ke kiri agar tidak langsung memicu NextStage.
+            Vector3 safePosition = new Vector3(
+                fallbackPlayerStartX,
+                playerTransform.position.y,
+                playerTransform.position.z
+            );
+
+            playerTransform.position = safePosition;
+
+            Debug.LogWarning(
+                "[STAGE MANAGER] movePlayerToSpawnOnFreshRun=false tetapi player berada terlalu " +
+                "ke kanan. Posisi player dipaksa ke fallbackPlayerStartX agar stage 1 tidak dilompati."
+            );
+        }
+
+        playerCharacterCache = null;
+
+        CharacterBase playerCharacter = GetPlayerCharacter();
+
+        if (playerCharacter != null && resetPlayerHealthOnFreshRun)
+        {
+            playerCharacter.currentHP = Mathf.Max(1f, playerCharacter.maxHP);
+            previousPlayerHP = playerCharacter.currentHP;
+        }
+        else
+        {
+            CachePlayerHealthForTokenDebug();
+        }
+
+        InvokeFreshRunResetMethodsOnPlayer();
+
+        AssignPlayerReferenceToRuntimeSystems();
+
+        Debug.Log("[STAGE MANAGER] Player direset untuk fresh run pada posisi: " + playerTransform.position);
+    }
+
+    private void DestroyFreshRunRuntimeCombatObjects()
+    {
+        if (freshRunDestroyTags == null)
+            return;
+
+        HashSet<GameObject> rootsToDestroy = new HashSet<GameObject>();
+
+        foreach (string targetTag in freshRunDestroyTags)
+        {
+            if (string.IsNullOrWhiteSpace(targetTag))
+                continue;
+
+            GameObject[] taggedObjects;
+
+            try
+            {
+                taggedObjects = GameObject.FindGameObjectsWithTag(targetTag);
+            }
+            catch (UnityException)
+            {
+                Debug.LogWarning("[STAGE MANAGER] Fresh run melewati tag yang belum dibuat: " + targetTag);
+                continue;
+            }
+
+            if (taggedObjects == null)
+                continue;
+
+            foreach (GameObject taggedObject in taggedObjects)
+            {
+                if (taggedObject == null)
+                    continue;
+
+                if (playerTransform != null && taggedObject.transform == playerTransform)
+                    continue;
+
+                GameObject root = taggedObject.transform.root.gameObject;
+
+                if (root != null && root != gameObject)
+                {
+                    rootsToDestroy.Add(root);
+                }
+            }
+        }
+
+        foreach (GameObject root in rootsToDestroy)
+        {
+            if (root == null)
+                continue;
+
+            if (playerTransform != null && root == playerTransform.gameObject)
+                continue;
+
+            Destroy(root);
+        }
+
+        activeEnemiesCount = 0;
+        activeConcurrentAttackTokens = 0;
+        enemyRuntimeDebugData.Clear();
+
+        Debug.Log("[STAGE MANAGER] Enemy/proyektil runtime lama dibersihkan untuk fresh run.");
+    }
+
+    private void InvokeFreshRunResetMethodsOnPlayer()
+    {
+        if (playerTransform == null)
+            return;
+
+        MonoBehaviour[] behaviours = playerTransform.GetComponentsInChildren<MonoBehaviour>(true);
+
+        foreach (MonoBehaviour behaviour in behaviours)
+        {
+            if (behaviour == null)
+                continue;
+
+            TryInvokeParameterlessMethod(behaviour, "ResetForNewRun");
+            TryInvokeParameterlessMethod(behaviour, "ResetRuntimeState");
+            TryInvokeParameterlessMethod(behaviour, "ResetPlayerState");
+            TryInvokeParameterlessMethod(behaviour, "ResetEnergy");
+            TryInvokeParameterlessMethod(behaviour, "ResetCooldowns");
+            TryInvokeParameterlessMethod(behaviour, "ResetSkillState");
+        }
+    }
+
+    private bool TryInvokeParameterlessMethod(object target, string methodName)
+    {
+        if (target == null || string.IsNullOrEmpty(methodName))
+            return false;
+
+        MethodInfo method = target.GetType().GetMethod(
+            methodName,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
+        );
+
+        if (method == null)
+            return false;
+
+        if (method.GetParameters().Length != 0)
+            return false;
+
+        method.Invoke(target, null);
+        return true;
+    }
+
+    private IEnumerator StartStageAfterPlayerWeaponReady()
+    {
+        yield return null;
+
         EnsurePlayerReference();
         CachePlayerHealthForTokenDebug();
 
+        if (waitUntilPlayerWeaponSelectedBeforeStart)
+        {
+            while (GetCurrentActivePlayerWeapon() == WeaponType.None)
+            {
+                EnsurePlayerReference();
+                yield return null;
+            }
+        }
+
+        UpdateSelectedPlayerWeaponFromActivePlayer();
+        AssignPlayerReferenceToRuntimeSystems();
+
+        stageHasStarted = true;
         StartStage();
+    }
+
+    private void HandleActiveWeaponChanged(WeaponType newWeapon)
+    {
+        if (newWeapon == WeaponType.Sword || newWeapon == WeaponType.Bow)
+            selectedPlayerWeapon = newWeapon;
+
+        EnsurePlayerReference();
+        AssignPlayerReferenceToRuntimeSystems();
+
+        Debug.Log("[STAGE MANAGER] Active weapon dari prefab switch terbaca: " + newWeapon);
     }
 
     private void Update()
@@ -169,7 +577,18 @@ public class StageManager : MonoBehaviour
             showEnemyWorldDebugLabels = showStageRuntimeDebug;
         }
 
-        // --- REVISI: Cek apakah musuh sudah mati semua ---
+        // FIX FRESH RUN: jangan jalankan logika transisi/validasi sebelum stage
+        // benar-benar dimulai oleh StartStage(). Tanpa pengaman ini, kondisi sisa
+        // dari run sebelumnya (misalnya enemy lama, posisi player di sebelah kanan,
+        // atau state StageCleared yang belum sempat di-reset) bisa langsung memicu
+        // NextStage saat scene gameplay baru ter-load setelah Game Over.
+        if (!stageHasStarted)
+        {
+            RefreshConcurrentAttackTokenDebugState();
+            PruneRuntimeDebugData();
+            return;
+        }
+
         if (currentState == StageState.FightingMinions || currentState == StageState.FightingBoss)
         {
             ValidateEnemyCount();
@@ -180,21 +599,35 @@ public class StageManager : MonoBehaviour
         CheckBossDefeatedFallback();
         RefreshConcurrentAttackTokenDebugState();
         PruneRuntimeDebugData();
-
     }
-
 
     private void ValidateEnemyCount()
     {
-        // Mencari objek secara langsung yang masih memiliki tag "Enemy" atau "Boss"
+        if (isTransitioningToBoss)
+            return;
+
+        // GRACE PERIOD: Cegah validasi palsu di awal mula spawn
+        if (Time.time - stateEnterTime < GRACE_PERIOD_DURATION) return;
+
         GameObject[] activeEnemies = GameObject.FindGameObjectsWithTag("Enemy");
         int totalActive = activeEnemies.Length;
 
-        // Jika tidak ada lagi musuh dengan tag tersebut (sudah di-untag atau destroy)
-        if (totalActive <= 0 && currentState != StageState.StageCleared)
+        if (currentState == StageState.FightingMinions)
         {
-            currentState = StageState.StageCleared;
-            Debug.Log("[StageManager] Semua musuh mati! State -> StageCleared. Berjalanlah ke titik X: " + rightTransitionX);
+            // Pastikan kedua sisi terkonfirmasi 0 (Double-Lock)
+            if (totalActive <= 0 && activeEnemiesCount <= 0)
+            {
+                TryStartBossTransition("ValidateEnemyCount mendeteksi semua minion sudah hilang.");
+            }
+            return;
+        }
+
+        if (currentState == StageState.FightingBoss)
+        {
+            if (totalActive <= 0 && !bossDefeatHandled)
+            {
+                HandleBossDefeated();
+            }
         }
     }
 
@@ -215,16 +648,22 @@ public class StageManager : MonoBehaviour
 
     private void EnsurePlayerReference()
     {
-        if (playerTransform == null)
+        if (preferPrefabSwitchActivePlayer)
+        {
+            Transform activePlayer = FindActivePlayerFromScene();
+
+            if (activePlayer != null)
+                playerTransform = activePlayer;
+        }
+
+        if (playerTransform == null || !playerTransform.gameObject.activeInHierarchy)
         {
             try
             {
                 GameObject existingPlayer = GameObject.FindGameObjectWithTag("Player");
 
-                if (existingPlayer != null)
-                {
+                if (existingPlayer != null && existingPlayer.activeInHierarchy)
                     playerTransform = existingPlayer.transform;
-                }
             }
             catch (UnityException)
             {
@@ -232,51 +671,105 @@ public class StageManager : MonoBehaviour
             }
         }
 
-        if (playerTransform == null)
+        if (playerTransform == null && !waitUntilPlayerWeaponSelectedBeforeStart)
         {
-            GameObject selectedPlayerPrefab = selectedPlayerWeapon == WeaponType.Bow
-                ? playerBowPrefab
-                : playerSwordPrefab;
-
-            if (selectedPlayerPrefab == null)
-            {
-                Debug.LogError(
-                    "[STAGE MANAGER] Player prefab belum diisi. " +
-                    "Isi playerSwordPrefab dan playerBowPrefab di Inspector."
-                );
-                return;
-            }
-
-            Vector3 spawnPosition = playerSpawnPoint != null
-                ? playerSpawnPoint.position
-                : new Vector3(fallbackPlayerStartX, 0f, 0f);
-
-            Quaternion spawnRotation = playerSpawnPoint != null
-                ? playerSpawnPoint.rotation
-                : Quaternion.identity;
-
-            GameObject playerObject = Instantiate(selectedPlayerPrefab, spawnPosition, spawnRotation);
-
-            try
-            {
-                playerObject.tag = "Player";
-            }
-            catch (UnityException)
-            {
-                Debug.LogWarning("[STAGE MANAGER] Tag Player belum dibuat. Player tetap dibuat, tetapi tag tidak dapat diatur.");
-            }
-
-            playerTransform = playerObject.transform;
-
-            Debug.Log(
-                "[STAGE MANAGER] Player dibuat dari prefab: " +
-                selectedPlayerPrefab.name +
-                " | Weapon: " +
-                selectedPlayerWeapon
-            );
+            SpawnFallbackPlayerFromSelectedWeapon();
         }
 
+        UpdateSelectedPlayerWeaponFromActivePlayer();
         AssignPlayerReferenceToRuntimeSystems();
+    }
+
+    private Transform FindActivePlayerFromScene()
+    {
+        PlayerWeaponIdentity[] identities = FindObjectsOfType<PlayerWeaponIdentity>(true);
+
+        foreach (PlayerWeaponIdentity identity in identities)
+        {
+            if (identity == null)
+                continue;
+
+            if (!identity.gameObject.activeInHierarchy)
+                continue;
+
+            if (identity.currentWeapon == WeaponType.Sword || identity.currentWeapon == WeaponType.Bow)
+                return identity.transform;
+        }
+
+        foreach (PlayerWeaponIdentity identity in identities)
+        {
+            if (identity == null)
+                continue;
+
+            if (!identity.gameObject.activeInHierarchy)
+                continue;
+
+            if (identity.currentWeapon == WeaponType.None)
+                return identity.transform;
+        }
+
+        try
+        {
+            GameObject taggedPlayer = GameObject.FindGameObjectWithTag("Player");
+
+            if (taggedPlayer != null && taggedPlayer.activeInHierarchy)
+                return taggedPlayer.transform;
+        }
+        catch (UnityException)
+        {
+            Debug.LogWarning("[STAGE MANAGER] Tag Player belum dibuat.");
+        }
+
+        Player fallbackPlayer = FindObjectOfType<Player>();
+
+        if (fallbackPlayer != null)
+            return fallbackPlayer.transform;
+
+        return null;
+    }
+
+    private void SpawnFallbackPlayerFromSelectedWeapon()
+    {
+        GameObject selectedPlayerPrefab = selectedPlayerWeapon == WeaponType.Bow
+            ? playerBowPrefab
+            : playerSwordPrefab;
+
+        if (selectedPlayerPrefab == null)
+        {
+            Debug.LogError(
+                "[STAGE MANAGER] Player prefab belum diisi. " +
+                "Isi playerSwordPrefab dan playerBowPrefab di Inspector."
+            );
+            return;
+        }
+
+        Vector3 spawnPosition = playerSpawnPoint != null
+            ? playerSpawnPoint.position
+            : new Vector3(fallbackPlayerStartX, 0f, 0f);
+
+        Quaternion spawnRotation = playerSpawnPoint != null
+            ? playerSpawnPoint.rotation
+            : Quaternion.identity;
+
+        GameObject playerObject = Instantiate(selectedPlayerPrefab, spawnPosition, spawnRotation);
+
+        try
+        {
+            playerObject.tag = "Player";
+        }
+        catch (UnityException)
+        {
+            Debug.LogWarning("[STAGE MANAGER] Tag Player belum dibuat. Player tetap dibuat, tetapi tag tidak dapat diatur.");
+        }
+
+        playerTransform = playerObject.transform;
+
+        Debug.Log(
+            "[STAGE MANAGER] Player fallback dibuat dari prefab: " +
+            selectedPlayerPrefab.name +
+            " | Weapon: " +
+            selectedPlayerWeapon
+        );
     }
 
     private void AssignPlayerReferenceToRuntimeSystems()
@@ -295,9 +788,12 @@ public class StageManager : MonoBehaviour
             Debug.LogWarning("[STAGE MANAGER] CameraFollow tidak ditemukan di scene.");
         }
 
+        WeaponType activeWeapon = GetCurrentActivePlayerWeapon();
+
         if (DataTracker.Instance != null)
         {
             DataTracker.Instance.SetPlayerTransform(playerTransform);
+            DataTracker.Instance.SetActiveWeapon(activeWeapon);
         }
         else
         {
@@ -320,6 +816,13 @@ public class StageManager : MonoBehaviour
         currentConcurrentAttackTokenLimit = 0;
         lastAttackTokenDeniedDebugTime = -999f;
         lastTokenDebugMessage = "Belum ada minion yang memakai token serangan pada stage ini.";
+
+        // FIX FRESH RUN: pastikan isChangingStage juga bersih agar CheckStageTransition
+        // dapat berfungsi normal pada stage baru. Reset stateEnterTime untuk men-trigger
+        // grace period 1.5 detik sehingga ValidateEnemyCount/CheckMinionWaveClearedFallback
+        // tidak salah men-trigger boss transition di milidetik pertama.
+        isChangingStage = false;
+        stateEnterTime = Time.time;
 
         if (bossHPBarUI != null)
         {
@@ -425,9 +928,8 @@ public class StageManager : MonoBehaviour
             $"Concurrent Attack Token Limit: {minionAttackTokens}. Stat Mult: {statMultiplier}x"
         );
 
-        // State dipindahkan sebelum instantiate agar OnEnemyDied tidak terlewat
-        // bila ada musuh yang mati sangat cepat setelah dibuat.
         currentState = StageState.FightingMinions;
+        stateEnterTime = Time.time;
 
         int spawnedCount = 0;
 
@@ -462,14 +964,14 @@ public class StageManager : MonoBehaviour
             return false;
         }
 
-        if (minionSpawnPoints == null || minionSpawnPoints.Count == 0)
+        Vector3 spawnPos = transform.position;
+        if (minionSpawnPoints != null && minionSpawnPoints.Count > 0)
         {
-            Debug.LogWarning("[STAGE MANAGER] Tidak ada minion spawn point.");
-            return false;
+            Transform spawnPoint = minionSpawnPoints[UnityEngine.Random.Range(0, minionSpawnPoints.Count)];
+            if (spawnPoint != null) spawnPos = spawnPoint.position;
         }
 
-        Transform spawnPoint = minionSpawnPoints[UnityEngine.Random.Range(0, minionSpawnPoints.Count)];
-        GameObject enemy = Instantiate(prefab, spawnPoint.position, Quaternion.identity);
+        GameObject enemy = Instantiate(prefab, spawnPos, Quaternion.identity);
 
         enemy.tag = "Enemy";
         SetLayerRecursively(enemy, LayerMask.NameToLayer("Enemy"));
@@ -667,9 +1169,13 @@ public class StageManager : MonoBehaviour
             $"State: {currentState} | Sisa activeEnemiesCount: {activeEnemiesCount}"
         );
 
+        // Kunci pelindung agar data kematian sisa objek lama tidak merusak jalannya wave baru
+        if (Time.time - stateEnterTime < GRACE_PERIOD_DURATION) return;
+
         if (currentState == StageState.FightingMinions)
         {
-            if (activeEnemiesCount <= 0 || CountAliveEnemyObjectsInScene() <= 0)
+            // DOUBLE-LOCK FIX: && (DAN) memastikan objek fisik di scene juga wajib kosong
+            if (activeEnemiesCount <= 0 && CountAliveEnemyObjectsInScene() <= 0)
             {
                 TryStartBossTransition("Semua minion terdeteksi kalah.");
             }
@@ -698,23 +1204,20 @@ public class StageManager : MonoBehaviour
         if (isTransitioningToBoss || bossSpawnConfigurationFailed)
             return;
 
-        if (activeEnemiesCount <= 0)
-        {
-            TryStartBossTransition("activeEnemiesCount sudah 0.");
-            return;
-        }
+        if (Time.time - stateEnterTime < GRACE_PERIOD_DURATION) return;
 
         int aliveEnemies = CountAliveEnemyObjectsInScene();
 
-        if (aliveEnemies <= 0)
+        // DOUBLE-LOCK FIX
+        if (activeEnemiesCount <= 0 && aliveEnemies <= 0)
         {
-            Debug.LogWarning(
-                "[STAGE MANAGER] Fallback mendeteksi tidak ada Enemy hidup di scene, " +
-                "walaupun activeEnemiesCount belum 0. Kemungkinan EnemyDeathHandler tidak memanggil OnEnemyDied()."
-            );
-
             activeEnemiesCount = 0;
             TryStartBossTransition("Fallback scan mendeteksi semua minion telah kalah.");
+        }
+        else if (activeEnemiesCount <= 0 && aliveEnemies > 0)
+        {
+            // Resync hitungan jika terjadi 'phantom death' dari memori musuh sebelumnya
+            activeEnemiesCount = aliveEnemies;
         }
     }
 
@@ -771,6 +1274,8 @@ public class StageManager : MonoBehaviour
         if (bossDefeatHandled)
             return;
 
+        if (Time.time - stateEnterTime < GRACE_PERIOD_DURATION) return;
+
         if (IsCurrentBossDefeatedForProgression())
         {
             Debug.LogWarning(
@@ -812,8 +1317,11 @@ public class StageManager : MonoBehaviour
 
         int aliveEnemies = CountAliveEnemyObjectsInScene();
 
-        if (activeEnemiesCount > 0 && aliveEnemies > 0)
+        if (aliveEnemies > 0)
+        {
+            activeEnemiesCount = aliveEnemies;
             return;
+        }
 
         ReleaseAllConcurrentAttackTokens("Transisi ke boss");
         activeEnemiesCount = 0;
@@ -860,24 +1368,13 @@ public class StageManager : MonoBehaviour
             yield break;
         }
 
-        if (bossSpawnPoint == null)
+        Vector3 bSpawnPos = transform.position;
+        if (bossSpawnPoint != null)
         {
-            bossSpawnConfigurationFailed = true;
-            isTransitioningToBoss = false;
-
-            if (bossHPBarUI != null)
-            {
-                bossHPBarUI.Hide();
-            }
-
-            Debug.LogError(
-                "[STAGE MANAGER] Boss spawn point belum diisi. " +
-                "Isi bossSpawnPoint di Inspector."
-            );
-            yield break;
+            bSpawnPos = bossSpawnPoint.position;
         }
 
-        GameObject boss = Instantiate(bossToSpawn, bossSpawnPoint.position, Quaternion.identity);
+        GameObject boss = Instantiate(bossToSpawn, bSpawnPos, Quaternion.identity);
         boss.tag = "Enemy";
         SetLayerRecursively(boss, LayerMask.NameToLayer("Enemy"));
 
@@ -893,6 +1390,7 @@ public class StageManager : MonoBehaviour
         bossDefeatHandled = false;
         activeEnemiesCount = 1;
         currentState = StageState.FightingBoss;
+        stateEnterTime = Time.time;
         isTransitioningToBoss = false;
 
         if (bossCharacter != null)
@@ -961,13 +1459,38 @@ public class StageManager : MonoBehaviour
 
         if (resetDDAAndDataTrackerOnStageCleared)
         {
-            ResetDDAAndDataTracker();
+            if (preserveDDAProfileForNextStage)
+            {
+                ResetDataTrackerOnly();
+            }
+            else
+            {
+                ResetDDAAndDataTracker();
+            }
+        }
+    }
+
+    private void ResetDataTrackerOnly()
+    {
+        bool trackerReset = TryResetRuntimeObject(
+            "DataTracker",
+            "ResetData",
+            "ResetTracker",
+            "ResetAll",
+            "ClearData",
+            "Clear",
+            "Reset"
+        );
+
+        if (!trackerReset)
+        {
+            Debug.LogWarning(
+                "[STAGE MANAGER] DataTracker tidak berhasil direset. " +
+                "Pastikan DataTracker memiliki method ResetData(), ResetAll(), ClearData(), atau Reset()."
+            );
         }
 
-        Debug.Log(
-            "STAGE CLEAR! Boss sudah kalah. " +
-            $"State sekarang: {currentState}. Player harus melewati X >= {rightTransitionX:0.##} untuk lanjut stage."
-        );
+        Debug.Log("[STAGE MANAGER] DataTracker direset, tetapi profil DDA dipertahankan untuk stage berikutnya.");
     }
 
     private void PrepareDefeatedBossForStageTransition()
@@ -1286,8 +1809,6 @@ public class StageManager : MonoBehaviour
         return Mathf.Max(0, currentConcurrentAttackTokenLimit - activeConcurrentAttackTokens);
     }
 
-    // Nama lama dipertahankan sebagai compatibility bridge untuk script yang sebelumnya membaca sisa token.
-    // Nilai yang dikembalikan sekarang adalah slot serangan global yang masih kosong, bukan stok token per minion.
     public int GetRemainingAttackTokensForEnemy(GameObject enemy, int fallbackValue = 0)
     {
         StageEnemyRuntimeDebugData data = FindRuntimeDebugDataForEnemy(enemy);
@@ -1443,8 +1964,6 @@ public class StageManager : MonoBehaviour
         SyncAllConcurrentAttackTokenRuntimeToEnemies();
     }
 
-    // Compatibility bridge untuk script lama yang sebelumnya memanggil consume/finalize.
-    // Pada sistem baru, consume = acquire slot, finalize = release slot.
     public bool TryConsumeAttackTokenForEnemy(GameObject enemy, float damageAmount = 0f, string source = "Direct Attack")
     {
         return TryAcquireMinionAttackToken(enemy, source);
@@ -1453,6 +1972,71 @@ public class StageManager : MonoBehaviour
     public void FinalizeAttackTokenConsumptionForEnemy(GameObject enemy)
     {
         ReleaseMinionAttackToken(enemy, "FinalizeAttackTokenConsumptionForEnemy");
+    }
+
+    private void UpdateSelectedPlayerWeaponFromActivePlayer()
+    {
+        WeaponType activeWeapon = GetCurrentActivePlayerWeapon();
+
+        if (activeWeapon == WeaponType.Sword || activeWeapon == WeaponType.Bow)
+            selectedPlayerWeapon = activeWeapon;
+    }
+
+    private WeaponType GetCurrentActivePlayerWeapon()
+    {
+        if (PlayerPrefabSwitchManager.CurrentWeapon == WeaponType.Sword ||
+            PlayerPrefabSwitchManager.CurrentWeapon == WeaponType.Bow)
+        {
+            return PlayerPrefabSwitchManager.CurrentWeapon;
+        }
+
+        WeaponType fromPlayerTransform = GetWeaponFromTransform(playerTransform);
+
+        if (fromPlayerTransform == WeaponType.Sword || fromPlayerTransform == WeaponType.Bow)
+            return fromPlayerTransform;
+
+        if (PlayerPrefabSwitchManager.Instance != null)
+            return WeaponType.None;
+
+        return selectedPlayerWeapon;
+    }
+
+    private WeaponType GetWeaponFromTransform(Transform source)
+    {
+        if (source == null)
+            return WeaponType.None;
+
+        PlayerWeaponIdentity identity = source.GetComponent<PlayerWeaponIdentity>();
+
+        if (identity == null)
+            identity = source.GetComponentInChildren<PlayerWeaponIdentity>(true);
+
+        if (identity == null)
+            identity = source.GetComponentInParent<PlayerWeaponIdentity>();
+
+        if (identity != null)
+            return identity.currentWeapon;
+
+        Player player = source.GetComponent<Player>();
+
+        if (player == null)
+            player = source.GetComponentInChildren<Player>(true);
+
+        if (player == null)
+            player = source.GetComponentInParent<Player>();
+
+        if (player != null)
+            return player.weaponType;
+
+        return WeaponType.None;
+    }
+
+    private string ConvertWeaponToBossKey(WeaponType weapon)
+    {
+        if (weapon == WeaponType.Bow)
+            return "Bow";
+
+        return "Sword";
     }
 
     private StageEnemyRuntimeDebugData FindRuntimeDebugDataForEnemy(GameObject enemy)
@@ -2327,27 +2911,30 @@ public class StageManager : MonoBehaviour
     private string GetPlayerPlaystyleFromDDA()
     {
         if (DDAController.Instance != null)
-        {
             return DDAController.Instance.currentPlayerPlaystyle.ToString();
-        }
 
-        if (currentStage == 0)
-            return "Balanced";
-
-        return "OffensiveDominant";
+        return "Balanced";
     }
 
     private string GetDominantWeaponFromDDA()
     {
+        WeaponType dominantWeapon = WeaponType.None;
+
         if (DDAController.Instance != null)
         {
-            if (DDAController.Instance.currentPlayerDominantWeapon == WeaponType.Bow)
-                return "Bow";
-
-            if (DDAController.Instance.currentPlayerDominantWeapon == WeaponType.Sword)
-                return "Sword";
+            dominantWeapon = DDAController.Instance.currentPlayerDominantWeapon;
         }
 
-        return "Sword";
+        if (dominantWeapon != WeaponType.Sword && dominantWeapon != WeaponType.Bow)
+        {
+            dominantWeapon = GetCurrentActivePlayerWeapon();
+        }
+
+        if (dominantWeapon != WeaponType.Sword && dominantWeapon != WeaponType.Bow)
+        {
+            dominantWeapon = selectedPlayerWeapon;
+        }
+
+        return ConvertWeaponToBossKey(dominantWeapon);
     }
 }

@@ -205,9 +205,11 @@ public class GameOverOnPlayerDeath : MonoBehaviour
         triggered = true;
 
         Time.timeScale = 1f;
+        AudioListener.pause = false;
 
-        Debug.Log("[GAME OVER] Player mati. Memuat scene: " + gameOverSceneName);
+        StageManager.RequestFreshRunOnNextGameplayLoad();
 
+        Debug.Log("[GAME OVER] Player mati. Fresh run ditandai. Memuat scene: " + gameOverSceneName);
         SceneManager.LoadSceneAsync(gameOverSceneName, LoadSceneMode.Single);
     }
 }

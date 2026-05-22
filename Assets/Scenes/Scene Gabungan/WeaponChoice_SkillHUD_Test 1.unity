@@ -188,6 +188,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gameplaySceneName: Sprite_SwordEnemyAI
+  mainMenuSceneName: MainMenu
+  useHardResetBypass: 1
+  singletonsToDestroy:
+  - DataTracker
+  - DDAController
+  - StageManager
+  - Player
 --- !u!114 &9225206
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2770,7 +2777,7 @@ GameObject:
   - component: {fileID: 862718972}
   m_Layer: 0
   m_Name: MinionSpawn
-  m_TagString: Untagged
+  m_TagString: Spawn
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -3796,7 +3803,7 @@ GameObject:
   - component: {fileID: 1017857286}
   m_Layer: 0
   m_Name: MinionSpawn (2)
-  m_TagString: Untagged
+  m_TagString: Spawn
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -4370,6 +4377,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: c7bacff34b953d149a7fb99df2c756e5, type: 3}
+--- !u!114 &1303456729 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3019785914136632114, guid: c7bacff34b953d149a7fb99df2c756e5, type: 3}
+  m_PrefabInstance: {fileID: 1303456728}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53a158118594bf04d8dede1dc7fef1e9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1321556954
 GameObject:
   m_ObjectHideFlags: 0
@@ -4420,7 +4438,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 158c440fb7710744e931a3430206f7c7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerCharacter: {fileID: 0}
+  playerCharacter: {fileID: 1303456729}
   autoFindPlayer: 1
   playerTag: Player
   autoFindInterval: 0.25
@@ -4438,7 +4456,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 703c5b5b95189294e9cbd98981d05385, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameplaySceneName: Gabungan_PlayerBow_EnemyAI_Test
+  gameplaySceneName: WeaponChoice_SkillHUD_Test 1
+  mainMenuSceneName: MainMenu
+  useHardResetBypass: 1
+  singletonsToDestroy:
+  - DataTracker
+  - DDAController
+  - StageManager
+  - Player
 --- !u!114 &1321556958
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6136,7 +6161,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1842716736
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6179,7 +6204,7 @@ MonoBehaviour:
   bossPrefabSword: {fileID: 1718376399928103269, guid: 5ac3b8af5f0075e4db0d8d669fd9126b, type: 3}
   bossPrefabBow: {fileID: 1718376399928103269, guid: 31cdc560879ab6041935da80e59b4b70, type: 3}
   bossSpawnPoint: {fileID: 342031991}
-  bossHPBarUI: {fileID: 0}
+  bossHPBarUI: {fileID: 1442367955}
   autoFindBossHPBarUI: 1
   disableBossCollidersOnDefeat: 1
   untagBossOnDefeat: 1
@@ -6196,6 +6221,15 @@ MonoBehaviour:
   finalizeDataAfterBoss: 0
   resetDDAAndDataTrackerOnStageCleared: 1
   preserveDDAProfileForNextStage: 1
+  consumeFreshRunRequestOnStart: 1
+  resetDDAProfileOnFreshRun: 1
+  movePlayerToSpawnOnFreshRun: 1
+  resetPlayerHealthOnFreshRun: 1
+  destroyRuntimeCombatObjectsOnFreshRun: 1
+  freshRunDestroyTags:
+  - Enemy
+  - Spawn
+  - Projectile
   waitUntilPlayerWeaponSelectedBeforeStart: 1
   preferPrefabSwitchActivePlayer: 1
   blackScreenCanvasGroup: {fileID: 0}
@@ -6237,7 +6271,7 @@ MonoBehaviour:
   showBowSkillDebugPanel: 0
   bowSkillDebugTitle: BOW SKILL DEBUG
   activePlayerWeapon: 0
-  playerTransform: {fileID: 0}
+  playerTransform: {fileID: 310187258}
   enemyTransform: {fileID: 7686073481702737145, guid: 5ac3b8af5f0075e4db0d8d669fd9126b, type: 3}
   distanceCheckInterval: 0.1
   idleMovementThreshold: 0.03
@@ -6274,7 +6308,7 @@ GameObject:
   - component: {fileID: 1945668068}
   m_Layer: 0
   m_Name: MinionSpawn (1)
-  m_TagString: Untagged
+  m_TagString: Spawn
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
