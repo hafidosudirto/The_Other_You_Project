@@ -197,8 +197,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9be7bda4c6c5c244984863a3e9db8c43, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHP: 1000
-  currentHP: 1000
+  maxHP: 50
+  currentHP: 50
   attack: 10
   defense: 5
   moveSpeed: 5
@@ -231,6 +231,12 @@ MonoBehaviour:
   horizontalAttackOffset: 0
   attackTokens: 3
   isBoss: 0
+  attackStateDuration: 1
+  tokenDeniedRetryDelay: 0.2
+  allowAttackWithoutStageManager: 1
+  hasActiveAttackToken: 0
+  activeAttackersInStage: 0
+  attackTokenCapacityInStage: 0
 --- !u!1 &7539261355186307127
 GameObject:
   m_ObjectHideFlags: 0

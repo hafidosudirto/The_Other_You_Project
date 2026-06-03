@@ -61,6 +61,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1067902324421283712, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: biayaEnergi
+      value: 45
+      objectReference: {fileID: 0}
+    - target: {fileID: 1067902324421283712, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: bonusVyAtas
       value: 4
       objectReference: {fileID: 0}
@@ -136,6 +140,14 @@ PrefabInstance:
       propertyPath: player
       value: 
       objectReference: {fileID: 132980604983064926}
+    - target: {fileID: 4160140468893309881, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: useYLimit
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4160140468893309881, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: allowMoveDown
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4198300544889380950, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0.37
@@ -188,6 +200,10 @@ PrefabInstance:
       propertyPath: titikKaki
       value: 
       objectReference: {fileID: 5483906289002794581}
+    - target: {fileID: 5298149805424230708, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: energyCost
+      value: 60
+      objectReference: {fileID: 0}
     - target: {fileID: 5298149805424230708, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: arrowPrefab
       value: 
@@ -285,6 +301,10 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 5483906289002794581}
     - target: {fileID: 5687928950400297159, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: biayaEnergi
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5687928950400297159, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: arrowColor.b
       value: 0.7686275
       objectReference: {fileID: 0}
@@ -326,6 +346,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5687928950400297159, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: resetTrailSaatSpawn
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5687928950400297159, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: paksaNancepKeTitikKakiSaatTimeout
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5820430128038870224, guid: 0567007f4c00b474a971db7921c69e57, type: 3}

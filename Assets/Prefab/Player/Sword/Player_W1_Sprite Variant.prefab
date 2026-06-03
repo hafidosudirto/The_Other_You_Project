@@ -8,6 +8,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 497706870744875888, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: energyCost
+      value: 25
+      objectReference: {fileID: 0}
     - target: {fileID: 1718376399928103269, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: m_Name
       value: Player_W1_Sprite Variant
@@ -40,6 +44,10 @@ PrefabInstance:
       propertyPath: minTimeBeforeChain
       value: 0.09
       objectReference: {fileID: 0}
+    - target: {fileID: 3802485017805506531, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: energyCost
+      value: 35
+      objectReference: {fileID: 0}
     - target: {fileID: 4160140468893309881, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: anim
       value: 
@@ -48,6 +56,26 @@ PrefabInstance:
       propertyPath: player
       value: 
       objectReference: {fileID: 7456105813554528496}
+    - target: {fileID: 4160140468893309881, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: useXLimit
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4160140468893309881, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: useYLimit
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4160140468893309881, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: maxXPosition
+      value: -5.345674
+      objectReference: {fileID: 0}
+    - target: {fileID: 4160140468893309881, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: minXPosition
+      value: 1.6
+      objectReference: {fileID: 0}
+    - target: {fileID: 4160140468893309881, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: allowMoveDown
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4216314037193274967, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: m_LocalScale.x
       value: 6.2669783
@@ -71,6 +99,14 @@ PrefabInstance:
     - target: {fileID: 4216314037193274967, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: m_LocalPosition.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5032635997263216504, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: energyCost
+      value: 55
+      objectReference: {fileID: 0}
+    - target: {fileID: 5032635997263216504, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: damageMultiplier
+      value: 0.25
       objectReference: {fileID: 0}
     - target: {fileID: 5387256162423111338, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: anim
@@ -219,6 +255,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 1718376399928103269, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       insertIndex: 3
       addedObject: {fileID: 5597017654886507271}
+    - targetCorrespondingSourceObject: {fileID: 1718376399928103269, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 9133870004685489443}
   m_SourcePrefab: {fileID: 100100000, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
 --- !u!114 &2210724808990204181 stripped
 MonoBehaviour:
@@ -282,6 +321,42 @@ CapsuleCollider2D:
   m_Offset: {x: 0.2, y: -0.16}
   m_Size: {x: 0.67, y: 1.66}
   m_Direction: 0
+--- !u!114 &9133870004685489443
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6433921802813180583}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 92a782143290cba4697b3434f8804f59, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerAnimator: {fileID: 7112847830760851485}
+  layerIndex: 0
+  layerNameForIsName: Base Layer
+  chargingBoolParameter: isCharging
+  slashComboStateNames:
+  - Slash_Combo1
+  - Slash_Combo2
+  chargedStartStateNames:
+  - Charged_Start
+  chargedStrikeStateNames:
+  - Charged_Strike
+  whirlwindStateNames:
+  - Whirlwind
+  dashStateNames:
+  - Dash
+  riposteStateNames:
+  - Riposte_Ready
+  - Riposte_Parry
+  - Riposte_Counter
+--- !u!95 &7112847830760851485 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 3180929586462168031, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+  m_PrefabInstance: {fileID: 5661314941159939010}
+  m_PrefabAsset: {fileID: 0}
 --- !u!114 &7456105813554528496 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 3019785914136632114, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}

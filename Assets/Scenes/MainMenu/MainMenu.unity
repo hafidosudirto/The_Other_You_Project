@@ -683,7 +683,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 991e03b8e9ccfe54c98e48689297a0ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameplaySceneName: WeaponChoice_SkillHUD_Test 1
+  gameplaySceneName: SceneUtama
   mainMenuSceneName: MainMenu
   menuItems:
   - itemName: Start Game
@@ -691,8 +691,8 @@ MonoBehaviour:
     highlightTarget: {fileID: 1945144823}
     interactable: 1
     command: 1
-    sceneNameOverride: 
-    panelToOpen: {fileID: 0}
+    sceneNameOverride: SceneUtama
+    panelToOpen: {fileID: 1945144822}
   - itemName: Quit Game
     text: {fileID: 64643452}
     highlightTarget: {fileID: 0}
