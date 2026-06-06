@@ -28,6 +28,12 @@ public class MinionMeleeController : Enemy
     public float separationRadius = 1.5f;
     public float separationWeight = 2f;
 
+    [Tooltip("Sebaran 'jalur' (lane) vertikal acak tiap minion sebagai pecahan dari attackYTolerance, " +
+             "agar minion tidak menyerang dari baris Y yang sama persis (anti baris-berbaris). " +
+             "0 = semua sejajar, 1 = sebaran penuh.")]
+    [Range(0f, 1f)]
+    public float attackLaneSpread = 0.7f;
+
     [Header("Horizontal Attack & Stage Bounds")]
     [Tooltip("Jika aktif, minion hanya boleh melakukan pendekatan dan hit serangan secara horizontal ketika siap menyerang.")]
     public bool horizontalAttackOnly = true;
@@ -77,6 +83,10 @@ public class MinionMeleeController : Enemy
 
     private float assignedOrbitAngle;
 
+    // Faktor jalur (lane) vertikal personal [-1..1]. Di-roll sekali di Awake agar tiap minion
+    // menyerang dari baris Y yang sedikit berbeda dan tidak membentuk satu garis "baris-berbaris".
+    private float laneOffsetFactor;
+
     private bool isDead = false;
     private int damagedStateHash;
 
@@ -97,6 +107,7 @@ public class MinionMeleeController : Enemy
         FindStageManager();
 
         assignedOrbitAngle = Random.Range(0f, 360f) * Mathf.Deg2Rad;
+        laneOffsetFactor = Random.Range(-1f, 1f);
         ClampPositionToStageY();
     }
 
@@ -254,7 +265,6 @@ public class MinionMeleeController : Enemy
 
         float distToPlayer = Vector2.Distance(minionPosition, playerPosition);
         float horizontalDistance = Mathf.Abs(playerPosition.x - minionPosition.x);
-        float verticalDistance = Mathf.Abs(playerPosition.y - minionPosition.y);
 
         if (distToPlayer > detectionRange)
         {
@@ -272,12 +282,20 @@ public class MinionMeleeController : Enemy
         {
             if (horizontalAttackOnly)
             {
-                bool isAlignedOnY = verticalDistance <= attackYTolerance;
+                // Tiap minion menuju "jalur" (lane) Y personal di sekitar player, bukan tepat di
+                // player.position.y. Ini memecah barisan agar minion tidak menyerang dari satu
+                // garis Y yang sama (anti baris-berbaris). Offset tetap di dalam attackYTolerance
+                // sehingga serangan horizontal masih mengenai player.
+                float laneOffsetY = laneOffsetFactor * attackYTolerance * attackLaneSpread;
+                float laneTargetY = playerPosition.y + laneOffsetY;
+                float verticalDistanceToLane = Mathf.Abs(laneTargetY - minionPosition.y);
+
+                bool isAlignedOnY = verticalDistanceToLane <= attackYTolerance;
 
                 if (!isAlignedOnY)
                 {
                     // Koreksi jalur dilakukan vertikal terlebih dahulu, bukan diagonal.
-                    float yDirection = Mathf.Sign(playerPosition.y - minionPosition.y);
+                    float yDirection = Mathf.Sign(laneTargetY - minionPosition.y);
                     moveDirection = new Vector2(0f, yDirection);
                 }
                 else

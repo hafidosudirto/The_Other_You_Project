@@ -63,14 +63,9 @@ public class StageStatManager : MonoBehaviour
     // ---------------------------------------------------------------------
 
     [Header("Concurrent Minion Attack Token Progression")]
-    [Tooltip("Jika aktif, batas token awal dihitung dari StageManager.baseSpawnToken * initialTokenRatioFromBaseMinion, lalu dibulatkan.")]
-    public bool deriveBaseMinionAttackTokenFromBaseMinionRatio = true;
-    [Range(0f, 2f)]
-    public float initialTokenRatioFromBaseMinion = 0.7f;
-    [Tooltip("Batas dasar jumlah minion yang boleh menyerang secara bersamaan. Dipakai jika derive... = false.")]
-    public int baseMinionAttackToken = 2;
-    [Tooltip("Kenaikan batas jumlah minion yang boleh menyerang secara bersamaan setiap stage.")]
-    public int minionAttackTokenIncreasePerStage = 2;
+    [Tooltip("Batas token = RoundToInt(jumlah minion stage ini * rasio ini). Contoh: 5 minion * 0.7 = 3.5 → dibulatkan 4.")]
+    [Range(0f, 1f)]
+    public float minionToTokenRatio = 0.7f;
 
     [Header("Concurrent Attack Token Runtime")]
     [Tooltip("Jika true, minion tetap boleh menyerang ketika data runtime tidak ditemukan. Mencegah prefab lama terkunci total.")]
@@ -156,19 +151,15 @@ public class StageStatManager : MonoBehaviour
         return 1f + (amplify * stageProgressionIndex);
     }
 
-    /// <summary>Kapasitas global token: jumlah maksimal minion yang boleh menyerang bersamaan pada stage tsb.</summary>
+    /// <summary>Kapasitas global token: jumlah maksimal minion yang boleh menyerang bersamaan pada stage tsb.
+    /// Formula: RoundToInt(totalMinions * minionToTokenRatio), minimal 1.</summary>
     public int CalculateMinionAttackTokens(int stageProgressionIndex)
     {
-        int baseSpawnToken = manager != null ? manager.baseSpawnToken : 3;
+        int totalMinions = manager != null
+            ? manager.CalculateTotalMinions(stageProgressionIndex)
+            : (3 + stageProgressionIndex);
 
-        int resolvedBaseMinionAttackToken = deriveBaseMinionAttackTokenFromBaseMinionRatio
-            ? Mathf.RoundToInt(baseSpawnToken * initialTokenRatioFromBaseMinion)
-            : baseMinionAttackToken;
-
-        return Mathf.Max(
-            0,
-            resolvedBaseMinionAttackToken + (minionAttackTokenIncreasePerStage * stageProgressionIndex)
-        );
+        return Mathf.Max(1, Mathf.RoundToInt(totalMinions * minionToTokenRatio));
     }
 
     /// <summary>Terapkan amplifikasi stat (HP, attack, defense, moveSpeed) ke character.</summary>
