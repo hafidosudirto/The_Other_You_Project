@@ -287,6 +287,9 @@ public class CharacterBase : MonoBehaviour
         currentHP = Mathf.Clamp(currentHP - finalDamage, 0f, Mathf.Max(1f, maxHP));
         OnHealthChanged?.Invoke();
 
+        if (TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordDamage(this, attacker, finalDamage);
+
         if (currentHP <= 0f)
             Die();
     }
@@ -295,6 +298,10 @@ public class CharacterBase : MonoBehaviour
     {
         if (DataTracker.Instance != null)
             DataTracker.Instance.RecordAction(PlayerActionType.Defensive, WeaponType.Sword);
+
+        // Parry/riposte = aksi defensif reaktif terhadap serangan musuh.
+        if (this is Player && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordReactionResponse();
 
         Sword_Riposte riposte = GetComponentInChildren<Sword_Riposte>(true);
 
@@ -417,6 +424,9 @@ public class CharacterBase : MonoBehaviour
         hasDied = true;
 
         Debug.Log($"{name} MATI");
+
+        if (this is Player && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordPlayerDeath();
 
         OnDied?.Invoke(this);
 

@@ -590,7 +590,54 @@ public class StageManager : MonoBehaviour
             bossHPBarUI.Hide();
         }
 
+        if (TelemetryLogger.Instance != null)
+        {
+            TelemetryLogger.Instance.SetSessionWeapon(ConvertWeaponToBossKey(GetCurrentActivePlayerWeapon()));
+            TelemetryLogger.Instance.BeginStage(GetDisplayedStageNumber());
+        }
+
         ChangeState(StageState.SpawningMinions);
+    }
+
+    /// <summary>
+    /// Menulis satu baris telemetry stage_summary. Dipanggil <see cref="FightingBossPhase"/> saat boss
+    /// kalah, SEBELUM <see cref="ApplyStageClearedDDAReset"/> agar bobot/playstyle DDA masih utuh.
+    /// </summary>
+    public void WriteTelemetryStageSummary()
+    {
+        if (TelemetryLogger.Instance == null)
+            return;
+
+        int profileVersion = DDAController.Instance != null ? DDAController.Instance.ProfileVersion : 0;
+        string playstyle = GetPlayerPlaystyleFromDDA();
+        string dominantWeapon = GetDominantWeaponFromDDA();
+
+        float[] swordWeights = DDAController.Instance != null
+            ? DDAController.Instance.GetCurrentSwordSkillWeightsCopy()
+            : null;
+        float[] bowWeights = DDAController.Instance != null
+            ? DDAController.Instance.GetCurrentBowSkillWeightsCopy()
+            : null;
+
+        CharacterBase player = GetPlayerCharacter();
+        float maxHp = player != null ? player.maxHP : 0f;
+        float attack = player != null ? player.attack : 0f;
+
+        TelemetryLogger.Instance.LogStageSummary(
+            GetDisplayedStageNumber(),
+            profileVersion,
+            playstyle,
+            dominantWeapon,
+            dominantWeapon, // boss meniru senjata dominan player
+            statManager.lastStageMeleeCount,
+            statManager.lastStageRangeCount,
+            statManager.lastStageTotalMinions,
+            statManager.lastStageMinionAttackTokens,
+            statManager.lastStageStatMultiplier,
+            maxHp,
+            attack,
+            swordWeights,
+            bowWeights);
     }
 
     // =====================================================================

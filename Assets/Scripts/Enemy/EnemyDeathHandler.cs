@@ -37,6 +37,14 @@ public class EnemyDeathHandler : MonoBehaviour
         if (stageManager == null)
             stageManager = FindObjectOfType<StageManager>();
 
+        // Catat kematian ke telemetry. Saat state FightingBoss, musuh yang mati = boss.
+        if (TelemetryLogger.Instance != null)
+        {
+            bool isBoss = stageManager != null &&
+                          stageManager.CurrentState == StageManager.StageState.FightingBoss;
+            TelemetryLogger.Instance.RecordEnemyKilled(isBoss);
+        }
+
         // Laporkan kematian ke StageManager untuk memicu kemunculan Boss
         if (stageManager != null)
             stageManager.OnEnemyDied();

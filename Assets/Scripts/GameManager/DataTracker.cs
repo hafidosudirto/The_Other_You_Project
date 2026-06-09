@@ -350,6 +350,10 @@ public class DataTracker : MonoBehaviour
 
         AddWeaponUsage(weaponType);
 
+        // Dash = aksi defensif; jika menyusul stimulus musuh, dihitung sebagai reaksi.
+        if (TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordReactionResponse();
+
         DebugHub.DDA(
             $"Defense Dash Recorded -> O={offensiveCount}, D={defensiveCount}, " +
             $"Dash={dashCount}, Riposte={riposteCount}, Weapon={lastUsedWeapon}"
@@ -371,6 +375,9 @@ public class DataTracker : MonoBehaviour
 
         if (slot == SwordSkillSlot.Riposte)
             riposteCount++;
+
+        if (TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordSkillCast(WeaponType.Sword, slot.ToString(), actionType);
 
         RecordSwordSkillForDebug(slot);
 
@@ -420,6 +427,14 @@ public class DataTracker : MonoBehaviour
 
         if (slot == BowSkillSlot.ConcussiveShot)
             bowConcussiveCount++;
+
+        if (TelemetryLogger.Instance != null)
+        {
+            PlayerActionType bowAction = slot == BowSkillSlot.ConcussiveShot
+                ? PlayerActionType.Defensive
+                : PlayerActionType.Offensive;
+            TelemetryLogger.Instance.RecordSkillCast(WeaponType.Bow, slot.ToString(), bowAction);
+        }
 
         RecordBowSkillForDebug(slot);
 
@@ -592,6 +607,12 @@ public class DataTracker : MonoBehaviour
             $"BowSkillCounts=[{bowSkillCounts[0]}, {bowSkillCounts[1]}, {bowSkillCounts[2]}, {bowSkillCounts[3]}, {bowSkillCounts[4]}], " +
             $"Defense=[Dash={dashCount}, Riposte={riposteCount}, Concussive={bowConcussiveCount}]"
         );
+
+        // Simpan snapshot per-stage SEBELUM di-reset, untuk baris telemetry stage_summary.
+        if (TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.CaptureStageProfileSnapshot(
+                offensiveCount, defensiveCount, dashCount, riposteCount,
+                bowConcussiveCount, swordUsageCount, bowUsageCount);
 
         ResetData();
     }

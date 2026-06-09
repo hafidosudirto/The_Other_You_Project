@@ -225,6 +225,9 @@ public class FightingBossPhase : StagePhaseBase
         // Finalisasi DDA setelah boss (jika diaktifkan).
         Manager.FinalizeDDAAfterBossIfNeeded();
 
+        // Tulis baris telemetry stage_summary SEBELUM DDA di-reset agar bobot/playstyle masih utuh.
+        Manager.WriteTelemetryStageSummary();
+
         Manager.HideBossHPBar();
 
         currentBossCharacter = null;
