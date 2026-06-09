@@ -375,6 +375,10 @@ public class Bow_SpreadArrow : MonoBehaviour, ISkill, IEnergySkill
     )]
     public bool panahMenembus = false;
 
+    [Header("Stagger / Tuning")]
+    [Tooltip("Atur stagger tiap hit Spread Arrow.\nImmunity duration diatur terpusat di StaggerCooldownSettings asset.")]
+    [SerializeField] private SkillStaggerConfig staggerConfig = new SkillStaggerConfig();
+
     [Header("Timing")]
     [Tooltip(
         "Cooldown skill setelah dipakai.\n\n" +
@@ -741,6 +745,7 @@ public class Bow_SpreadArrow : MonoBehaviour, ISkill, IEnergySkill
         {
             arrowDamage.owner = pemilikEnergi;
             arrowDamage.SetStats(damageSpread, dorongMundur, lumpuhSingkat, panahMenembus, false);
+            arrowDamage.SetStaggerConfig(staggerConfig);
         }
 
         SetupProjectileSfx(panahObj, true, true);

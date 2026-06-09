@@ -13,6 +13,19 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill, ISkillCoold
     public float attackAngle2 = 90f;
     public Vector2 hitOffset2 = new Vector2(0.5f, 0f);
 
+    [Header("Damage / Tuning")]
+    [Tooltip("Atur angka damage flat tiap ayunan combo di sini (Slash1 & Slash2 terpisah).\n" +
+             "Damage = angka pasti, TIDAK dikali player.attack (sama seperti damageQuickShot).")]
+    [SerializeField] private SwordSlashComboDamage damageConfig = new SwordSlashComboDamage();
+
+    [Header("Stagger / Tuning")]
+    [Tooltip("Atur stagger tiap ayunan Slash Combo.\nImmunity duration diatur terpusat di StaggerCooldownSettings asset.")]
+    [SerializeField] private SkillStaggerConfig staggerConfig = new SkillStaggerConfig
+    {
+        knockbackForce = 3f,
+        staggerDuration = 0.2f
+    };
+
     [Header("Timing Settings (detik)")]
     [Tooltip("Waktu dari awal animasi Slash1 sampai hitbox Slash1 aktif.")]
     public float delaySlash1 = 0.18f;
@@ -376,7 +389,9 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill, ISkillCoold
 
             if (angleBetween <= angle * 0.5f)
             {
-                target.TakeDamage(character.attack);
+                float dmg = isSlash2Phase ? damageConfig.damageSlash2 : damageConfig.damageSlash1;
+                target.TakeDamage(dmg);
+                staggerConfig.Apply(target, toTarget);
                 hasHit = true;
 
                 if (!playHitSfxOncePerSlash)

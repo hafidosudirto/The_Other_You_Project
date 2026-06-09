@@ -19,6 +19,9 @@ public class ConcussiveHitArea : MonoBehaviour
     [Tooltip("Pemilik ledakan ini. Biasanya diisi otomatis saat Concussive dibuat.")]
     public CharacterBase owner;
 
+    // Stagger config dari Bow_ConcussiveShot — dikirim setelah Setup().
+    [HideInInspector] public SkillStaggerConfig staggerConfig;
+
     [Header("Target Filter")]
     [Tooltip("Layer target yang boleh kena ledakan. Biasanya diarahkan ke Enemy.")]
     public LayerMask hitMask = ~0;
@@ -75,18 +78,21 @@ public class ConcussiveHitArea : MonoBehaviour
             target.TakeDamage(damageLedak, source);
         }
 
-        // Knockback ledak dipaksa horizontal
-        if (dorongLedak > 0f)
+        // Arah ledak: selalu menjauh dari titik ledakan
+        float arahX     = target.transform.position.x >= transform.position.x ? 1f : -1f;
+        Vector2 arahLedak = new Vector2(arahX, 0f);
+
+        if (staggerConfig != null && staggerConfig.aktif)
         {
-            float arahX = target.transform.position.x >= transform.position.x ? 1f : -1f;
-            Vector2 arahDorong = new Vector2(arahX, 0f);
-            target.ApplyKnockback(arahDorong, dorongLedak);
+            staggerConfig.Apply(target, arahLedak);
+        }
+        else if (dorongLedak > 0f)
+        {
+            target.ApplyKnockback(arahLedak, dorongLedak);
         }
 
         if (stunLedak > 0f)
-        {
             target.ApplyStun(stunLedak);
-        }
     }
 
 #if UNITY_EDITOR

@@ -22,16 +22,23 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill, ISkillCo
 
     [Header("Charge Settings")]
     public float maxChargeTime = 2.0f;
-    public float minDamageMultiplier = 1f;
-    public float maxDamageMultiplier = 3f;
+
+    [Header("Damage / Tuning")]
+    [Tooltip("Atur angka damage flat Charged Strike di sini (damage minimum & maksimum sesuai charge).\n" +
+             "Damage = angka pasti, TIDAK dikali player.attack (sama seperti damageQuickShot).")]
+    [SerializeField] private SwordChargedStrikeDamage damageConfig = new SwordChargedStrikeDamage();
 
     [Header("Attack Settings")]
     public float attackRadius = 1.6f;
     public float attackAngle = 100f;
 
-    [Header("Stagger Settings")]
-    public float knockbackForce = 8f;
-    public float stunDuration = 0.4f;
+    [Header("Stagger / Tuning")]
+    [Tooltip("Atur stagger tiap hit Charged Strike.\nImmunity duration diatur terpusat di StaggerCooldownSettings asset.")]
+    [SerializeField] private SkillStaggerConfig staggerConfig = new SkillStaggerConfig
+    {
+        knockbackForce = 8f,
+        staggerDuration = 0.4f
+    };
 
     [Header("Strike Timing (Percent of strike clip length)")]
     [Range(0f, 1f)] public float strikeActiveStart = 0.35f;
@@ -198,10 +205,9 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill, ISkillCo
             DataTracker.Instance.RecordSwordChargedStrike();
 
         float chargePercent = (maxChargeTime > 0f) ? (chargeTimer / maxChargeTime) : 1f;
-        float multiplier = Mathf.Lerp(minDamageMultiplier, maxDamageMultiplier, chargePercent);
-        multiplier = Mathf.Round(multiplier);
+        float damage = damageConfig.HitungDamage(chargePercent);
 
-        yield return StartCoroutine(StrikeRoutine(multiplier));
+        yield return StartCoroutine(StrikeRoutine(damage));
 
         runningRoutine = null;
     }
@@ -244,7 +250,7 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill, ISkillCo
         chargeTimer = 0f;
     }
 
-    private IEnumerator StrikeRoutine(float multiplier)
+    private IEnumerator StrikeRoutine(float damage)
     {
         isRecovering = true;
 
@@ -274,7 +280,7 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill, ISkillCo
         if (playReleaseSfxOnActiveFrame)
             PlayReleaseSfx();
 
-        PerformChargedStrike(multiplier);
+        PerformChargedStrike(damage);
 
         float activeDur = Mathf.Max(0f, endT - startT);
         if (activeDur > 0f)
@@ -303,7 +309,7 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill, ISkillCo
         return strikeClipFallbackLength;
     }
 
-    private void PerformChargedStrike(float multiplier)
+    private void PerformChargedStrike(float damage)
     {
         if (!player) return;
 
@@ -325,11 +331,10 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill, ISkillCo
 
             if (angle <= attackAngle * 0.5f)
             {
-                float damage = player.attack * multiplier;
                 target.TakeDamage(damage, null);
 
                 Vector2 knockDir = (target.transform.position - origin).normalized;
-                target.ApplyStagger(knockDir, knockbackForce, stunDuration);
+                staggerConfig.Apply(target, knockDir);
 
                 hasHit = true;
 

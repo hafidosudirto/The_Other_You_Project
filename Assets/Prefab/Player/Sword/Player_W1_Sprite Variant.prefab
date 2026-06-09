@@ -12,6 +12,10 @@ PrefabInstance:
       propertyPath: energyCost
       value: 25
       objectReference: {fileID: 0}
+    - target: {fileID: 497706870744875888, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: staggerConfig.knockbackForce
+      value: 6
+      objectReference: {fileID: 0}
     - target: {fileID: 1718376399928103269, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: m_Name
       value: Player_W1_Sprite Variant
@@ -43,6 +47,18 @@ PrefabInstance:
     - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: minTimeBeforeChain
       value: 0.09
+      objectReference: {fileID: 0}
+    - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: damageConfig.damageSlash1
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: damageConfig.damageSlash2
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: staggerConfig.knockbackForce
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 3802485017805506531, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: energyCost
@@ -107,6 +123,10 @@ PrefabInstance:
     - target: {fileID: 5032635997263216504, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: damageMultiplier
       value: 0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: 5032635997263216504, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: staggerConfig.knockbackForce
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 5387256162423111338, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: anim

@@ -13,6 +13,10 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill, IEnergySkill, ISkillCoold
     [Header("Damage Settings")]
     public float damage = 10f;
 
+    [Header("Stagger / Tuning")]
+    [Tooltip("Atur stagger tiap hit Piercing Shot.\nImmunity duration diatur terpusat di StaggerCooldownSettings asset.")]
+    [SerializeField] private SkillStaggerConfig staggerConfig = new SkillStaggerConfig();
+
     [Header("Animation")]
     public PlayerAnimation anim;
 
@@ -141,6 +145,7 @@ public class Bow_PiercingShot : MonoBehaviour, ISkill, IEnergySkill, ISkillCoold
         {
             dmg.SetOwner(character);
             dmg.SetStats(damage, 0f, 0f, true, false);
+            dmg.SetStaggerConfig(staggerConfig);
         }
 
         NotifyDataTrackerPiercingShot();

@@ -28,6 +28,19 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldown
     public float hitRadius = 0.8f;
     public LayerMask enemyLayer;
 
+    [Header("Damage / Tuning")]
+    [Tooltip("Atur angka damage flat Riposte di sini.\n" +
+             "Damage = angka pasti, TIDAK dikali player.attack (sama seperti damageQuickShot).")]
+    [SerializeField] private SwordRiposteDamage damageConfig = new SwordRiposteDamage();
+
+    [Header("Stagger / Tuning")]
+    [Tooltip("Atur stagger tiap hit Riposte.\nImmunity duration diatur terpusat di StaggerCooldownSettings asset.")]
+    [SerializeField] private SkillStaggerConfig staggerConfig = new SkillStaggerConfig
+    {
+        knockbackForce = 5f,
+        staggerDuration = 0.3f
+    };
+
     private bool isDashing = false;
     private Vector3 dashStart;
     private Vector3 dashTarget;
@@ -274,7 +287,7 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldown
 
             if (character != null)
             {
-                character.isRiposteStance = false;
+                character.EndRiposteStance();
             }
 
             if (player != null)
@@ -316,7 +329,8 @@ public class Sword_Riposte : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldown
 
             if (enemy != null && enemy != character)
             {
-                enemy.TakeDamage(character.attack);
+                enemy.TakeDamage(damageConfig.damageRiposte);
+                staggerConfig.Apply(enemy, direction);
                 hasHit = true;
 
                 if (!playHitSfxOncePerCounter)

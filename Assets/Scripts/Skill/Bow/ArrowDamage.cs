@@ -24,6 +24,10 @@ public class ArrowDamage : MonoBehaviour
     [HideInInspector] public float knockbackForce = 0f;
     [HideInInspector] public float stunDuration = 0f;
 
+    // Stagger config dari skill — dikirim via SetStaggerConfig().
+    // Jika null, pakai knockback lama tanpa immunity.
+    [HideInInspector] public SkillStaggerConfig staggerConfig;
+
     private Rigidbody2D rb;
 
     void Awake()
@@ -54,6 +58,11 @@ public class ArrowDamage : MonoBehaviour
         stunDuration = stun;
         piercing = isPiercing;
         concussive = isConcussive;
+    }
+
+    public void SetStaggerConfig(SkillStaggerConfig config)
+    {
+        staggerConfig = config;
     }
 
     private void OnTriggerEnter2D(Collider2D other)
@@ -98,32 +107,30 @@ public class ArrowDamage : MonoBehaviour
             target.TakeDamage(baseDamage, source);
         }
 
-        // Knockback selalu dipaksa horizontal
-        if (knockbackForce > 0f)
+        // Hitung arah knockback/stagger (selalu horizontal)
+        float arahX = 0f;
+        if (rb != null && Mathf.Abs(rb.velocity.x) > 0.0001f)
+            arahX = Mathf.Sign(rb.velocity.x);
+        else if (owner != null)
+            arahX = owner.isFacingRight ? 1f : -1f;
+        else
+            arahX = target.transform.position.x >= transform.position.x ? 1f : -1f;
+
+        Vector2 arahDorong = new Vector2(arahX, 0f);
+
+        if (staggerConfig != null && staggerConfig.aktif)
         {
-            float arahX = 0f;
-
-            if (rb != null && Mathf.Abs(rb.velocity.x) > 0.0001f)
-            {
-                arahX = Mathf.Sign(rb.velocity.x);
-            }
-            else if (owner != null)
-            {
-                arahX = owner.isFacingRight ? 1f : -1f;
-            }
-            else
-            {
-                arahX = target.transform.position.x >= transform.position.x ? 1f : -1f;
-            }
-
-            Vector2 arahDorong = new Vector2(arahX, 0f);
+            // Pakai stagger config dari skill — immunity check + durasi khusus per skill
+            staggerConfig.Apply(target, arahDorong);
+        }
+        else if (knockbackForce > 0f)
+        {
+            // Fallback: knockback lama (tanpa immunity, durasi 0.15s)
             target.ApplyKnockback(arahDorong, knockbackForce);
         }
 
         if (stunDuration > 0f)
-        {
             target.ApplyStun(stunDuration);
-        }
     }
 
 #if UNITY_EDITOR

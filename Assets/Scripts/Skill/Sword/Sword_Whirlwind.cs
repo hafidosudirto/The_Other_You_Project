@@ -1,23 +1,29 @@
 using UnityEngine;
 using System.Collections;
-using System.Collections.Generic;
 
 public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldownInfo, ISkillReadinessInfo
 {
     [Header("Whirlwind Settings")]
     public float radius = 2f;
     public float duration = 1.5f;
-    public float damageMultiplier = 1.2f;
     public float hitInterval = 0.3f;
+
+    [Header("Damage / Tuning")]
+    [Tooltip("Atur angka damage flat per tick Whirlwind di sini.\n" +
+             "Damage = angka pasti, TIDAK dikali player.attack (sama seperti damageQuickShot).")]
+    [SerializeField] private SwordWhirlwindDamage damageConfig = new SwordWhirlwindDamage();
 
     [Header("Movement")]
     [Tooltip("Rasio kecepatan selama Whirlwind (0 = diam, 1 = normal).")]
     public float speedMultiplierWhileActive = 0.4f;
 
-    [Header("Stagger / Knockback")]
-    public float knockForce = 2.5f;
-    public float staggerDuration = 0.35f;
-    public float staggerCooldown = 0.7f;
+    [Header("Stagger / Tuning")]
+    [Tooltip("Atur stagger tiap tick Whirlwind.\nImmunity duration diatur terpusat di StaggerCooldownSettings asset.")]
+    [SerializeField] private SkillStaggerConfig staggerConfig = new SkillStaggerConfig
+    {
+        knockbackForce = 2.5f,
+        staggerDuration = 0.35f
+    };
 
     [Header("SFX Timing")]
     [Tooltip("Aktifkan jika SFX Whirlwind ingin dikendalikan dari script ini, bukan dari Animation Event.")]
@@ -39,8 +45,6 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldo
     private float tDuration;
     private float tHit;
     private float originalSpeed;
-
-    private Dictionary<CharacterBase, float> staggerTimers = new Dictionary<CharacterBase, float>();
 
     [Header("Energy")]
     [SerializeField, Min(0f)] private float energyCost = 10f;
@@ -104,7 +108,6 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldo
             mover.UnlockExternal();
 
         isActive = false;
-        staggerTimers.Clear();
     }
 
     public void TriggerSkill(int slotIndex)
@@ -159,8 +162,6 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldo
         if (anim != null)
             anim.PlayWhirlwind();
 
-        staggerTimers.Clear();
-
         // SFX angin putar diputar satu kali saat Whirlwind pertama kali aktif.
         if (playWhirlwindSfxOnStart)
             PlayWhirlwindSfx();
@@ -182,7 +183,6 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldo
                 tHit = hitInterval;
             }
 
-            UpdateStaggerTimers();
             yield return null;
         }
 
@@ -211,16 +211,12 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldo
             if (target == null || target == player)
                 continue;
 
-            float dmg = player.attack * damageMultiplier;
+            float dmg = damageConfig.damagePerTick;
             target.TakeDamage(dmg);
             hasHit = true;
 
-            if (CanStagger(target))
-            {
-                Vector2 dir = (target.transform.position - player.transform.position).normalized;
-                target.ApplyStagger(dir, knockForce, staggerDuration);
-                staggerTimers[target] = staggerCooldown;
-            }
+            Vector2 dir = (target.transform.position - player.transform.position).normalized;
+            staggerConfig.Apply(target, dir);
 
             if (!playHitSfxOncePerTick)
                 PlayHitSfx();
@@ -253,22 +249,6 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldo
         SFXManager.Instance.PlaySFX(clip);
     }
 
-    private void UpdateStaggerTimers()
-    {
-        var keys = new List<CharacterBase>(staggerTimers.Keys);
-        foreach (CharacterBase cb in keys)
-        {
-            staggerTimers[cb] -= Time.deltaTime;
-            if (staggerTimers[cb] <= 0f)
-                staggerTimers.Remove(cb);
-        }
-    }
-
-    private bool CanStagger(CharacterBase target)
-    {
-        return !staggerTimers.ContainsKey(target);
-    }
-
     private void OnDisable()
     {
         if (player != null)
@@ -281,7 +261,6 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldo
             mover.UnlockExternal();
 
         isActive = false;
-        staggerTimers.Clear();
     }
 
 #if UNITY_EDITOR

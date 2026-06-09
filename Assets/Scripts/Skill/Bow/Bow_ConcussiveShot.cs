@@ -150,6 +150,10 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill, ISkillCoo
     public float stun = 0.35f;
     public float explosionRadius = 5f;
 
+    [Header("Stagger / Tuning")]
+    [Tooltip("Atur stagger tiap hit ledakan Concussive Shot.\nImmunity duration diatur terpusat di StaggerCooldownSettings asset.")]
+    [SerializeField] private SkillStaggerConfig staggerConfig = new SkillStaggerConfig();
+
     [Header("Fallback Hit Area")]
     public Vector2 hitAreaOffset = new Vector2(1.2f, -0.2f);
 
@@ -735,7 +739,10 @@ public class Bow_ConcussiveShot : MonoBehaviour, ISkill, IEnergySkill, ISkillCoo
 
         ConcussiveHitArea hitArea = area.GetComponent<ConcussiveHitArea>();
         if (hitArea != null)
+        {
             hitArea.Setup(player, damage, knockback, stun, explosionRadius);
+            hitArea.staggerConfig = staggerConfig;
+        }
 
         if (enableCameraBump)
         {

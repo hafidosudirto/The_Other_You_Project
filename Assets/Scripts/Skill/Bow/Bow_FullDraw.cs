@@ -107,6 +107,10 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldownI
     [FormerlySerializedAs("piercingStun")]
     public float lumpuhPiercing = 0.25f;
 
+    [Header("Stagger / Tuning")]
+    [Tooltip("Atur stagger tiap hit Full Draw (berlaku untuk normal dan piercing).\nImmunity duration diatur terpusat di StaggerCooldownSettings asset.")]
+    [SerializeField] private SkillStaggerConfig staggerConfig = new SkillStaggerConfig();
+
     [Header("Piercing Lurus")]
     [Tooltip("Jika aktif, Piercing terbang lurus horizontal dan tidak memakai gravity, arrow feel, TitikKaki, atau raycast tanah.")]
     public bool piercingFullLurus = true;
@@ -667,6 +671,7 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldownI
         {
             damagePanah.SetOwner(pemilikEnergi);
             damagePanah.SetStats(damage, knockback, stun, piercing, false);
+            damagePanah.SetStaggerConfig(staggerConfig);
         }
 
         if (playLaunchSfxOnRelease)

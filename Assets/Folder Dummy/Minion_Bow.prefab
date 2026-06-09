@@ -208,19 +208,36 @@ MonoBehaviour:
   animator: {fileID: 891478525830658006}
   skillRootBow: {fileID: 8526268752133191413}
   quickShot: {fileID: 1822752424171837785}
+  projectilePrefab: {fileID: 1692899915983295771, guid: eda8816cfe96bca40ba183b8df7a9492, type: 3}
+  pullProjectileFromQuickShotIfEmpty: 1
   allowMovement: 1
-  minimumRange: 3.5
-  desiredRange: 6
-  attackRange: 7
   moveSpeed: 2
-  verticalAlignSpeed: 2
-  alignYToPlayer: 1
+  rangeMin: 3.5
+  rangeMax: 6
+  hordeRadius: 2.75
+  yAlignTolerance: 0.4
+  attackLaneSpread: 0.6
+  minY: -4
+  maxY: 1.6
+  separationRadius: 1.5
+  separationWeight: 2
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 8
   attackCooldown: 2.5
   attackTokens: 3
+  isBoss: 0
+  allowAttackWithoutStageManager: 1
+  tokenDeniedRetryDelay: 0.3
+  tokenReturnDuration: 2
+  hasActiveAttackToken: 0
+  activeAttackersInStage: 0
+  attackTokenCapacityInStage: 0
   moveSpeedFloat: MoveSpeed
   quickShotBool: QuickShot
   quickShotAnimDuration: 0.45
   fallbackBusyDuration: 0.45
+  retreatSpeedMultiplier: 0.7
   showDebug: 1
 --- !u!1 &3047793432696247020
 GameObject:
@@ -361,6 +378,11 @@ MonoBehaviour:
   cooldown: 0.35
   postShotLock: 0.05
   releaseTimeout: 0.65
+  playSfxFromScript: 1
+  playBowDrawOnCastStart: 1
+  playLaunchSfxOnRelease: 1
+  playGroundMissSfx: 1
+  playHitSfx: 1
 --- !u!1 &5632209356851836178
 GameObject:
   m_ObjectHideFlags: 0
@@ -482,6 +504,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 891478525830658006}
+  spriteRenderer: {fileID: 4184288291677543696}
+  logMissingParameters: 0
+  resetBowTriggersOnEnable: 1
+  clearChargeFlagsOnEnable: 1
+  playSlash1AsFullCombo: 1
+  useEndCurrentActionAsComboBridge: 1
+  slash2TimedFallbackDelay: 0
+  forceSwordAnimationState: 1
+  swordLayerIndex: 0
+  slash1StateName: Slash1
+  slash2StateName: Slash2
+  swordCrossFadeDuration: 0.02
 --- !u!114 &6327091093035424906
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -514,7 +548,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &6300368307221256618
 RectTransform:
   m_ObjectHideFlags: 0

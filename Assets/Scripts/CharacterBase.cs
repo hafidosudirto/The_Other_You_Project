@@ -70,6 +70,8 @@ public class CharacterBase : MonoBehaviour
     public float riposteWindow = 0.6f;
 
     [Header("Stagger Settings")]
+    [Tooltip("Resistensi stagger enemy ini.\n" +
+             "1 = normal. 2 = force dan durasi dibagi 2. 10+ = hampir tidak bisa di-stagger.")]
     public float staggerResistance = 1f;
 
     protected Rigidbody2D rb;
@@ -77,6 +79,11 @@ public class CharacterBase : MonoBehaviour
     private Coroutine stunRoutine;
     private Coroutine staggerRoutine;
     private bool hasDied = false;
+
+    // Immunity timestamp — set oleh TryApplyStagger, dibaca setiap hit masuk.
+    private float _staggerImmunityUntil = -1f;
+
+    public bool IsStaggerImmune => Time.time < _staggerImmunityUntil;
 
     protected virtual void Awake()
     {
@@ -371,6 +378,40 @@ public class CharacterBase : MonoBehaviour
 
         isStaggered = false;
         stunRoutine = null;
+    }
+
+    /// <summary>
+    /// Versi stagger dengan immunity check + respek staggerResistance.
+    /// Dipakai oleh SkillStaggerConfig.Apply() — gunakan ini dari skill player.
+    /// Return true jika stagger berhasil diterapkan, false jika immune.
+    /// </summary>
+    public bool TryApplyStagger(Vector2 direction, float force, float duration)
+    {
+        if (currentHP <= 0f)
+            return false;
+
+        // Cek immunity window
+        if (IsStaggerImmune)
+            return false;
+
+        // Terapkan resistensi (staggerResistance > 1 = lebih tahan)
+        float res             = Mathf.Max(0.1f, staggerResistance);
+        float adjustedForce   = force    / res;
+        float adjustedDuration = duration / res;
+
+        if (adjustedDuration <= 0f)
+            return false;
+
+        // Ambil immunity duration dari ScriptableObject global; fallback ke duration itu sendiri
+        float immunity = adjustedDuration;
+        StaggerCooldownSettings settings = StaggerCooldownSettings.Instance;
+        if (settings != null)
+            immunity = Mathf.Max(adjustedDuration, settings.immunityDuration);
+
+        _staggerImmunityUntil = Time.time + immunity;
+
+        ApplyStagger(direction, adjustedForce, adjustedDuration);
+        return true;
     }
 
     public void ApplyStagger(Vector2 direction, float force, float duration)

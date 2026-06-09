@@ -117,6 +117,27 @@ public class Enemy_Bow_QuickShot : MonoBehaviour, ISkill
         Trigger();
     }
 
+    /// <summary>
+    /// Tembak langsung tanpa cek range / NodeManager.
+    /// Dipakai oleh MinionRangedCombatController yang sudah memeriksa jarak sendiri.
+    /// Tetap menghormati cooldown dan firePoint/arrowPrefab.
+    /// </summary>
+    public void ForceShoot()
+    {
+        if (cooldownRunning) return;
+        if (isCasting) return;
+
+        // Coba cari firePoint jika belum ter-assign (minion tidak selalu punya NodeManager di Awake)
+        if (firePoint == null)
+            firePoint = FindChildRecursive(transform.root, "FirePoint")
+                     ?? FindChildRecursive(transform.root, "ArrowSpawnPoint")
+                     ?? transform;  // fallback: posisi komponen itu sendiri
+
+        if (arrowPrefab == null) return;
+
+        StartCoroutine(CastRoutine());
+    }
+
     private IEnumerator CastRoutine()
     {
         isCasting = true;

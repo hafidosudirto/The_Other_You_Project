@@ -60,6 +60,10 @@ public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldown
     [FormerlySerializedAs("stun")]
     public float lumpuhSingkat = 0.1f;
 
+    [Header("Stagger / Tuning")]
+    [Tooltip("Atur stagger tiap hit Quick Shot.\nImmunity duration diatur terpusat di StaggerCooldownSettings asset.")]
+    [SerializeField] private SkillStaggerConfig staggerConfig = new SkillStaggerConfig();
+
     [Header("Arrow Feel")]
     [Tooltip("Panah mulai turun setelah berapa detik.")]
     public float mulaiTurun = 0.09f;
@@ -408,6 +412,7 @@ public class Bow_QuickShot : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldown
         {
             damagePanah.SetOwner(pemilikEnergi);
             damagePanah.SetStats(damageQuickShot, dorongMundur, lumpuhSingkat, false, false);
+            damagePanah.SetStaggerConfig(staggerConfig);
         }
 
         if (playLaunchSfxOnRelease)

@@ -5811,7 +5811,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1482283382
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6861,7 +6861,7 @@ MonoBehaviour:
   selectedPlayerWeapon: 1
   playerSpawnPoint: {fileID: 813617839}
   meleeMinionPrefab: {fileID: 4509274736977115155, guid: 3f024f814d5040d439008106d80e715f, type: 3}
-  rangeMinionPrefab: {fileID: 4509274736977115155, guid: 3f024f814d5040d439008106d80e715f, type: 3}
+  rangeMinionPrefab: {fileID: 1718376399928103269, guid: 19a6832f674715a4e8ec2c82fdc04fa4, type: 3}
   minionSpawnPoints:
   - {fileID: 862718972}
   - {fileID: 1945668068}
