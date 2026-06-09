@@ -39,6 +39,14 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
 
     private void Awake()
     {
+        // FIX PLAY AGAIN: bersihkan subscriber lama yang sudah destroyed DULU sebelum
+        // singleton check, agar clear ini terjadi sebelum OnEnable() komponen lain
+        // (mis. StageManager) yang mungkin subscribe ke event ini.
+        // CATATAN: ini di-clear di SETIAP instance yang Awake — termasuk instance duplikat
+        // yang akan di-Destroy. Tapi karena Awake komponen berjalan sebelum OnEnable
+        // komponen lain, subscriber baru dari scene ini belum terdaftar saat clear.
+        OnActiveWeaponChanged = null;
+
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -46,6 +54,17 @@ public class PlayerPrefabSwitchManager : MonoBehaviour
         }
 
         Instance = this;
+
+        // FIX PLAY AGAIN: reset static weapon state agar scene reload mendapatkan
+        // state bersih. Tanpa ini, CurrentWeapon dari run sebelumnya (Sword/Bow)
+        // membuat StageManager langsung melewati loop tunggu senjata padahal
+        // player aktual masih Player_W0 (Unarmed).
+        CurrentWeapon = WeaponType.None;
+
+        // Reset instance field hasSwitched agar player bisa memilih senjata lagi
+        // setelah Play Again (hasSwitched sudah false karena instance baru,
+        // tapi eksplisit untuk kejelasan).
+        hasSwitched = false;
     }
 
     private void Start()

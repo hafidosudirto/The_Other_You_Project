@@ -105,7 +105,16 @@ public class DataTracker : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+
+        // FIX GAME OVER REPLAY: JANGAN panggil DontDestroyOnLoad di sini.
+        // DataTracker berada pada GameObject "GameManager" yang sama dengan StageManager
+        // (dan StageStatManager/StageVisualDebug). DontDestroyOnLoad bekerja pada seluruh
+        // root GameObject, sehingga memanggilnya membuat StageManager ikut bertahan melewati
+        // reload scene. Saat Play Again memuat ulang SceneUtama, StageManager LAMA yang
+        // bertahan (dengan currentStage basi & FSM yang sudah selesai) tidak pernah menjalankan
+        // Awake/Start lagi -> BeginStage tak pernah dipanggil -> musuh tidak spawn & stage
+        // tidak reset. Karena seluruh stage berjalan dalam satu scene (SceneUtama) dan Play
+        // Again memang harus reset penuh, persistensi ini tidak diperlukan.
     }
 
     private void OnEnable()

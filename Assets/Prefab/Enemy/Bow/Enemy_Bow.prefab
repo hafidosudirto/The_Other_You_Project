@@ -795,7 +795,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.2346267, y: 1.2346267, z: 1.2346267}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 7686073481702737145}
@@ -910,6 +910,14 @@ MonoBehaviour:
   logMissingParameters: 0
   resetBowTriggersOnEnable: 1
   clearChargeFlagsOnEnable: 1
+  playSlash1AsFullCombo: 1
+  useEndCurrentActionAsComboBridge: 1
+  slash2TimedFallbackDelay: 0
+  forceSwordAnimationState: 1
+  swordLayerIndex: 0
+  slash1StateName: Slash1
+  slash2StateName: Slash2
+  swordCrossFadeDuration: 0.02
 --- !u!114 &2061521139306005644
 MonoBehaviour:
   m_ObjectHideFlags: 0

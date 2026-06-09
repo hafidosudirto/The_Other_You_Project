@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -293,7 +293,20 @@ public class StageManager : MonoBehaviour
         stageHasStarted = false;
         currentState = StageState.SpawningMinions;
 
+        // FIX STAGE COUNTER PLAY AGAIN: paksa reset currentStage di Start() sebagai safety net.
+        // HardResetRuntimeState() di Awake() sudah melakukan ini, tetapi ada kemungkinan
+        // timing antar komponen membuat stage counter berubah antara Awake dan Start.
+        currentStage = startingStageNumber;
+
         bool freshRunRequested = consumeFreshRunRequestOnStart && ConsumeFreshRunRequest();
+
+        Debug.Log(
+            "[STAGE MANAGER] Start() — freshRunRequested=" + freshRunRequested +
+            " | currentStage=" + currentStage +
+            " | startingStageNumber=" + startingStageNumber +
+            " | displayedStage=" + GetDisplayedStageNumber()
+        );
+
         StartCoroutine(InitStageRoutine(freshRunRequested));
     }
 
@@ -348,6 +361,10 @@ public class StageManager : MonoBehaviour
 
     private void HardResetRuntimeState()
     {
+        // FIX PLAY AGAIN: hentikan semua coroutine lama agar tidak ada
+        // NextStageTransition atau SpawnMinionWave yang menggantung dari run sebelumnya.
+        StopAllCoroutines();
+
         stageHasStarted = false;
         currentState = StageState.SpawningMinions;
         currentStage = startingStageNumber;
@@ -571,7 +588,11 @@ public class StageManager : MonoBehaviour
     /// <summary>Mulai (atau mulai ulang) sebuah stage dari fase SpawningMinions.</summary>
     public void BeginStage()
     {
-        Debug.Log("--- MEMULAI STAGE " + GetDisplayedStageNumber() + " ---");
+        Debug.Log(
+            "--- MEMULAI STAGE " + GetDisplayedStageNumber() +
+            " (currentStage=" + currentStage +
+            ", startingStageNumber=" + startingStageNumber + ") ---"
+        );
 
         ActiveEnemiesCount = 0;
         IsTransitioningToBoss = false;
@@ -1683,6 +1704,12 @@ public class StageManager : MonoBehaviour
 
     private void ResetPlayerForFreshRun()
     {
+        // FIX PLAY AGAIN: CurrentWeapon (static, private set) sudah direset ke
+        // WeaponType.None di PlayerPrefabSwitchManager.Awake(). Tidak perlu reset
+        // dari sini karena setter bersifat private. hasSwitched (instance field) juga
+        // otomatis fresh karena PlayerPrefabSwitchManager adalah scene-bound object
+        // yang diciptakan ulang saat scene reload.
+
         EnsurePlayerReference();
 
         if (playerTransform == null)

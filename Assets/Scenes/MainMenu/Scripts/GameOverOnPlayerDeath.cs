@@ -25,8 +25,18 @@ public class GameOverOnPlayerDeath : MonoBehaviour
     private float nextAutoFindTime;
     private bool hasWarnedMissingPlayerTag;
 
+    // FIX PLAY AGAIN: jangan trigger GameOver dalam beberapa detik pertama
+    // setelah scene load agar player sempat ter-spawn dan di-assign oleh
+    // StageManager/PlayerPrefabSwitchManager. Tanpa ini, triggerOnDestroyedReference
+    // bisa memicu GameOver di frame pertama karena player reference sempat null.
+    private const float SCENE_LOAD_GRACE_PERIOD = 2.5f;
+    private float sceneLoadTime;
+
     private void Awake()
     {
+        // FIX PLAY AGAIN: catat waktu scene load untuk grace period.
+        sceneLoadTime = Time.unscaledTime;
+
         if (playerCharacter != null)
         {
             wasAssignedAtLeastOnce = true;
@@ -48,6 +58,13 @@ public class GameOverOnPlayerDeath : MonoBehaviour
     private void Update()
     {
         if (triggered)
+            return;
+
+        // FIX PLAY AGAIN: grace period setelah scene load. Tanpa ini, saat
+        // Play Again memuat ulang scene gameplay, reference player bisa
+        // sempat null selama beberapa frame awal → triggerOnDestroyedReference
+        // langsung memicu GameOver lagi sebelum player baru sempat di-spawn.
+        if (Time.unscaledTime - sceneLoadTime < SCENE_LOAD_GRACE_PERIOD)
             return;
 
         if (playerCharacter == null && autoFindPlayer && Time.unscaledTime >= nextAutoFindTime)

@@ -72,7 +72,13 @@ public class DDAController : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+
+        // FIX GAME OVER REPLAY: JANGAN panggil DontDestroyOnLoad di sini.
+        // DDAController berada pada GameObject "GameManager" yang sama dengan StageManager.
+        // DontDestroyOnLoad bekerja pada seluruh root GameObject, sehingga memanggilnya
+        // membuat StageManager ikut bertahan melewati reload scene. Akibatnya saat Play Again,
+        // StageManager LAMA bertahan dan tidak pernah re-init (Awake/Start tidak dipanggil lagi),
+        // sehingga musuh tidak spawn dan stage tidak reset. Lihat catatan serupa di DataTracker.
     }
 
     // =========================================================
