@@ -11,7 +11,7 @@ public class MoveKeyboard : MonoBehaviour
     [Header("Movement Boundary")]
     public bool useYLimit = true;
     public float maxYPosition = 1.6f;
-    public float minYPosition = -6.809996f;
+    public float minYPosition = -4f;
 
     [Tooltip("Jika nonaktif, input bawah/S/Arrow Down tidak akan menggerakkan player ke bawah sama sekali.")]
     public bool allowMoveDown = false;
@@ -42,6 +42,9 @@ public class MoveKeyboard : MonoBehaviour
 
     private void Awake()
     {
+        minYPosition = -4f;
+        maxYPosition = 1.6f;
+
         // Cari Rigidbody2D di objek ini, parent, atau child (WAJIB ADA)
         rb = GetComponent<Rigidbody2D>();
         if (rb == null) rb = GetComponentInParent<Rigidbody2D>();

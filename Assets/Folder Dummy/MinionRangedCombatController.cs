@@ -138,6 +138,9 @@ public class MinionRangedCombatController : MonoBehaviour
     private float assignedOrbitAngle;
     private float laneOffsetFactor;
 
+    private enum MoveZone { Advance, Ideal, Retreat }
+    private MoveZone currentZone = MoveZone.Ideal;
+
     private StageManager stageManager;
 
     public bool IsBusy    => skillBusyCounter > 0 || Time.time < lockedUntil;
@@ -224,10 +227,24 @@ public class MinionRangedCombatController : MonoBehaviour
         float speed = character != null && character.moveSpeed > 0f ? character.moveSpeed : moveSpeed;
         Vector3 before = transform.position;
 
-        Vector2 moveDir    = Vector2.zero;
-        bool isRetreating  = false;
+        // Hysteresis: zona hanya berganti saat jarak melewati threshold + buffer,
+        // mencegah zone-flicker (bolak-balik zona tiap frame) yang menjadi penyebab utama jitter.
+        const float zoneBuffer = 0.25f;
+        switch (currentZone)
+        {
+            case MoveZone.Advance:
+                if (dist <= rangeMax)                       currentZone = MoveZone.Ideal;
+                break;
+            case MoveZone.Retreat:
+                if (dist >= rangeMin)                       currentZone = MoveZone.Ideal;
+                break;
+            default: // Ideal
+                if (dist > rangeMax + zoneBuffer)           currentZone = MoveZone.Advance;
+                else if (dist < rangeMin - zoneBuffer)      currentZone = MoveZone.Retreat;
+                break;
+        }
 
-        if (dist > rangeMax)
+        if (currentZone == MoveZone.Advance)
         {
             // Zona 1 — Terlalu jauh: maju ke slot orbit (spread formation di sekeliling player)
             Vector2 slotPos = (Vector2)player.position + new Vector2(
@@ -236,53 +253,47 @@ public class MinionRangedCombatController : MonoBehaviour
             ) * hordeRadius;
             slotPos.y = Mathf.Clamp(slotPos.y, minY, maxY);
 
-            moveDir = ((Vector3)slotPos - transform.position).normalized;
+            Vector2 toSlot = slotPos - (Vector2)transform.position;
+            if (toSlot.sqrMagnitude > 0.001f)
+            {
+                Vector2 sep      = GetSeparationForce();
+                Vector2 finalDir = (toSlot.normalized + sep * separationWeight).normalized;
+                transform.position += (Vector3)(finalDir * speed * Time.deltaTime);
+            }
             FacePlayer();
         }
-        else if (dist < rangeMin)
+        else if (currentZone == MoveZone.Retreat)
         {
-            // Zona 2 — Terlalu dekat: retreat X-only (tidak diagonal), hadap arah gerak
-            // X-only agar tidak lari diagonal naik/turun seperti di canvas prototype yang top-down.
-            // Ini lebih natural untuk side-scroller dan membuat retreat tidak terlalu agresif.
+            // Zona 2 — Terlalu dekat: retreat X-only, hadap arah gerak
             float xAway = transform.position.x - player.position.x;
             float xDir  = Mathf.Abs(xAway) > 0.01f
                 ? Mathf.Sign(xAway)
                 : (character != null && !character.isFacingRight ? 1f : -1f);
 
-            moveDir      = new Vector2(xDir, 0f);
-            isRetreating = true;
-
-            // Hadap arah gerak (menjauh dari player) — fix moonwalk
+            transform.position += new Vector3(xDir * speed * retreatSpeedMultiplier * Time.deltaTime, 0f, 0f);
             FaceDirection(xDir);
         }
         else
         {
-            // Zona 3 — Ideal range: gerak Y menuju lane pribadi, selalu hadap player
+            // Zona 3 — Ideal range: MoveTowards laneTargetY agar tidak overshoot/oscillate
             float laneTargetY = player.position.y + laneOffsetFactor * yAlignTolerance * attackLaneSpread;
-            float yDiff       = laneTargetY - transform.position.y;
+            laneTargetY = Mathf.Clamp(laneTargetY, minY, maxY);
 
-            if (Mathf.Abs(yDiff) > yAlignTolerance * 0.5f)
-                moveDir = new Vector2(0f, Mathf.Sign(yDiff));
+            if (Mathf.Abs(laneTargetY - transform.position.y) > yAlignTolerance * 0.5f)
+            {
+                float newY = Mathf.MoveTowards(transform.position.y, laneTargetY, speed * Time.deltaTime);
+                transform.position = new Vector3(transform.position.x, newY, transform.position.z);
+            }
+
+            // Separation hanya sumbu X agar tidak mengganggu alignment Y
+            Vector2 sep = GetSeparationForce();
+            if (Mathf.Abs(sep.x) > 0.01f)
+            {
+                float xPush = Mathf.Clamp(sep.x * separationWeight, -speed * 0.5f, speed * 0.5f);
+                transform.position += new Vector3(xPush * Time.deltaTime, 0f, 0f);
+            }
 
             FacePlayer();
-        }
-
-        if (isRetreating)
-        {
-            // Retreat: gerak X-only tanpa separation force agar tidak diperparah oleh minion lain
-            if (moveDir.sqrMagnitude > 0.01f)
-                transform.position += (Vector3)(moveDir * speed * retreatSpeedMultiplier * Time.deltaTime);
-        }
-        else
-        {
-            // Gerak normal dengan separation force (anti-stacking)
-            Vector2 separation = GetSeparationForce();
-            Vector2 finalDir   = (moveDir + separation * separationWeight).normalized;
-
-            bool hasMoveIntent = moveDir.sqrMagnitude > 0.01f || separation.sqrMagnitude > 0.01f;
-
-            if (hasMoveIntent)
-                transform.position += (Vector3)(finalDir * speed * Time.deltaTime);
         }
 
         return Vector3.Distance(before, transform.position) > 0.001f;
