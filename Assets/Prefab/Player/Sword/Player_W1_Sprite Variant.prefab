@@ -64,6 +64,14 @@ PrefabInstance:
       propertyPath: energyCost
       value: 35
       objectReference: {fileID: 0}
+    - target: {fileID: 3802485017805506531, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: maxDamageMultiplier
+      value: 2.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3802485017805506531, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: minDamageMultiplier
+      value: 1.5
+      objectReference: {fileID: 0}
     - target: {fileID: 4160140468893309881, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: anim
       value: 
@@ -122,7 +130,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5032635997263216504, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: damageMultiplier
-      value: 0.25
+      value: 0.7
       objectReference: {fileID: 0}
     - target: {fileID: 5032635997263216504, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: staggerConfig.knockbackForce

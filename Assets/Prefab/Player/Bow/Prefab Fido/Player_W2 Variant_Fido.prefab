@@ -77,6 +77,10 @@ PrefabInstance:
       value: -4
       objectReference: {fileID: 0}
     - target: {fileID: 1067902324421283712, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: damageSpread
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 1067902324421283712, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: animasiPemain
       value: 
       objectReference: {fileID: 31103072692268878}
@@ -180,6 +184,10 @@ PrefabInstance:
       propertyPath: anim
       value: 
       objectReference: {fileID: 31103072692268878}
+    - target: {fileID: 5298149805424230708, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: damage
+      value: 30
+      objectReference: {fileID: 0}
     - target: {fileID: 5298149805424230708, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: debugLog
       value: 1
@@ -335,6 +343,10 @@ PrefabInstance:
     - target: {fileID: 5687928950400297159, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: kecepatanPanah
       value: 18.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 5687928950400297159, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: damageQuickShot
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 5687928950400297159, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: lockSetelahTembak
@@ -508,6 +520,14 @@ PrefabInstance:
       propertyPath: animasiPemain
       value: 
       objectReference: {fileID: 31103072692268878}
+    - target: {fileID: 8539281897314106846, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: damageMinimum
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 8539281897314106846, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
+      propertyPath: damageMaksimum
+      value: 22
+      objectReference: {fileID: 0}
     - target: {fileID: 8539281897314106846, guid: 0567007f4c00b474a971db7921c69e57, type: 3}
       propertyPath: prefabPanahFullDraw
       value: 
