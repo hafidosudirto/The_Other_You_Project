@@ -6865,7 +6865,7 @@ MonoBehaviour:
   selectedPlayerWeapon: 1
   playerSpawnPoint: {fileID: 813617839}
   meleeMinionPrefab: {fileID: 4509274736977115155, guid: 3f024f814d5040d439008106d80e715f, type: 3}
-  rangeMinionPrefab: {fileID: 1718376399928103269, guid: 19a6832f674715a4e8ec2c82fdc04fa4, type: 3}
+  rangeMinionPrefab: {fileID: 5377026707550469204, guid: 81910ea8c948e3d4da6d10596b2d1832, type: 3}
   minionSpawnPoints:
   - {fileID: 862718972}
   - {fileID: 1945668068}

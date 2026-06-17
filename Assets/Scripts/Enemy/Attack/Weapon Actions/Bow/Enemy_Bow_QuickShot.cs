@@ -119,7 +119,7 @@ public class Enemy_Bow_QuickShot : MonoBehaviour, ISkill
 
     /// <summary>
     /// Tembak langsung tanpa cek range / NodeManager.
-    /// Dipakai oleh MinionRangedCombatController yang sudah memeriksa jarak sendiri.
+    /// (Legacy) Dipakai oleh Minion Ranged lama yang sudah memeriksa jarak sendiri.
     /// Tetap menghormati cooldown dan firePoint/arrowPrefab.
     /// </summary>
     public void ForceShoot()
