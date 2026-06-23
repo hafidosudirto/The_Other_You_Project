@@ -77,6 +77,10 @@ public class ArrowDamage : MonoBehaviour
         Vector2 hitPoint = other.ClosestPoint(transform.position);
         ApplyEffectsToTarget(target, hitPoint, applyDamage: true);
 
+        // Telemetry: jika panah ini milik musuh dan mengenai target (player), tandai cast musuh sebagai hit.
+        if (owner is Enemy && target is Player && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.SetLastEnemySkillCastHit(true);
+
         if (concussive && explosionRadius > 0f)
         {
             Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, explosionRadius);

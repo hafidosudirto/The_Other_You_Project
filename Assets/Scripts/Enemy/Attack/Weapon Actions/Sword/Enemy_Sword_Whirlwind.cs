@@ -62,6 +62,10 @@ public class Enemy_Sword_Whirlwind : MonoBehaviour
         if (busy) return;
         if (Time.time < nextReadyTime) return;
 
+        // Telemetry: catat cast skill musuh (is_hit default false; Whirlwind bisa multi-tick).
+        if (ai != null && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordEnemySkillCastFromContext(ai, "Whirlwind", false);
+
         activeRoutine = StartCoroutine(WhirlwindRoutine());
     }
 
@@ -149,6 +153,10 @@ public class Enemy_Sword_Whirlwind : MonoBehaviour
 
         if (hasHit && playHitSfxOncePerTick)
             PlayHitSfx();
+
+        // Telemetry: tick pertama yang mengenai player dianggap hit untuk cast Whirlwind ini.
+        if (hasHit && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.SetLastEnemySkillCastHit(true);
     }
 
     private void PlayWhirlwindSfx()

@@ -109,6 +109,10 @@ public class Enemy_Bow_QuickShot : MonoBehaviour, ISkill
         if (!CanTrigger(distance))
             return;
 
+        // Telemetry: catat cast QuickShot (is_hit diupdate oleh ArrowDamage saat panah kena player).
+        if (ai != null && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordEnemySkillCastFromContext(ai, "QuickShot", true);
+
         StartCoroutine(CastRoutine());
     }
 

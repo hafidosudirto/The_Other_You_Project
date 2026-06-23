@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -23,6 +23,7 @@ public class SwordWhirlwindNode : Node
 
     public override NodeState Evaluate()
     {
+        TelemetryLogger.NotifyBtNodeEvaluated(GetType().Name);
         if (!ai || ai.Combat == null || ai.Combat.whirlwind == null)
             return NodeState.Failure;
 

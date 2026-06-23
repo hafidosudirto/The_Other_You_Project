@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class ChooseSkillNode : Node
 {
@@ -13,6 +13,7 @@ public class ChooseSkillNode : Node
 
     public override NodeState Evaluate()
     {
+        TelemetryLogger.NotifyBtNodeEvaluated(GetType().Name);
         if (ai == null || skill == null)
         {
             state = NodeState.Failure;

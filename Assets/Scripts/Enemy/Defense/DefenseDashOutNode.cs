@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class DefenseDashOutNode : BaseDefenseNode
 {
@@ -12,6 +12,7 @@ public class DefenseDashOutNode : BaseDefenseNode
 
     public override NodeState Evaluate()
     {
+        TelemetryLogger.NotifyBtNodeEvaluated(GetType().Name);
         if (!CanUse())
         {
             state = NodeState.Failure;

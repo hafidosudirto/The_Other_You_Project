@@ -1,4 +1,4 @@
-/*using System.Collections;
+﻿/*using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -14,6 +14,7 @@ public class CanDashOutNode : Node
 
     public override NodeState Evaluate()
     {
+        TelemetryLogger.NotifyBtNodeEvaluated(GetType().Name);
         if (!ai || !ai.playerTransform) return NodeState.Failure;
 
         Vector2 aiPos = ai.transform.position;

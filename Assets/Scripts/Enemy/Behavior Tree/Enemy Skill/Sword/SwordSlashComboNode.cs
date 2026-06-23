@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -23,6 +23,7 @@ public class SwordSlashComboNode : Node
 
     public override NodeState Evaluate()
     {
+        TelemetryLogger.NotifyBtNodeEvaluated(GetType().Name);
         if (ai == null) return NodeState.Failure;
         if (ai.Combat == null) return NodeState.Failure;
         if (ai.Combat.slashCombo == null) return NodeState.Failure;

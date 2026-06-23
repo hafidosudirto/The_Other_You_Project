@@ -93,6 +93,10 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
         if (busy) return;
         if (Time.time < nextReadyTime) return;
 
+        // Telemetry: catat cast skill musuh (is_hit default false; diupdate oleh PerformSlash).
+        if (ai != null && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordEnemySkillCastFromContext(ai, "SlashCombo", false);
+
         activeRoutine = StartCoroutine(ComboRoutine());
     }
 
@@ -223,6 +227,10 @@ public class Enemy_Sword_SlashCombo : MonoBehaviour
 
         if (hasHit && playHitSfxOncePerSlash)
             PlayHitSfx();
+
+        // Telemetry: laporkan hasil hit ke cast musuh yang sedang tertunda.
+        if (hasHit && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.SetLastEnemySkillCastHit(true);
 
         if (gameObject.activeInHierarchy)
             StartCoroutine(ShowHitArcWindow());

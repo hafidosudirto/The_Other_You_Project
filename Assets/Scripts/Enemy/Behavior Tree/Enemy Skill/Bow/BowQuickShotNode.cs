@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class BowQuickShotNode : Node
 {
@@ -11,6 +11,7 @@ public class BowQuickShotNode : Node
 
     public override NodeState Evaluate()
     {
+        TelemetryLogger.NotifyBtNodeEvaluated(GetType().Name);
         if (ai == null || ai.Combat == null || ai.playerTransform == null)
             return NodeState.Failure;
 

@@ -243,6 +243,10 @@ public class Enemy_Bow_ConcussiveShot : MonoBehaviour, ISkill
         if (!CanTrigger(distance))
             return;
 
+        // Telemetry: catat cast ConcussiveShot (is_hit diupdate oleh ConcussiveHitArea saat ledakan kena player).
+        if (ai != null && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordEnemySkillCastFromContext(ai, "ConcussiveShot", true);
+
         if (castRoutine != null)
             StopCoroutine(castRoutine);
 

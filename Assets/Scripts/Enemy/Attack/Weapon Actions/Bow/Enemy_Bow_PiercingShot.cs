@@ -84,6 +84,10 @@ public class Enemy_Bow_PiercingShot : MonoBehaviour, ISkill
         if (!CanTrigger(distance))
             return;
 
+        // Telemetry: catat cast PiercingShot (is_hit diupdate oleh ArrowDamage).
+        if (ai != null && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordEnemySkillCastFromContext(ai, "PiercingShot", true);
+
         StartCoroutine(CastRoutine());
     }
 

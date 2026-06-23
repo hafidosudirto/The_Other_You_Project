@@ -308,7 +308,12 @@ public class CharacterBase : MonoBehaviour
 
         // Parry/riposte = aksi defensif reaktif terhadap serangan musuh.
         if (this is Player && TelemetryLogger.Instance != null)
+        {
+            // Selalu dihitung sebagai aksi bermakna untuk APM.
+            TelemetryLogger.Instance.RecordAction();
+            // ...dan jika ada stimulus musuh baru-baru ini, dihitung sebagai reaksi.
             TelemetryLogger.Instance.RecordReactionResponse();
+        }
 
         Sword_Riposte riposte = GetComponentInChildren<Sword_Riposte>(true);
 

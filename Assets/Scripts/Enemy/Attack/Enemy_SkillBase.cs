@@ -76,6 +76,11 @@ public class Enemy_SkillBase : MonoBehaviour
         if (isActive) return;
         if (Time.time < nextReadyTime) return;
 
+        // Telemetry: catat cast skill musuh dari Enemy_SkillBase (legacy path).
+        // Nama skill mengikuti enum SkillKind; distribusi = sword.
+        if (ai != null && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordEnemySkillCastFromContext(ai, kind.ToString(), false);
+
         // Catatan: StartCoroutine berpotensi �stack� jika dipanggil berulang tanpa guard. :contentReference[oaicite:2]{index=2}
         StartCoroutine(SkillRoutine());
     }
@@ -210,13 +215,19 @@ public class Enemy_SkillBase : MonoBehaviour
         if (ai == null) return;
 
         Collider2D[] hits = Physics2D.OverlapCircleAll(ai.transform.position, radius, hitMask);
+        bool anyHit = false;
         for (int i = 0; i < hits.Length; i++)
         {
             var cb = hits[i].GetComponentInParent<CharacterBase>();
             if (cb == null || cb == selfStats) continue;
 
             cb.TakeDamage(ai.AttackPower * dmgMul, ai.gameObject);
+            anyHit = true;
         }
+
+        // Telemetry: tick Whirlwind pertama yang mengenai target menandai cast sebagai hit.
+        if (anyHit && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.SetLastEnemySkillCastHit(true);
     }
 
     private void PerformConeHit(float radius, float angleDeg, Vector2 offset, float dmgMul)
@@ -230,6 +241,7 @@ public class Enemy_SkillBase : MonoBehaviour
         Vector2 dir = ai.IsFacingRight ? Vector2.right : Vector2.left;
 
         Collider2D[] hits = Physics2D.OverlapCircleAll(origin, radius, hitMask);
+        bool anyHit = false;
         for (int i = 0; i < hits.Length; i++)
         {
             var cb = hits[i].GetComponentInParent<CharacterBase>();
@@ -239,7 +251,14 @@ public class Enemy_SkillBase : MonoBehaviour
             float ang = Vector2.Angle(dir, toTarget);
 
             if (ang <= angleDeg * 0.5f)
+            {
                 cb.TakeDamage(ai.AttackPower * dmgMul, ai.gameObject);
+                anyHit = true;
+            }
         }
+
+        // Telemetry: laporkan hasil hit cone ke cast musuh yang sedang tertunda.
+        if (anyHit && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.SetLastEnemySkillCastHit(true);
     }
 }

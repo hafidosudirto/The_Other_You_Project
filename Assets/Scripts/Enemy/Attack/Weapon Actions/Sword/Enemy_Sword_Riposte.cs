@@ -116,6 +116,11 @@ public class Enemy_Sword_Riposte : MonoBehaviour
 
     public void Trigger()
     {
+        // Telemetry: catat cast Riposte (counter-attack yang diprakarsai musuh).
+        // Bisa kena atau tidak — diupdate oleh PerformFollowUpDamage.
+        if (ai != null && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordEnemySkillCastFromContext(ai, "Riposte", false);
+
         TryStartRiposte();
     }
 
@@ -321,6 +326,10 @@ public class Enemy_Sword_Riposte : MonoBehaviour
 
         if (hasHit && playHitSfxOncePerCounter)
             PlayHitSfx();
+
+        // Telemetry: laporkan hasil hit Riposte counter.
+        if (hasHit && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.SetLastEnemySkillCastHit(true);
     }
 
     private void PlayCounterSlashSfx()

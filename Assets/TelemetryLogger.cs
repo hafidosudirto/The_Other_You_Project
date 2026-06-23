@@ -120,6 +120,32 @@ public class TelemetryLogger : MonoBehaviour
     // Heatmap occupancy: key = "cellX,cellY" -> count (akumulasi sepanjang sesi)
     private readonly Dictionary<long, int> _heatmap = new Dictionary<long, int>();
 
+    // Snapshot cast skill musuh terakhir — dipakai agar baris CSV lengkap
+    // (cast_post_x/y, target_pos_x/y, is_hit, profil, distribusi, node BT)
+    // ditulis satu kali saat hit/cleanup, bukan dua kali (cast+hit) yang bisa
+    // terduplikasi bila skill di-trigger cepat beruntun.
+    private struct PendingEnemyCast
+    {
+        public bool active;
+        public string skillName;
+        public Vector2 casterPos;
+        public Vector2 targetPos;
+        public bool isHit;
+        public string playerProfile;
+        public string skillDistribution;
+        public string activeBtNode;
+        public float castRealtime;
+    }
+    private PendingEnemyCast _pendingEnemyCast;
+
+    // Active node BT terakhir (di-update dari Node.Evaluate()).
+    private static string s_lastBtNodeName = string.Empty;
+    public static void NotifyBtNodeEvaluated(string nodeName)
+    {
+        if (!string.IsNullOrEmpty(nodeName))
+            s_lastBtNodeName = nodeName;
+    }
+
     // Movement sampling
     private Transform _playerTransform;
     private Vector3 _lastSamplePos;
@@ -177,7 +203,7 @@ public class TelemetryLogger : MonoBehaviour
         _stageWriter = new StreamWriter(_stagePath, false, Encoding.UTF8);
         _skillWriter = new StreamWriter(_skillPath, false, Encoding.UTF8);
 
-        _eventWriter.WriteLine("timestamp_utc,session_time,session_id,stage_number,event_type,detail,value");
+        _eventWriter.WriteLine("timestamp_utc,session_time,session_id,stage_number,event_type,detail,value,skill_name,cast_post_x,cast_post_y,target_pos_x,target_pos_y,is_hit,player_profile,skill_distribution,active_bt_node");
         _eventWriter.Flush();
 
         _stageWriter.WriteLine(
@@ -639,6 +665,12 @@ public class TelemetryLogger : MonoBehaviour
 
         WriteSkillRows(stage);
 
+        // Flush cast musuh yang masih tertunda agar tidak hilang saat stage berakhir.
+        if (_pendingEnemyCast.active)
+        {
+            SetLastEnemySkillCastHit(_pendingEnemyCast.isHit);
+        }
+
         LogEvent("stage_summary_written", "stage", stage);
     }
 
@@ -695,9 +727,208 @@ public class TelemetryLogger : MonoBehaviour
         string ts = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
         float sessionTime = Time.realtimeSinceStartup - _sessionStartRealtime;
 
+        // Kolom tambahan dikosongkan untuk event non-cast-musuh agar format CSV konsisten.
         _eventWriter.WriteLine(
-            $"{ts},{F(sessionTime)},{_sessionId},{_currentStage},{eventType},{detail},{F(value)}");
+            $"{ts},{F(sessionTime)},{_sessionId},{_currentStage},{eventType},{detail},{F(value)},,,,,,,,");
         _eventWriter.Flush();
+    }
+
+    /// <summary>
+    /// Baris event khusus cast skill musuh. Menuliskan timestamp, koordinat cast & target,
+    /// status hit, profil player saat itu, snapshot bobot DDA, dan nama node BT yang aktif.
+    /// </summary>
+    private void LogEnemySkillCast(
+        string skillName,
+        Vector2 casterPos,
+        Vector2 targetPos,
+        bool isHit,
+        string playerProfile,
+        string skillDistribution,
+        string activeBtNode)
+    {
+        if (_eventWriter == null)
+            return;
+
+        string ts = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
+        float sessionTime = Time.realtimeSinceStartup - _sessionStartRealtime;
+
+        _eventWriter.WriteLine(
+            $"{ts},{F(sessionTime)},{_sessionId},{_currentStage},enemy_skill_cast,{EscapeCsv(skillName)},{F(0f)}," +
+            $"{EscapeCsv(skillName)}," +
+            $"{F(casterPos.x)},{F(casterPos.y)}," +
+            $"{F(targetPos.x)},{F(targetPos.y)}," +
+            $"{(isHit ? "true" : "false")}," +
+            $"{EscapeCsv(playerProfile ?? string.Empty)}," +
+            $"{EscapeCsv(skillDistribution ?? string.Empty)}," +
+            $"{EscapeCsv(activeBtNode ?? string.Empty)}");
+        _eventWriter.Flush();
+    }
+
+    // Escapes CSV field (jika mengandung koma, kutip, atau newline).
+    private static string EscapeCsv(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        bool mustQuote = value.IndexOfAny(new[] { ',', '"', '\n', '\r' }) >= 0;
+        if (!mustQuote)
+            return value;
+
+        return "\"" + value.Replace("\"", "\"\"") + "\"";
+    }
+
+    // =====================================================================
+    // API: ENEMY SKILL CAST
+    // =====================================================================
+
+    /// <summary>
+    /// Dipanggil di awal Trigger() skill musuh. Hanya menyimpan snapshot ke memori;
+    /// baris CSV lengkap baru ditulis saat <see cref="SetLastEnemySkillCastHit"/>
+    /// dipanggil (atau stage berakhir dengan cast belum terekam).
+    /// </summary>
+    public void RecordEnemySkillCast(
+        string skillName,
+        Vector2 casterPos,
+        Vector2 targetPos,
+        bool isHit,
+        string playerProfile,
+        string skillDistribution,
+        string activeBtNode)
+    {
+        if (string.IsNullOrEmpty(skillName))
+            return;
+
+        // Flush cast sebelumnya (kalau ada) yang tidak pernah menerima hasil hit.
+        // Ini mencegah satu baris tertahan indefinitely bila skill dibatalkan/disable.
+        if (_pendingEnemyCast.active)
+        {
+            LogEnemySkillCast(
+                _pendingEnemyCast.skillName,
+                _pendingEnemyCast.casterPos,
+                _pendingEnemyCast.targetPos,
+                _pendingEnemyCast.isHit,
+                _pendingEnemyCast.playerProfile,
+                _pendingEnemyCast.skillDistribution,
+                _pendingEnemyCast.activeBtNode);
+        }
+
+        _pendingEnemyCast = new PendingEnemyCast
+        {
+            active = true,
+            skillName = skillName,
+            casterPos = casterPos,
+            targetPos = targetPos,
+            isHit = isHit,
+            playerProfile = playerProfile,
+            skillDistribution = skillDistribution,
+            activeBtNode = activeBtNode,
+            castRealtime = Time.realtimeSinceStartup
+        };
+    }
+
+    /// <summary>
+    /// Tandai apakah cast musuh terakhir mengenai target. Setelah dipanggil,
+    /// baris CSV lengkap langsung ditulis dan slot cast dikosongkan.
+    /// </summary>
+    public void SetLastEnemySkillCastHit(bool isHit)
+    {
+        if (!_pendingEnemyCast.active)
+            return;
+
+        _pendingEnemyCast.isHit = isHit;
+        LogEnemySkillCast(
+            _pendingEnemyCast.skillName,
+            _pendingEnemyCast.casterPos,
+            _pendingEnemyCast.targetPos,
+            _pendingEnemyCast.isHit,
+            _pendingEnemyCast.playerProfile,
+            _pendingEnemyCast.skillDistribution,
+            _pendingEnemyCast.activeBtNode);
+
+        _pendingEnemyCast = default;
+    }
+
+    /// <summary>Snapshot profil player saat ini (mis. "OffensiveDominant").</summary>
+    public static string GetCurrentPlayerPlaystyle()
+    {
+        DDAController dda = DDAController.Instance;
+        if (dda == null)
+            return string.Empty;
+        return dda.currentPlayerPlaystyle.ToString();
+    }
+
+    /// <summary>
+    /// Snapshot distribusi skill DDA yang diberikan ke musuh, diserialisasi ke string.
+    /// Untuk Bow 5-slot: [Q=…,S=…,F=…,FC=…,C=…]. Untuk Sword 4-slot: [Slash,Whirl,Charged,Rip].
+    /// </summary>
+    public static string FormatSkillDistribution(bool isBow)
+    {
+        DDAController dda = DDAController.Instance;
+        if (dda == null)
+            return string.Empty;
+
+        if (isBow)
+        {
+            float[] w = dda.GetCurrentBowSkillWeightsCopy();
+            if (w == null || w.Length == 0)
+                return string.Empty;
+            return string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                "[Q={0:F1},S={1:F1},F={2:F1},FC={3:F1},C={4:F1}]",
+                w.Length > 0 ? w[0] : 0f,
+                w.Length > 1 ? w[1] : 0f,
+                w.Length > 2 ? w[2] : 0f,
+                w.Length > 3 ? w[3] : 0f,
+                w.Length > 4 ? w[4] : 0f);
+        }
+        else
+        {
+            float[] w = dda.GetCurrentSwordSkillWeightsCopy();
+            if (w == null || w.Length == 0)
+                return string.Empty;
+            return string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                "[Slash={0:F1},Whirl={1:F1},Charged={2:F1},Rip={3:F1}]",
+                w.Length > 0 ? w[0] : 0f,
+                w.Length > 1 ? w[1] : 0f,
+                w.Length > 2 ? w[2] : 0f,
+                w.Length > 3 ? w[3] : 0f);
+        }
+    }
+
+    /// <summary>Nama node BT yang sedang aktif (snapshot dari <see cref="NotifyBtNodeEvaluated"/>).</summary>
+    public static string GetLastActiveBtNode()
+    {
+        return s_lastBtNodeName ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Helper yang dipanggil oleh skill musuh di Trigger() untuk mengisi semua field
+    /// sekaligus dari konteks yang tersedia (NodeManager + DDAController + BT node).
+    /// </summary>
+    public void RecordEnemySkillCastFromContext(
+        NodeManager caster,
+        string skillName,
+        bool isBow)
+    {
+        if (caster == null)
+            return;
+
+        Vector2 casterPos = caster.transform != null
+            ? (Vector2)caster.transform.position
+            : Vector2.zero;
+        Vector2 targetPos = caster.playerTransform != null
+            ? (Vector2)caster.playerTransform.position
+            : Vector2.zero;
+
+        RecordEnemySkillCast(
+            skillName,
+            casterPos,
+            targetPos,
+            false, // default: belum hit; diupdate via SetLastEnemySkillCastHit
+            GetCurrentPlayerPlaystyle(),
+            FormatSkillDistribution(isBow),
+            GetLastActiveBtNode());
     }
 
     // =====================================================================

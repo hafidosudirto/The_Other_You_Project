@@ -9,12 +9,21 @@ public class HPBar_Follow_Enemy : MonoBehaviour
 
     [Header("UI")]
     [SerializeField] private Image fill;
-    [SerializeField] private Vector3 offset = new Vector3(0f, 1.5f, 0f);
+    [Tooltip("Koreksi tambahan dari posisi anchor (default: posisi HP bar di prefab). Naikkan jika ingin bar lebih tinggi dari posisi prefab.")]
+    [SerializeField] private Vector3 offset = Vector3.zero;
 
     private Camera cam;
     private Canvas parentCanvas;
     private RectTransform rectTransform;
     private RectTransform canvasRect;
+
+    // Anchor statis yang disimpan sekali saat Awake/SetTarget agar tidak berubah tiap frame.
+    // Untuk World Space canvas (HP bar child dari musuh): offset lokal relatif terhadap musuh.
+    // Untuk Screen Space canvas: posisi world anchor yang diinginkan (di-copy sekali).
+    private bool _anchorCaptured;
+    private Vector3 _localAnchorFromEnemy; // World Space mode (prefab child)
+    private Vector3 _worldAnchor;          // Screen Space mode (UI terpisah)
+    private Vector3 _capturedEnemyPos;     // posisi musuh saat anchor di-capture (untuk delta)
 
     private Collider2D targetCollider;
     private Renderer targetRenderer;
@@ -36,6 +45,7 @@ public class HPBar_Follow_Enemy : MonoBehaviour
         }
 
         RefreshCamera();
+        CaptureAnchor();
 
         // PERBAIKAN 2: Jangan langsung sembunyikan bar jika target sebenarnya berhasil dideteksi
         if (enemyRoot == null)
@@ -84,6 +94,7 @@ public class HPBar_Follow_Enemy : MonoBehaviour
         RefreshCamera();
         ResolveStats();
         ResolveVisualAnchor();
+        CaptureAnchor();
         UpdatePosition();
         UpdateFill();
     }
@@ -170,19 +181,47 @@ public class HPBar_Follow_Enemy : MonoBehaviour
     {
         if (enemyRoot == null) return Vector3.zero;
 
-        if (targetCollider != null)
+        // Pastikan anchor sudah ter-capture sekali.
+        if (!_anchorCaptured)
+            CaptureAnchor();
+
+        // World Space canvas: HP bar adalah child dari musuh, jadi pakai offset lokal
+        // relatif ke musuh (di-rotasi/di-translate bersama musuh).
+        if (parentCanvas != null && parentCanvas.renderMode == RenderMode.WorldSpace)
         {
-            Bounds b = targetCollider.bounds;
-            return new Vector3(b.center.x + offset.x, b.max.y + offset.y, enemyRoot.position.z + offset.z);
+            return enemyRoot.TransformPoint(_localAnchorFromEnemy) + offset;
         }
 
-        if (targetRenderer != null)
+        // Screen Space / Screen Space Camera: posisi world anchor disimpan sekali saat Awake/SetTarget,
+        // ditranslasikan mengikuti pergerakan musuh (tanpa rotasi).
+        return _worldAnchor + (enemyRoot.position - _capturedEnemyPos) + offset;
+    }
+
+    /// <summary>
+    /// Menangkap anchor statis SEKALI (tidak dibaca ulang tiap frame) agar posisi HP bar yang
+    /// kamu tata di prefab dihormati, bukan "mengejar dirinya sendiri" yang baru dipindahkan
+    /// oleh UpdatePosition() di frame sebelumnya.
+    /// </summary>
+    private void CaptureAnchor()
+    {
+        if (rectTransform == null)
+            return;
+
+        if (enemyRoot != null && parentCanvas != null && parentCanvas.renderMode == RenderMode.WorldSpace)
         {
-            Bounds b = targetRenderer.bounds;
-            return new Vector3(b.center.x + offset.x, b.max.y + offset.y, enemyRoot.position.z + offset.z);
+            // Offset HP bar relatif terhadap musuh (agar ikut rotasi parent).
+            _localAnchorFromEnemy = enemyRoot.InverseTransformPoint(rectTransform.position);
+        }
+        else
+        {
+            // Posisi world absolut saat prefab/HP bar dipasang di Scene.
+            _worldAnchor = rectTransform.position;
         }
 
-        return enemyRoot.position + offset;
+        if (enemyRoot != null)
+            _capturedEnemyPos = enemyRoot.position;
+
+        _anchorCaptured = true;
     }
 
     private void UpdateFill()

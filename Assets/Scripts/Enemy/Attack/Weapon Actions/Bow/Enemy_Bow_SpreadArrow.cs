@@ -208,6 +208,10 @@ public class Enemy_Bow_SpreadArrow : MonoBehaviour, ISkill
         if (!CanTrigger(distance))
             return;
 
+        // Telemetry: catat cast SpreadArrow (is_hit diupdate oleh ArrowDamage).
+        if (ai != null && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordEnemySkillCastFromContext(ai, "SpreadArrow", true);
+
         routineCast = StartCoroutine(RoutineCast());
     }
 

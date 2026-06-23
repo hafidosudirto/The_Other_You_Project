@@ -81,6 +81,10 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
         if (busy) return;
         if (Time.time < nextReadyTime) return;
 
+        // Telemetry: catat cast skill musuh (is_hit default false; diupdate oleh PerformAttack).
+        if (ai != null && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordEnemySkillCastFromContext(ai, "ChargedStrike", false);
+
         activeRoutine = StartCoroutine(ChargeRoutine());
     }
 
@@ -195,6 +199,10 @@ public class Enemy_Sword_ChargedStrike : MonoBehaviour
 
         if (hasHit && playHitSfxOncePerStrike)
             PlayHitSfx();
+
+        // Telemetry: laporkan hasil hit Charged Strike ke cast musuh yang sedang tertunda.
+        if (hasHit && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.SetLastEnemySkillCastHit(true);
     }
 
     private void PlayChargeSfx()

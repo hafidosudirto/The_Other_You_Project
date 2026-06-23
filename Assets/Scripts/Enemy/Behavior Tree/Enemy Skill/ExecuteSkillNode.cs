@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class ExecuteSkillNode : Node
 {
@@ -13,6 +13,7 @@ public class ExecuteSkillNode : Node
 
     public override NodeState Evaluate()
     {
+        TelemetryLogger.NotifyBtNodeEvaluated(GetType().Name);
         if (skill == null)
         {
             state = NodeState.Failure;

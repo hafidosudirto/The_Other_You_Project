@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class BowFullDrawNode : Node
 {
@@ -11,6 +11,7 @@ public class BowFullDrawNode : Node
 
     public override NodeState Evaluate()
     {
+        TelemetryLogger.NotifyBtNodeEvaluated(GetType().Name);
         if (ai == null || ai.Combat == null || ai.playerTransform == null)
             return NodeState.Failure;
 

@@ -13,6 +13,7 @@ public class IsNotBusyNode : Node
 
     public override NodeState Evaluate()
     {
+        TelemetryLogger.NotifyBtNodeEvaluated(GetType().Name);
         // Jika enemy tidak sedang menyerang / action lock → SUCCESS
         if (!ai.isPerformingAction)
         {

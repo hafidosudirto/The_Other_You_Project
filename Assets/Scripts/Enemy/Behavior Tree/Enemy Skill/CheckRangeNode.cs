@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class CheckRangeNode : Node
 {
@@ -14,6 +14,7 @@ public class CheckRangeNode : Node
 
     public override NodeState Evaluate()
     {
+        TelemetryLogger.NotifyBtNodeEvaluated(GetType().Name);
         if (ai == null || skill == null || ai.playerTransform == null)
         {
             state = NodeState.Failure;

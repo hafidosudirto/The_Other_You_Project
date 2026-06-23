@@ -67,6 +67,10 @@ public class ConcussiveHitArea : MonoBehaviour
 
             Vector2 hitPoint = h.ClosestPoint(transform.position);
             ApplyEffectsToTarget(target, hitPoint);
+
+            // Telemetry: ledakan Concussive musuh yang mengenai player dihitung sebagai hit.
+            if (owner is Enemy && target is Player && TelemetryLogger.Instance != null)
+                TelemetryLogger.Instance.SetLastEnemySkillCastHit(true);
         }
     }
 

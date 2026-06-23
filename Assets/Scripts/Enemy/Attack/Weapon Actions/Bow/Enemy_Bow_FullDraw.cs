@@ -207,16 +207,28 @@ public class Enemy_Bow_FullDraw : MonoBehaviour, ISkill
 
     public void Trigger()
     {
+        // Telemetry: catat cast FullDraw (Normal). is_hit diupdate oleh ArrowDamage.
+        if (ai != null && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordEnemySkillCastFromContext(ai, "FullDraw", true);
+
         TriggerMode(defaultMode);
     }
 
     public void TriggerNormal()
     {
+        // Telemetry: catat cast FullDraw (Normal).
+        if (ai != null && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordEnemySkillCastFromContext(ai, "FullDraw", true);
+
         TriggerMode(FullDrawMode.Normal);
     }
 
     public void TriggerFullCharge()
     {
+        // Telemetry: catat cast FullDraw (FullCharge / Piercing).
+        if (ai != null && TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordEnemySkillCastFromContext(ai, "FullDrawFullCharge", true);
+
         TriggerMode(FullDrawMode.FullChargePiercing);
     }
 

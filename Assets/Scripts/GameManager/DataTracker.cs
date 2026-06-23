@@ -359,9 +359,13 @@ public class DataTracker : MonoBehaviour
 
         AddWeaponUsage(weaponType);
 
-        // Dash = aksi defensif; jika menyusul stimulus musuh, dihitung sebagai reaksi.
         if (TelemetryLogger.Instance != null)
+        {
+            // Dash selalu dihitung sebagai aksi bermakna untuk APM, terlepas dari stimulus.
+            TelemetryLogger.Instance.RecordAction();
+            // ...dan jika menyusul stimulus musuh, dihitung sebagai reaksi.
             TelemetryLogger.Instance.RecordReactionResponse();
+        }
 
         DebugHub.DDA(
             $"Defense Dash Recorded -> O={offensiveCount}, D={defensiveCount}, " +

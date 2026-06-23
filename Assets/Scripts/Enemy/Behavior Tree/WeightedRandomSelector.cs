@@ -28,6 +28,7 @@ public class WeightedRandomSelector : Node
 
     public override NodeState Evaluate()
     {
+        TelemetryLogger.NotifyBtNodeEvaluated(GetType().Name);
         if (nodes.Count == 0)
             return NodeState.Failure;
 
