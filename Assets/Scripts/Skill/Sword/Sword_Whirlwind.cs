@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
-public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
+public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldownInfo, ISkillReadinessInfo
 {
     [Header("Whirlwind Settings")]
     public float radius = 2f;
@@ -18,6 +18,16 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
     public float knockForce = 2.5f;
     public float staggerDuration = 0.35f;
     public float staggerCooldown = 0.7f;
+
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX Whirlwind ingin dikendalikan dari script ini, bukan dari Animation Event.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara Whirlwind diputar satu kali saat skill pertama kali aktif.")]
+    public bool playWhirlwindSfxOnStart = true;
+
+    [Tooltip("Suara hit hanya dimainkan satu kali untuk satu tick damage, walaupun musuh yang terkena lebih dari satu.")]
+    public bool playHitSfxOncePerTick = true;
 
     private Player player;
     private PlayerAnimation anim;
@@ -38,6 +48,17 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
     public float EnergyCost => energyCost;
     public bool PayEnergyInSkillBase => true;
 
+    // Data baca untuk SkillIndexHUDController.
+    // Whirlwind tidak menambah cooldown baru. Durasi visual mengikuti duration yang sudah ada.
+    public bool HasCooldown => duration > 0.05f;
+    public float CooldownDuration => Mathf.Max(0f, duration);
+    public float CooldownRemaining => isActive ? Mathf.Max(0f, tDuration) : 0f;
+    public bool IsCooldownReady => !isActive && CooldownRemaining <= 0.05f;
+    public bool IsSkillBusy => isActive;
+    public bool IsSkillReady => !isActive && player != null && player.CanAct() && HasEnoughEnergyToStart();
+    public bool isCasting => isActive;
+    public float cooldownDuration => CooldownDuration;
+
     private void Awake()
     {
         player = GetComponentInParent<Player>();
@@ -57,6 +78,16 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
     {
         if (character == null) return false;
         return character.CurrentEnergy > 0f;
+    }
+
+    private bool ShouldStopBecauseEnergyEmpty()
+    {
+        // Jika energy sudah dibayar oleh SkillBase, Whirlwind tetap boleh berjalan
+        // walaupun sisa energy menjadi 0. Ini mencegah skill batal setelah pembayaran yang sah.
+        if (PayEnergyInSkillBase && skillBase != null)
+            return false;
+
+        return !HasAnyEnergyLeft();
     }
 
     private void ForceStopWhirlwind()
@@ -87,7 +118,7 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
         if (player.isAttacking)
             return;
 
-        if (!HasEnoughEnergyToStart())
+        if (skillBase == null && !HasEnoughEnergyToStart())
         {
             DebugHub.Warning($"ENERGY KURANG: Whirlwind butuh {energyCost}.");
             return;
@@ -101,11 +132,16 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
 
     private IEnumerator WhirlwindRoutine()
     {
+        if (player != null)
+            originalSpeed = player.moveSpeed;
+
         isActive = true;
         tDuration = duration;
         tHit = 0f;
 
-        if (!HasAnyEnergyLeft())
+        SkillIndexHUDController.NotifyGlobalSkillUsed(this);
+
+        if (ShouldStopBecauseEnergyEmpty())
         {
             ForceStopWhirlwind();
             yield break;
@@ -113,8 +149,7 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
 
         if (player != null)
         {
-            originalSpeed = player.moveSpeed;
-            player.moveSpeed *= speedMultiplierWhileActive;
+            player.moveSpeed = originalSpeed * speedMultiplierWhileActive;
             player.isAttacking = true;
         }
 
@@ -126,9 +161,13 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
 
         staggerTimers.Clear();
 
+        // SFX angin putar diputar satu kali saat Whirlwind pertama kali aktif.
+        if (playWhirlwindSfxOnStart)
+            PlayWhirlwindSfx();
+
         while (tDuration > 0f)
         {
-            if (!HasAnyEnergyLeft())
+            if (ShouldStopBecauseEnergyEmpty())
             {
                 ForceStopWhirlwind();
                 yield break;
@@ -164,6 +203,7 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
         if (player == null) return;
 
         Collider2D[] hits = Physics2D.OverlapCircleAll(player.transform.position, radius);
+        bool hasHit = false;
 
         foreach (Collider2D h in hits)
         {
@@ -173,6 +213,7 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
 
             float dmg = player.attack * damageMultiplier;
             target.TakeDamage(dmg);
+            hasHit = true;
 
             if (CanStagger(target))
             {
@@ -180,7 +221,36 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill
                 target.ApplyStagger(dir, knockForce, staggerDuration);
                 staggerTimers[target] = staggerCooldown;
             }
+
+            if (!playHitSfxOncePerTick)
+                PlayHitSfx();
         }
+
+        // SFX hit hanya diputar jika tick damage benar-benar mengenai minimal satu musuh.
+        if (hasHit && playHitSfxOncePerTick)
+            PlayHitSfx();
+    }
+
+    private void PlayWhirlwindSfx()
+    {
+        if (SFXManager.Instance == null) return;
+        PlaySfx(SFXManager.Instance.swordWhirlwind);
+    }
+
+    private void PlayHitSfx()
+    {
+        if (SFXManager.Instance == null) return;
+        PlaySfx(SFXManager.Instance.swordHit);
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.sfxSource == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
     }
 
     private void UpdateStaggerTimers()

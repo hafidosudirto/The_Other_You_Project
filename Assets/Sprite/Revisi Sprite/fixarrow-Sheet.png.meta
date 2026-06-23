@@ -1,0 +1,1473 @@
+fileFormatVersion: 2
+guid: 70761416bc0545f479b5fad7548a3869
+TextureImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 48
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 3
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: iPhone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: Windows Store Apps
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 553
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: be88ce65929e85b4eaba164b481c4f8e
+      internalID: -298367452
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_1
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 553
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fa1581e55fbfca44c99c6c58ba2cadbb
+      internalID: 1575065521
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_2
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 474
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 48e9bc6588347c74693f1e11f9019f32
+      internalID: 368358221
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_3
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 474
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f40944f1aae3040448b567f2037447b9
+      internalID: 296744301
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_4
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 474
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9c1306af8b61f3849a118bb83aa1ecb1
+      internalID: -586775773
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_5
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 474
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 868e536c9bda88c4ca5fe652e0e6ace5
+      internalID: -141006765
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_6
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 474
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b8e022f0939b0f04c982681cf3830c7c
+      internalID: 364159237
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_7
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 474
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 00a52243641b07245bba5bb611a2d083
+      internalID: 1875032430
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_8
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 474
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 020bfca7e870343409c07c83321034da
+      internalID: -1845126867
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_9
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 395
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3d87529e717c81842bbf87101f289c00
+      internalID: 1713276699
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_10
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 395
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bd9ea0d57085ea941818c34fa91570a6
+      internalID: 448887807
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_11
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 395
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 324081fe5e2724a4581a3edecb7d5223
+      internalID: -1629141617
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_12
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 395
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8b1be3b4e6968aa4e8dab442f98de253
+      internalID: 686063087
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_13
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 395
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9630107b7f5d82847a947f31be310421
+      internalID: -522579438
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_14
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 395
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3b77341d34d276949b6df984493fb26a
+      internalID: 1220136781
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_15
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 395
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 00986b937e2631f45bbd1d67431affba
+      internalID: -817971454
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_16
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 316
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1eaf12467d929b84da0f9314c55c6ae0
+      internalID: -811294193
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_17
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 316
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 14a7c463b47a979488ad6730eb321bfa
+      internalID: 847620400
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_18
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 316
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e670b56f33456a543b59937ed49e2113
+      internalID: -446816921
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_19
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 316
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e2989d51c843df44ea2cdf4071d2c0f4
+      internalID: 1876858523
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_20
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 316
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: adf6cfc8fedaf764586d800f0f0a0b9d
+      internalID: 1368658908
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_21
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 316
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0828494cba7df944283dd97a94384400
+      internalID: -68679552
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_22
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 316
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fb03aace2ad5feb4ea8d1cebe1746135
+      internalID: -1763782583
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_23
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 316
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f561e99f888493f4da9c845f2771e4da
+      internalID: 1742003704
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_24
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 316
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bfe96a14c9bc48e46a3d014a4cdb8357
+      internalID: -753957719
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_25
+      rect:
+        serializedVersion: 2
+        x: 1080
+        y: 316
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 30e4f5c6d1d48de4780f0cddf851cd45
+      internalID: 1782468478
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_26
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 237
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6d3d81ef8f2c96942ac402b7ab049707
+      internalID: 963998566
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_27
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 237
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f1a0a74f01f0c504ba9f34cfff2d6a61
+      internalID: 1513911395
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_28
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 237
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f1a7936315e962249b36d4b365025b40
+      internalID: -2142642863
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_29
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 237
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0e5f5ab5b0c622b4da150b88d4ea50f6
+      internalID: -711932905
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_30
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 237
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f8930e0fa84fcb74a86b14212f3e5fb1
+      internalID: -150204735
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_31
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 237
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0b28eb1f4ddc96c4c9f08f8431c50ef4
+      internalID: 1637127355
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_32
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 237
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 85b4b086b2bdbb74ba9a84aba8b4357c
+      internalID: -326330394
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_33
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 237
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a4382086e733d39448995c77c982ea7c
+      internalID: -324955916
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_34
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 237
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cefa8db182e061b41be126f0c68418be
+      internalID: -361214691
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_35
+      rect:
+        serializedVersion: 2
+        x: 1080
+        y: 237
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ebc20b73109473241b1f29b89e1f948f
+      internalID: -1557183701
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_36
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 158
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e713cc7a285b93a4cb2778264734ddf9
+      internalID: -2011095684
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_37
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 158
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6e055b87505137f43b5eb79d124758be
+      internalID: 110533837
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_38
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 158
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b6fba55f575ba5c4684dae9add80a22e
+      internalID: 1914159513
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_39
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 158
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0c5eec9b2c2ba25498f6b4ea1e29b9ae
+      internalID: 790746390
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_40
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 158
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6b1df340002ea6b41a0f01333ed6cf89
+      internalID: -112856136
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_41
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 158
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8d341b122be874f42a8042c7638548e6
+      internalID: 632250838
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_42
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 158
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e8f7fe8b1e387394b9c6e1d0ffb4b148
+      internalID: 1831550671
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_43
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 158
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 04b5b020253fbab46847c42751f2c912
+      internalID: 337562729
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_44
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 158
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4bce4ff3ddf2646439332bc6dc2891ab
+      internalID: -2067353101
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_45
+      rect:
+        serializedVersion: 2
+        x: 1080
+        y: 158
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b0c92e23313ed94488a547452cc9a40d
+      internalID: 1781484630
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_46
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 79
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7e91ef1add9d0c047873ad388e4f1160
+      internalID: -8359811
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_47
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 79
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: db30a0bd08a92ba45b10f5e5bdcc1ce0
+      internalID: -822215957
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_48
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 79
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 08a597aa1b11a38478fa8d471b33dd35
+      internalID: -199453821
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_49
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 79
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4ee3dad905d165344b19b6e7e2fa7634
+      internalID: -30598034
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_50
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 79
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8114e2e3e14796b40bb6bd6a71b332ea
+      internalID: 199566289
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_51
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 00e0b8fcfc968e240b6026c7c9ee9ea4
+      internalID: 1879314699
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_52
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 0
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 061ae2ca4ec47fa488dc5df051616018
+      internalID: 1350011801
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_53
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 0
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9f37730b16f5b5a44821db61e60877de
+      internalID: 245454174
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_54
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 0
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3caa05fa673a92e4080ae627ecaef8f1
+      internalID: 589142391
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_55
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 0
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b13d61e73376ef8499ff25a92c640a2b
+      internalID: -434036381
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_56
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 0
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4c47e253c64f9554da53ffcfd5c24f7c
+      internalID: -1656243252
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_57
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 0
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 93c0213d925d0b64ba785184d8065d38
+      internalID: 827947270
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_58
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 0
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 58fd1ec297f53b240aef8a5378c2ccdf
+      internalID: 108509343
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arroasdf-Sheet(221)_59
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 0
+        width: 120
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 873a7b957efa9254fa78016b30866a55
+      internalID: -2136544465
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    nameFileIdTable:
+      arroasdf-Sheet(221)_0: -298367452
+      arroasdf-Sheet(221)_1: 1575065521
+      arroasdf-Sheet(221)_10: 448887807
+      arroasdf-Sheet(221)_11: -1629141617
+      arroasdf-Sheet(221)_12: 686063087
+      arroasdf-Sheet(221)_13: -522579438
+      arroasdf-Sheet(221)_14: 1220136781
+      arroasdf-Sheet(221)_15: -817971454
+      arroasdf-Sheet(221)_16: -811294193
+      arroasdf-Sheet(221)_17: 847620400
+      arroasdf-Sheet(221)_18: -446816921
+      arroasdf-Sheet(221)_19: 1876858523
+      arroasdf-Sheet(221)_2: 368358221
+      arroasdf-Sheet(221)_20: 1368658908
+      arroasdf-Sheet(221)_21: -68679552
+      arroasdf-Sheet(221)_22: -1763782583
+      arroasdf-Sheet(221)_23: 1742003704
+      arroasdf-Sheet(221)_24: -753957719
+      arroasdf-Sheet(221)_25: 1782468478
+      arroasdf-Sheet(221)_26: 963998566
+      arroasdf-Sheet(221)_27: 1513911395
+      arroasdf-Sheet(221)_28: -2142642863
+      arroasdf-Sheet(221)_29: -711932905
+      arroasdf-Sheet(221)_3: 296744301
+      arroasdf-Sheet(221)_30: -150204735
+      arroasdf-Sheet(221)_31: 1637127355
+      arroasdf-Sheet(221)_32: -326330394
+      arroasdf-Sheet(221)_33: -324955916
+      arroasdf-Sheet(221)_34: -361214691
+      arroasdf-Sheet(221)_35: -1557183701
+      arroasdf-Sheet(221)_36: -2011095684
+      arroasdf-Sheet(221)_37: 110533837
+      arroasdf-Sheet(221)_38: 1914159513
+      arroasdf-Sheet(221)_39: 790746390
+      arroasdf-Sheet(221)_4: -586775773
+      arroasdf-Sheet(221)_40: -112856136
+      arroasdf-Sheet(221)_41: 632250838
+      arroasdf-Sheet(221)_42: 1831550671
+      arroasdf-Sheet(221)_43: 337562729
+      arroasdf-Sheet(221)_44: -2067353101
+      arroasdf-Sheet(221)_45: 1781484630
+      arroasdf-Sheet(221)_46: -8359811
+      arroasdf-Sheet(221)_47: -822215957
+      arroasdf-Sheet(221)_48: -199453821
+      arroasdf-Sheet(221)_49: -30598034
+      arroasdf-Sheet(221)_5: -141006765
+      arroasdf-Sheet(221)_50: 199566289
+      arroasdf-Sheet(221)_51: 1879314699
+      arroasdf-Sheet(221)_52: 1350011801
+      arroasdf-Sheet(221)_53: 245454174
+      arroasdf-Sheet(221)_54: 589142391
+      arroasdf-Sheet(221)_55: -434036381
+      arroasdf-Sheet(221)_56: -1656243252
+      arroasdf-Sheet(221)_57: 827947270
+      arroasdf-Sheet(221)_58: 108509343
+      arroasdf-Sheet(221)_59: -2136544465
+      arroasdf-Sheet(221)_6: 364159237
+      arroasdf-Sheet(221)_7: 1875032430
+      arroasdf-Sheet(221)_8: -1845126867
+      arroasdf-Sheet(221)_9: 1713276699
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

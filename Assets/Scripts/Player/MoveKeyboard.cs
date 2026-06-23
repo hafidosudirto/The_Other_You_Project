@@ -13,6 +13,9 @@ public class MoveKeyboard : MonoBehaviour
     public float maxYPosition = 1.6f;
     public float minYPosition = -6.809996f;
 
+    [Tooltip("Jika nonaktif, input bawah/S/Arrow Down tidak akan menggerakkan player ke bawah sama sekali.")]
+    public bool allowMoveDown = false;
+
 
     [Header("References (opsional)")]
     public PlayerAnimation anim;   // boleh null
@@ -133,6 +136,11 @@ public class MoveKeyboard : MonoBehaviour
             Input.GetAxisRaw("Vertical")
         );
 
+        // Blok gerak ke bawah secara total.
+        // Player tetap bisa diam, jalan kiri/kanan, dan naik jika dibutuhkan.
+        if (!allowMoveDown && input.y < 0f)
+            input.y = 0f;
+
         // SEMENTARA:
         // semua arah gerak memicu Walk_Bow
         bool hasAnyMove = input.sqrMagnitude > 0.01f;
@@ -191,8 +199,11 @@ public class MoveKeyboard : MonoBehaviour
             return;
         }
 
-        // Normal movement dengan batas Y atas dan bawah
+        // Normal movement dengan batas Y atas/bawah dan opsi blok gerak bawah.
         Vector2 moveInput = input;
+
+        if (!allowMoveDown && moveInput.y < 0f)
+            moveInput.y = 0f;
 
         if (useYLimit)
         {

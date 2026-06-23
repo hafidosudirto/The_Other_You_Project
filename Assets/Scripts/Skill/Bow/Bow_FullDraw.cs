@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.Serialization;
 
 [DisallowMultipleComponent]
-public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
+public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldownInfo, ISkillReadinessInfo
 {
     [Header("Charge UI")]
     [Tooltip("UI charge bar kecil. Isi dengan object ChargeBarRoot yang memiliki script BowChargeBar.")]
@@ -229,11 +229,39 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
     [SerializeField]
     private bool blokirRegenEnergiSelamaCasting = true;
 
+
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX Full Draw ingin dikendalikan dari script ini.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara tarikan busur diputar satu kali saat proses charge Full Draw dimulai.")]
+    public bool playBowDrawOnChargeStart = true;
+
+    [Tooltip("Suara panah meluncur diputar saat Full Draw benar-benar melepas panah.")]
+    public bool playLaunchSfxOnRelease = true;
+
+    [Tooltip("Jika aktif, prefab panah diberi BowProjectileSFX agar suara hit/miss muncul dari tabrakan projectile.")]
+    public bool enableProjectileImpactSfx = true;
+
     [Header("Debug")]
     [SerializeField] private bool debugLog = false;
 
-    public float EnergyCost => Mathf.Max(biayaEnergi, biayaEnergiFullCharge);
+    public float EnergyCost => Mathf.Max(0f, biayaEnergi);
+    public float FullChargeEnergyCost => Mathf.Max(EnergyCost, biayaEnergiFullCharge);
     public bool PayEnergyInSkillBase => false;
+
+    public bool HasCooldown => jedaSkill > 0.05f;
+    public float CooldownDuration => Mathf.Max(0f, jedaSkill);
+    public float CooldownRemaining => sedangCooldown ? Mathf.Max(0f, cooldownEndTime - Time.time) : 0f;
+    public bool IsCooldownReady => !sedangCooldown && CooldownRemaining <= 0.05f;
+    public bool IsSkillBusy => sedangCharge || sedangRelease;
+    public bool IsSkillReady => !IsSkillBusy && IsCooldownReady && HasEnoughEnergyToStart();
+
+    // Alias sederhana agar HUD yang membaca lewat reflection tetap aman.
+    public bool isCasting => IsSkillBusy;
+    public bool isCharging => sedangCharge;
+    public bool isCooldown => sedangCooldown;
+    public float cooldownDuration => CooldownDuration;
 
     private CharacterBase pemilikEnergi;
     private SkillBase skillBase;
@@ -257,6 +285,7 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
     private bool pendingPakaiPiercing;
 
     private KeyCode tombolCharge = KeyCode.None;
+    private float cooldownEndTime;
 
     private void Awake()
     {
@@ -338,6 +367,7 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
         }
 
         MulaiCooldown();
+        SkillIndexHUDController.NotifyGlobalSkillUsed(this);
 
         if (chargeBar != null)
         {
@@ -346,6 +376,9 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
         }
 
         SetAnimatorFullCharge(false);
+
+        if (playBowDrawOnChargeStart)
+            PlayBowDrawSfx();
 
         if (animasiPemain != null)
             animasiPemain.TriggerBowChargeStart();
@@ -560,6 +593,7 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
         if (routineCooldown != null)
             StopCoroutine(routineCooldown);
 
+        cooldownEndTime = Time.time + Mathf.Max(0f, jedaSkill);
         routineCooldown = StartCoroutine(RoutineCooldown());
     }
 
@@ -635,7 +669,12 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
             damagePanah.SetStats(damage, knockback, stun, piercing, false);
         }
 
-        CatatDataFullDraw();
+        if (playLaunchSfxOnRelease)
+            PlayFullDrawLaunchSfx(piercing);
+
+        SetupProjectileSfx(panahObj, true, true);
+
+        CatatDataFullDraw(piercing);
 
         if (debugLog)
         {
@@ -876,6 +915,8 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
         rb.angularVelocity = 0f;
         rb.simulated = false;
 
+        PlayGroundMissIfArrowStillActive(panahObj);
+
         Collider2D col = panahObj.GetComponent<Collider2D>();
 
         if (col != null)
@@ -1079,6 +1120,17 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
         return true;
     }
 
+    private bool HasEnoughEnergyToStart()
+    {
+        if (biayaEnergi <= 0f)
+            return true;
+
+        if (pemilikEnergi == null)
+            pemilikEnergi = pemain != null ? pemain : GetComponentInParent<CharacterBase>(true);
+
+        return pemilikEnergi == null || pemilikEnergi.HasEnergy(biayaEnergi);
+    }
+
     private void HentikanGerakPemain()
     {
         if (pemain == null)
@@ -1133,18 +1185,115 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
         return null;
     }
 
-    private void CatatDataFullDraw()
+
+    private void PlayBowDrawSfx()
+    {
+        if (!playSfxFromScript) return;
+        if (SFXManager.Instance == null) return;
+
+        SFXManager.Instance.ResetBowDrawGate();
+        SFXManager.Instance.PlayBowDrawGuarded();
+    }
+
+    private void PlayFullDrawLaunchSfx(bool piercing)
+    {
+        AudioClip clip = piercing
+            ? (SFXManager.Instance != null ? SFXManager.Instance.arrowLaunchCharged : null)
+            : (SFXManager.Instance != null ? SFXManager.Instance.arrowLaunchNormal : null);
+
+        PlaySfx(clip);
+    }
+
+    private void SetupProjectileSfx(GameObject arrowObj, bool enableGroundMissSfx, bool enableHitSfx)
+    {
+        if (!enableProjectileImpactSfx) return;
+        if (arrowObj == null) return;
+
+        BowProjectileSFX reporter = arrowObj.GetComponent<BowProjectileSFX>();
+        if (reporter == null)
+            reporter = arrowObj.AddComponent<BowProjectileSFX>();
+
+        reporter.Setup(pemilikEnergi, enableGroundMissSfx, enableHitSfx);
+    }
+
+    private void PlayGroundMissIfArrowStillActive(GameObject arrowObj)
+    {
+        if (!enableProjectileImpactSfx) return;
+        if (arrowObj == null) return;
+
+        BowProjectileSFX reporter = arrowObj.GetComponent<BowProjectileSFX>();
+        if (reporter != null)
+            reporter.PlayGroundMissIfNotPlayed();
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.sfxSource == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
+    }
+
+
+    private void CatatDataFullDraw(bool piercing)
     {
         DataTracker tracker = DataTracker.Instance;
 
         if (tracker == null)
             return;
 
-        MethodInfo method = tracker.GetType().GetMethod("RecordBowFullDraw");
+        /*
+         * DDA baru membedakan:
+         * - FullDraw biasa
+         * - FullDrawFullCharge / Piercing
+         *
+         * Reflection dipakai agar tetap aman jika ada build lama yang belum
+         * memiliki method baru.
+         */
+        string primaryMethodName = piercing
+            ? "RecordBowFullDrawFullCharge"
+            : "RecordBowFullDrawNormal";
 
-        if (method != null)
+        MethodInfo primaryMethod = tracker.GetType().GetMethod(primaryMethodName);
+
+        if (primaryMethod != null)
         {
-            method.Invoke(tracker, null);
+            primaryMethod.Invoke(tracker, null);
+            return;
+        }
+
+        /*
+         * Alias kompatibilitas untuk full charge / piercing.
+         */
+        if (piercing)
+        {
+            MethodInfo piercingAlias = tracker.GetType().GetMethod("RecordBowPiercingShot");
+
+            if (piercingAlias != null)
+            {
+                piercingAlias.Invoke(tracker, null);
+                return;
+            }
+
+            MethodInfo fullDrawPiercingAlias = tracker.GetType().GetMethod("RecordBowFullDrawPiercing");
+
+            if (fullDrawPiercingAlias != null)
+            {
+                fullDrawPiercingAlias.Invoke(tracker, null);
+                return;
+            }
+        }
+
+        /*
+         * Fallback lama: semua FullDraw dicatat sebagai FullDraw biasa.
+         */
+        MethodInfo legacyMethod = tracker.GetType().GetMethod("RecordBowFullDraw");
+
+        if (legacyMethod != null)
+        {
+            legacyMethod.Invoke(tracker, null);
             return;
         }
 
@@ -1169,6 +1318,7 @@ public class Bow_FullDraw : MonoBehaviour, ISkill, IEnergySkill
             pemain.lockMovement = false;
 
         sedangCooldown = false;
+        cooldownEndTime = 0f;
         sedangCharge = false;
         sedangRelease = false;
         menungguReleaseEvent = false;

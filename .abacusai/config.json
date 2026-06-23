@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"C:\\Users\\Fairuz\\The_Other_You_Project\" && git --no-pager show HEAD:Assets/TelemetryLogger.cs > \"tele_old.txt\" 2>&1 |…)",
+      "Bash(cd \"C:\\Users\\Fairuz\\The_Other_You_Project\" && git --no-pager show HEAD:Assets/TelemetryLogger.cs > \"tele_old.txt\")"
+    ]
+  }
+}

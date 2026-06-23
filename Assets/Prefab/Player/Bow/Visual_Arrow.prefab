@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 4743274049896512793}
   - component: {fileID: -6683731761706937545}
   - component: {fileID: 4380100856003608978}
+  - component: {fileID: -7148670863405945396}
   m_Layer: 7
   m_Name: Visual_Arrow
   m_TagString: Projectile
@@ -177,13 +178,29 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   speed: 12
   gravity: 8
+  initialDownFactor: 0.22
   rayDistance: 0.15
+  armDelay: 0.05
+  lifeTime: 3
+  angleOffset: 0
+  hitAreaPrefab: {fileID: 7787539970225032193, guid: 0fce3b503735a724c907468f50083ae3, type: 3}
   groundMask:
     serializedVersion: 2
     m_Bits: 256
-  hitAreaPrefab: {fileID: 7787539970225032193, guid: 0fce3b503735a724c907468f50083ae3, type: 3}
   owner: {fileID: 0}
   damage: 0
   knockback: 0
   stun: 0
   radius: 0
+--- !u!114 &-7148670863405945396
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6159413764065269898}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f894b39d95650d643854f51105352a7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

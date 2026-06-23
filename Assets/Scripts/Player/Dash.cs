@@ -89,7 +89,14 @@ public class Dash : MonoBehaviour, ISkill
             return;
 
         if (DataTracker.Instance != null)
-            DataTracker.Instance.RecordDefenseDash(WeaponType.Sword);
+        {
+            WeaponType dashWeapon = WeaponType.None;
+
+            if (player != null)
+                dashWeapon = player.weaponType;
+
+            DataTracker.Instance.RecordDefenseDash(dashWeapon);
+        }
 
         dashRoutine = StartCoroutine(DashRoutine());
     }

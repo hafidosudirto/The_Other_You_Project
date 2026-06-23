@@ -26,7 +26,7 @@ Transform:
   m_GameObject: {fileID: 382675669592478831}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1, y: -0.3, z: 0}
+  m_LocalPosition: {x: 1.38, y: -0.09, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -44,7 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 342aaa80c00f12b4f83f56b5e026356f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enemyAI: {fileID: 8273877875982860227}
+  enemyAI: {fileID: 8282321821440918329}
   owner: {fileID: 679016720296936666}
   mirrorLocalPositionX: 1
   mirrorLocalScaleX: 0
@@ -60,11 +60,13 @@ GameObject:
   - component: {fileID: 4007388749144626707}
   - component: {fileID: 2394147951062621979}
   - component: {fileID: 679016720296936666}
-  - component: {fileID: 8273877875982860227}
+  - component: {fileID: 8282321821440918329}
   - component: {fileID: 3060324101768364948}
   - component: {fileID: 3416067351600877366}
   - component: {fileID: 4495831448187383308}
   - component: {fileID: 4721237734604726269}
+  - component: {fileID: 3598047057717131649}
+  - component: {fileID: 100781069933673451}
   m_Layer: 3
   m_Name: Enemy_Bow
   m_TagString: Enemy
@@ -82,13 +84,15 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.5, y: 1.5, z: 1.5}
+  m_LocalScale: {x: 1.3, y: 1.3, z: 1.3}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 6006294142454943748}
   - {fileID: 5432282122991037403}
   - {fileID: 4010695762645510429}
   - {fileID: 8526268752133191413}
+  - {fileID: 3472388342588695655}
+  - {fileID: 6273007678049884091}
   - {fileID: 6300368307221256618}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -175,13 +179,14 @@ MonoBehaviour:
   currentEnergy: 100
   regenPerSecond: 8
   useUnscaledTime: 0
+  energyRegenBlocked: 0
   isFacingRight: 1
   isStaggered: 0
   isRiposteStance: 0
   canRiposte: 1
   riposteWindow: 0.6
   staggerResistance: 1
---- !u!114 &8273877875982860227
+--- !u!114 &8282321821440918329
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -190,24 +195,29 @@ MonoBehaviour:
   m_GameObject: {fileID: 1718376399928103269}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a7dba363f7cbb4a4091317e87a6cdc10, type: 3}
+  m_Script: {fileID: 11500000, guid: 34c0cf68b22cb0f4c8c33063a359622e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   playerTransform: {fileID: 0}
-  weaponMode: 0
-  adaptiveProfile: {fileID: 0}
-  spriteVisual: {fileID: 7686073481702737145}
+  weaponMode: 2
+  AttackPower: 10
+  attackRange: 8
+  adaptiveProfile: {fileID: 4721237734604726269}
+  spriteVisual: {fileID: 6006294142454943748}
   spriteRenderer: {fileID: 4184288291677543696}
   invertFlipX: 0
-  maxMoveSpeed: 3
-  attackRange: 1.8
-  attackRangeOffset: {x: 1, y: 0}
-  useBowBalancedBag: 0
-  bowSenseRange: 11
-  bowDesiredRange: 7.5
-  bowMinimumRange: 3.75
+  maxMoveSpeed: 4
+  bowSenseRange: 15
+  bowDesiredRange: 5.25
+  bowMinimumRange: 2.25
+  bowRangeTolerance: 0.5
   swordDesiredRange: 1.8
+  swordSenseRange: 3.2
+  swordRangeTolerance: 0.25
   isPerformingAction: 0
+  limitYPosition: 1
+  minYPosition: -4
+  maxYPosition: 1.6
 --- !u!114 &3060324101768364948
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -221,9 +231,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   currentState: 0
-  movementMode: 0
+  movementMode: 1
   player: {fileID: 0}
   rb: {fileID: 0}
+  swordMovement: {fileID: 0}
+  bowMovement: {fileID: 0}
   moveSpeed: 4
   accel: 40
   useVerticalAlign: 1
@@ -231,6 +243,9 @@ MonoBehaviour:
   desiredRange: 1.5
   minimumCombatRange: 0
   rangeTolerance: 0.25
+  isExternallyLocked: 0
+  isAttackMovementLocked: 0
+  defaultAttackLockFailSafe: 0.6
 --- !u!114 &3416067351600877366
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -255,7 +270,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8adcbc455213a7d4d8bd32ee79ddf3bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ai: {fileID: 8273877875982860227}
+  ai: {fileID: 8282321821440918329}
   enemyDash: {fileID: 0}
   playerSensor: {fileID: 0}
   skillRootSword: {fileID: 0}
@@ -266,7 +281,7 @@ MonoBehaviour:
   _riposte: {fileID: 0}
   _quickShotBow: {fileID: 1822752424171837785}
   _fullDrawBow: {fileID: 7446648338375621929}
-  _piercingBow: {fileID: 1087065354804197097}
+  _SpreadArrow: {fileID: 7767739646929134362}
   _concussiveBow: {fileID: 3805940983556006463}
   stats:
     attack: 10
@@ -290,16 +305,54 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   combatStyle: 0
-  weaponResponse: 0
+  weaponResponse: 2
   normalizedSwordWeights:
   - 25
   - 25
   - 25
   - 25
   normalizedBowWeights:
-  - 34
-  - 33
-  - 33
+  - 25
+  - 25
+  - 25
+  - 25
+  normalizedDashWeight: 0
+  normalizedRiposteWeight: 0
+--- !u!114 &3598047057717131649
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1718376399928103269}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a180770ab9134934db7f058bfb1fd355, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  attackRange: 8
+  bowSenseRange: 10
+  attackRangeOffset: {x: 0, y: 0}
+  useBowBalancedBag: 0
+  showDDADebugLog: 1
+  fallbackQuickWeight: 25
+  fallbackSpreadWeight: 25
+  fallbackFullDrawWeight: 25
+  fallbackFullDrawFullChargeWeight: 0
+  fallbackConcussiveWeight: 0
+--- !u!114 &100781069933673451
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1718376399928103269}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bcd6ea542ac92a34a88d6811389c8571, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  combat: {fileID: 4495831448187383308}
 --- !u!1 &3047793432696247020
 GameObject:
   m_ObjectHideFlags: 0
@@ -344,10 +397,94 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 342aaa80c00f12b4f83f56b5e026356f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enemyAI: {fileID: 8273877875982860227}
+  enemyAI: {fileID: 8282321821440918329}
   owner: {fileID: 679016720296936666}
   mirrorLocalPositionX: 1
   mirrorLocalScaleX: 0
+--- !u!1 &3213513327903873862
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3472388342588695655}
+  - component: {fileID: 4309836026935663260}
+  m_Layer: 6
+  m_Name: Shadow_PlayerBow
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3472388342588695655
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3213513327903873862}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.14, y: -0.71, z: 0}
+  m_LocalScale: {x: 0.9097923, y: 0.24639998, z: 1.5163155}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7686073481702737145}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!212 &4309836026935663260
+SpriteRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3213513327903873862}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 0
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_Sprite: {fileID: -2413806693520163455, guid: a86470a33a6bf42c4b3595704624658b, type: 3}
+  m_Color: {r: 0, g: 0, b: 0, a: 0.21568628}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 1, y: 1}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_MaskInteraction: 0
+  m_SpriteSortPoint: 0
 --- !u!1 &3692325758305768845
 GameObject:
   m_ObjectHideFlags: 0
@@ -360,8 +497,8 @@ GameObject:
   - component: {fileID: 550422330841610161}
   - component: {fileID: 1822752424171837785}
   - component: {fileID: 7446648338375621929}
-  - component: {fileID: 1087065354804197097}
   - component: {fileID: 3805940983556006463}
+  - component: {fileID: 7767739646929134362}
   m_Layer: 3
   m_Name: SkillRoot_Bow
   m_TagString: Untagged
@@ -425,8 +562,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8d4163fae4ea20246b705f18249281bd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  minRange: 1.5
-  skillRange: 5
+  minRange: 2
+  skillRange: 9
   rangeTolerance: 0.2
   firePoint: {fileID: 5432282122991037403}
   arrowPrefab: {fileID: 1692899915983295771, guid: eda8816cfe96bca40ba183b8df7a9492, type: 3}
@@ -442,6 +579,11 @@ MonoBehaviour:
   cooldown: 0.35
   postShotLock: 0.05
   releaseTimeout: 0.65
+  playSfxFromScript: 1
+  playBowDrawOnCastStart: 1
+  playLaunchSfxOnRelease: 1
+  playGroundMissSfx: 1
+  playHitSfx: 1
 --- !u!114 &7446648338375621929
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -455,48 +597,49 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   minRange: 3.5
-  skillRange: 8
+  skillRange: 12
   rangeTolerance: 0.25
+  fullChargeMinRange: 3.5
+  fullChargeSkillRange: 9
+  fullChargeRangeTolerance: 0.25
   firePoint: {fileID: 5432282122991037403}
-  arrowPrefab: {fileID: 1692899915983295771, guid: eda8816cfe96bca40ba183b8df7a9492, type: 3}
-  facingSprite: {fileID: 0}
+  arrowPrefab: {fileID: 1692899915983295771, guid: 663ce66886453a84a899d3e844db7563, type: 3}
+  piercingArrowPrefab: {fileID: 1692899915983295771, guid: 75a95f53808499844b0ad3bcf1117d80, type: 3}
+  facingSprite: {fileID: 4184288291677543696}
   maxChargeTime: 1.5
+  normalReleaseChargePercent: 0.45
+  fullChargeThreshold: 0.95
   minArrowSpeed: 6
   maxArrowSpeed: 20
-  baseDamage: 1
-  baseKnockback: 2
-  baseStun: 0.15
-  straightTime: 0.45
-  gravityStart: 3
-  gravityEnd: 12
+  minDamage: 4
+  maxDamage: 10
+  minKnockback: 2
+  maxKnockback: 6
+  minStun: 0.05
+  maxStun: 0.15
+  piercingArrowSpeed: 20
+  piercingDamage: 10
+  piercingKnockback: 0
+  piercingStun: 0.25
+  piercingStraightFlight: 1
+  piercingLifetime: 0.9
+  forcePiercingHorizontal: 1
+  flightDuration: 0.55
+  fallStartTime: 0.09
+  initialLift: 0.4
+  fallCurveStrength: 7
+  rotateArrowToVelocity: 1
   destroyDelay: 0.25
   cooldown: 0.8
   postReleaseLock: 0.08
   releaseTimeout: 0.7
---- !u!114 &1087065354804197097
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3692325758305768845}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8e663fc7b123a2e4e8d3f3a0379799cb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  minRange: 2.5
-  skillRange: 7
-  rangeTolerance: 0.2
-  arrowPrefab: {fileID: 1692899915983295771, guid: 3b1b1c55802ed8a4eaa8a5643eabafb0, type: 3}
-  arrowSpawnPoint: {fileID: 5432282122991037403}
-  facingSprite: {fileID: 0}
-  shootCooldown: 0.8
-  shootSpeed: 14
-  destroyAfter: 2.5
-  damage: 10
-  postShotLock: 0.08
-  releaseTimeout: 0.65
+  useAnimationEvent: 1
+  playSfxFromScript: 1
+  playBowDrawOnChargeStart: 1
+  playLaunchSfxOnRelease: 1
+  playGroundMissSfx: 1
+  playHitSfx: 1
+  defaultMode: 0
 --- !u!114 &3805940983556006463
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -510,38 +653,117 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   minRange: 0
-  skillRange: 3.25
-  rangeTolerance: 0.2
-  useArrowVisual: 0
+  skillRange: 4.5
+  rangeTolerance: 0.35
+  useArrowVisual: 1
+  aimExplosionAtPlayer: 1
   firePoint: {fileID: 4010695762645510429}
   arrowPrefab: {fileID: 6159413764065269898, guid: cd2fae8548d121942b4f4aa920ef3d20, type: 3}
   hitAreaPrefab: {fileID: 7787539970225032193, guid: 0fce3b503735a724c907468f50083ae3, type: 3}
-  facingSprite: {fileID: 0}
-  damage: 10
-  knockback: 6
-  stun: 0.35
-  explosionRadius: 1.4
+  facingSprite: {fileID: 4184288291677543696}
+  visualRoot: {fileID: 6006294142454943748}
+  visualRenderers:
+  - {fileID: 4184288291677543696}
+  titikKaki: {fileID: 6273007678049884091}
+  jumpMode: 1
   jumpHeight: 2
   jumpUpTime: 0.5
   hoverTime: 0.2
   jumpDownTime: 0.3
+  pakaiStartPopAnimationEvent: 1
+  startPopEventTimeout: 0.35
+  fallbackTahanBlinkDiTanah: 0.16
+  fadeVisualSaatSpecialJump: 1
+  durasiFadeHilang: 0.06
+  durasiTidakTerlihat: 0.04
+  durasiFadeMuncul: 0.08
+  pakaiAnimationEvent: 1
+  releaseEventTimeout: 0.65
   delayBeforeFall: 0.05
-  hitAreaOffset: {x: 1.2, y: -0.2}
+  arrowSpeed: 22
+  arrowArriveDistance: 0.18
+  arrowFlightTimeout: 0.45
+  delayExplosionAfterArrowArrive: 0
+  updateTargetDuringArrowFlight: 1
+  explodeAsSoonAsReachable: 1
+  rotateArrowToVelocity: 1
+  resetTrailSaatSpawn: 1
   groundMask:
     serializedVersion: 2
-    m_Bits: 0
-  visualArrowSpeed: 12
-  visualArrowGravity: 8
-  visualInitialDownFactor: 0.22
-  visualRayDistance: 0.15
-  visualArmDelay: 0.05
-  visualLifeTime: 3
-  visualAngleOffset: 0
-  visualOverlapRadius: 0.08
-  visualImpactMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 256
+  groundRaycastHeight: 2.5
+  groundRaycastDistance: 6
+  explosionGroundOffset: {x: 0, y: 0.05}
+  hitAreaOffset: {x: 1.2, y: -0.2}
+  damage: 10
+  knockback: 6
+  stun: 0.35
+  explosionRadius: 5
   cooldown: 1
+  playSfxFromScript: 1
+  playBowDrawOnCastStart: 1
+  playJumpLaunchSfx: 1
+  playConcussiveLaunchSfxOnRelease: 1
+  playConcussiveExplodeSfx: 1
+  playHitSfxOnExplosionHit: 1
+  debugLog: 0
+--- !u!114 &7767739646929134362
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3692325758305768845}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d1f8805c6c0fd0459b0c8e15454abd8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  skillRange: 8
+  minRange: 2
+  rangeTolerance: 1
+  titikTembak: {fileID: 5432282122991037403}
+  prefabPanah: {fileID: 1692899915983295771, guid: 3b1b1c55802ed8a4eaa8a5643eabafb0, type: 3}
+  enemyCharacter: {fileID: 679016720296936666}
+  enemyAnimator: {fileID: 891478525830658006}
+  facingSprite: {fileID: 4184288291677543696}
+  triggerAnimasi: SpreadArrow
+  pakaiAnimationEvent: 1
+  fallbackDelayTembak: 0.25
+  releaseTimeout: 1
+  recoveryTimeout: 0.45
+  enableBackDashImpulse: 1
+  backDashSpeed: 5
+  backDashDuration: 0.12
+  preserveVerticalVelocityDuringBackDash: 0
+  autoReleaseAfterBackDashEvent: 1
+  releaseDelayAfterBackDashEvent: 0.02
+  polaTembak: 0
+  jumlahPanah: 3
+  jarakVertikalLurus: 0.22
+  bonusVyAtas: 1.15
+  bonusVyTengah: 0
+  bonusVyBawah: -1.15
+  offsetSpawnSpreadTetap: 0
+  spreadTetapLurusSepertiPiercing: 1
+  sudutKipas: 9
+  offsetSpawnKipas: 0.06
+  kecepatanPanah: 16
+  durasiTerbang: 0.65
+  rotasiIkutArah: 1
+  mulaiTurun: 0.09
+  angkatSedikit: 0.4
+  lengkungTurun: 7
+  damageSpread: 5
+  dorongMundur: 4
+  lumpuhSingkat: 0.1
+  panahMenembus: 0
+  cooldown: 3
+  playSfxFromScript: 1
+  playBowDrawOnCastStart: 1
+  playSpreadLaunchSfxOnRelease: 1
+  playGroundMissSfx: 1
+  playHitSfx: 1
 --- !u!1 &5632209356851836178
 GameObject:
   m_ObjectHideFlags: 0
@@ -555,6 +777,7 @@ GameObject:
   - component: {fileID: 891478525830658006}
   - component: {fileID: 4944247718903230885}
   - component: {fileID: 4636523973762786944}
+  - component: {fileID: 2061521139306005644}
   m_Layer: 3
   m_Name: Visual
   m_TagString: Untagged
@@ -573,7 +796,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 7686073481702737145}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -618,7 +841,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 529263100, guid: 00803243ceceef442b834f2b774aee49, type: 3}
+  m_Sprite: {fileID: -298367452, guid: 70761416bc0545f479b5fad7548a3869, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -639,7 +862,7 @@ Animator:
   m_GameObject: {fileID: 5632209356851836178}
   m_Enabled: 1
   m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: cae2a20524296044ba767ac6ea014e67, type: 2}
+  m_Controller: {fileID: 9100000, guid: 7ee837589e321f04a8c123aab7722f73, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
   m_ApplyRootMotion: 0
@@ -664,8 +887,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   quickShot: {fileID: 1822752424171837785}
   fullDraw: {fileID: 7446648338375621929}
-  piercingShot: {fileID: 1087065354804197097}
+  spreadArrow: {fileID: 7767739646929134362}
   concussiveShot: {fileID: 3805940983556006463}
+  autoAssignOnAwake: 1
+  autoAssignBeforeEveryEvent: 1
+  debugEvent: 1
+  warningIfMissing: 1
 --- !u!114 &4636523973762786944
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -679,6 +906,61 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 891478525830658006}
+  spriteRenderer: {fileID: 4184288291677543696}
+  logMissingParameters: 0
+  resetBowTriggersOnEnable: 1
+  clearChargeFlagsOnEnable: 1
+  playSlash1AsFullCombo: 1
+  useEndCurrentActionAsComboBridge: 1
+  slash2TimedFallbackDelay: 0
+  forceSwordAnimationState: 1
+  swordLayerIndex: 0
+  slash1StateName: Slash1
+  slash2StateName: Slash2
+  swordCrossFadeDuration: 0.02
+--- !u!114 &2061521139306005644
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5632209356851836178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d52830573cb3692409a25dd33d4346d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!1 &8094252895751690279
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6273007678049884091}
+  m_Layer: 6
+  m_Name: TitikKaki
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6273007678049884091
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8094252895751690279}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.11, y: -0.7058256, z: 0}
+  m_LocalScale: {x: 1.0083231, y: 1.0083231, z: 1.0083231}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7686073481702737145}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8509301020242139796
 GameObject:
   m_ObjectHideFlags: 0
@@ -697,7 +979,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &6300368307221256618
 RectTransform:
   m_ObjectHideFlags: 0
@@ -715,7 +997,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0.844}
   m_SizeDelta: {x: 265.9343, y: -26.0597}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!223 &8409694188457163318

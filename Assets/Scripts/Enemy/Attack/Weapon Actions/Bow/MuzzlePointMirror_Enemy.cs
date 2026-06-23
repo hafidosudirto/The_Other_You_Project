@@ -3,7 +3,7 @@ using UnityEngine;
 public class MuzzlePointMirror_Enemy : MonoBehaviour
 {
     [Header("References")]
-    public EnemyAI enemyAI;
+    public NodeManager enemyAI;
     public CharacterBase owner;
 
     [Header("Options")]
@@ -22,7 +22,7 @@ public class MuzzlePointMirror_Enemy : MonoBehaviour
         baseLocalScale = transform.localScale;
 
         if (enemyAI == null)
-            enemyAI = GetComponentInParent<EnemyAI>();
+            enemyAI = GetComponentInParent<NodeManager>();
 
         if (owner == null)
             owner = GetComponentInParent<CharacterBase>();
@@ -34,7 +34,7 @@ public class MuzzlePointMirror_Enemy : MonoBehaviour
         if (!Application.isPlaying)
         {
             if (enemyAI == null)
-                enemyAI = GetComponentInParent<EnemyAI>();
+                enemyAI = GetComponentInParent<NodeManager>();
 
             if (owner == null)
                 owner = GetComponentInParent<CharacterBase>();

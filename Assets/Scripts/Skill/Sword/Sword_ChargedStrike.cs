@@ -1,13 +1,24 @@
 using UnityEngine;
 using System.Collections;
 
-public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
+public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldownInfo, ISkillReadinessInfo
 {
     [Header("Energy (ChargedStrike pays on Release)")]
     [SerializeField, Min(0f)] private float energyCost = 25f;
 
     public float EnergyCost => energyCost;
     public bool PayEnergyInSkillBase => false;
+
+    // Data baca untuk SkillIndexHUDController.
+    // Tidak menambah angka tuning baru. Durasi visual diambil dari durasi clip/fallback yang sudah ada.
+    public bool HasCooldown => cooldownDuration > 0.05f;
+    public float CooldownDuration => Mathf.Max(0f, cooldownDuration);
+    public float CooldownRemaining => Mathf.Max(0f, recoveryEndTime - Time.time);
+    public bool IsCooldownReady => CooldownRemaining <= 0.05f;
+    public bool IsSkillBusy => isCharging || isRecovering;
+    public bool IsSkillReady => !IsSkillBusy && IsCooldownReady && HasEnoughEnergyToStart();
+    public bool isCasting => IsSkillBusy;
+    public float cooldownDuration => Mathf.Max(0f, GetCurrentClipLengthOrFallback());
 
     [Header("Charge Settings")]
     public float maxChargeTime = 2.0f;
@@ -28,6 +39,26 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
     [Tooltip("Dipakai jika gagal membaca panjang clip dari Animator (detik).")]
     public float strikeClipFallbackLength = 0.35f;
 
+    [Header("SFX Timing")]
+    [Tooltip("Aktifkan jika SFX Charged Strike ingin dikendalikan dari script ini, bukan dari Animation Event.")]
+    public bool playSfxFromScript = true;
+
+    [Tooltip("Suara charge diputar selama tombol Charged Strike masih ditahan.")]
+    public bool playChargeSfxWhileCharging = true;
+
+    [Tooltip("Jika true, suara charge akan di-loop sampai tombol dilepas atau skill dibatalkan.")]
+    public bool loopChargeSfx = true;
+
+    [Range(0f, 1f)]
+    [Tooltip("Volume khusus untuk suara charge. Tidak memengaruhi suara release dan hit.")]
+    public float chargeSfxVolume = 1f;
+
+    [Tooltip("Suara release/ayunan kuat diputar tepat saat hitbox Charged Strike aktif.")]
+    public bool playReleaseSfxOnActiveFrame = true;
+
+    [Tooltip("Suara hit hanya dimainkan satu kali untuk satu Charged Strike, walaupun musuh yang terkena lebih dari satu.")]
+    public bool playHitSfxOncePerStrike = true;
+
     [Header("Gizmo (Shown on Strike Damage)")]
     public Color gizmoColor = new Color(1f, 0.6f, 0f);
     public float gizmoRadius = 1.4f;
@@ -43,13 +74,16 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
     private Animator unityAnimator;
 
     private bool isCharging = false;
+    private bool isRecovering = false;
     private float chargeTimer = 0f;
+    private float recoveryEndTime = -999f;
 
     private bool showGizmo = false;
     private Coroutine gizmoRoutine;
 
     private int mySlotIndex = 0;
     private Coroutine runningRoutine;
+    private AudioSource chargeSfxSource;
 
     void Awake()
     {
@@ -63,16 +97,23 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
             unityAnimator = anim.animator;
     }
 
+    private bool HasEnoughEnergyToStart()
+    {
+        float cost = Mathf.Max(0f, EnergyCost);
+        if (cost <= 0f) return true;
+
+        CharacterBase character = GetComponentInParent<CharacterBase>();
+        if (character == null) return true;
+
+        return character.CurrentEnergy + 1e-6f >= cost;
+    }
+
     public void TriggerSkill(int slotIndex)
     {
-        if (skillBase != null && EnergyCost > 0f)
+        if (!HasEnoughEnergyToStart())
         {
-            var character = GetComponentInParent<CharacterBase>();
-            if (character != null && character.CurrentEnergy < EnergyCost)
-            {
-                DebugHub.Warning($"ENERGY KURANG: ChargedStrike butuh {EnergyCost}.");
-                return;
-            }
+            DebugHub.Warning($"ENERGY KURANG: ChargedStrike butuh {EnergyCost}.");
+            return;
         }
 
         if (isCharging) return;
@@ -126,6 +167,9 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
         if (anim != null)
             anim.SetCharging(true);
 
+        // SFX charge diputar selama tombol skill masih ditahan.
+        PlayChargeSfx();
+
         yield return null;
 
         while (Input.GetKey(holdKey))
@@ -134,6 +178,8 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
             chargeTimer = Mathf.Clamp(chargeTimer, 0f, maxChargeTime);
             yield return null;
         }
+
+        StopChargeSfx();
 
         isCharging = false;
 
@@ -183,6 +229,8 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
 
     private void CancelAfterInsufficientEnergy()
     {
+        StopChargeSfx();
+
         if (mover != null)
             mover.UnlockExternal();
 
@@ -198,11 +246,16 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
 
     private IEnumerator StrikeRoutine(float multiplier)
     {
+        isRecovering = true;
+
         yield return null;
         yield return null;
 
         float clipLen = GetCurrentClipLengthOrFallback();
         if (clipLen <= 0f) clipLen = strikeClipFallbackLength;
+
+        recoveryEndTime = Time.time + Mathf.Max(0f, clipLen);
+        SkillIndexHUDController.NotifyGlobalSkillUsed(this);
 
         float startP = Mathf.Clamp01(strikeActiveStart);
         float endP = Mathf.Clamp01(strikeActiveEnd);
@@ -217,6 +270,10 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
         if (startT > 0f)
             yield return new WaitForSeconds(startT);
 
+        // SFX ayunan kuat diputar pada timing yang sama dengan aktifnya hitbox Charged Strike.
+        if (playReleaseSfxOnActiveFrame)
+            PlayReleaseSfx();
+
         PerformChargedStrike(multiplier);
 
         float activeDur = Mathf.Max(0f, endT - startT);
@@ -229,6 +286,9 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
 
         if (player != null)
             player.isAttacking = false;
+
+        isRecovering = false;
+        recoveryEndTime = -999f;
     }
 
     private float GetCurrentClipLengthOrFallback()
@@ -253,6 +313,7 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
         Vector3 dir = player.isFacingRight ? Vector3.right : Vector3.left;
 
         Collider2D[] hits = Physics2D.OverlapCircleAll(origin, attackRadius);
+        bool hasHit = false;
 
         foreach (Collider2D hit in hits)
         {
@@ -269,8 +330,95 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
 
                 Vector2 knockDir = (target.transform.position - origin).normalized;
                 target.ApplyStagger(knockDir, knockbackForce, stunDuration);
+
+                hasHit = true;
+
+                if (!playHitSfxOncePerStrike)
+                    PlayHitSfx();
             }
         }
+
+        // SFX hit hanya diputar jika Charged Strike benar-benar mengenai minimal satu musuh.
+        if (hasHit && playHitSfxOncePerStrike)
+            PlayHitSfx();
+    }
+
+    private void PlayChargeSfx()
+    {
+        if (!playSfxFromScript) return;
+        if (!playChargeSfxWhileCharging) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.swordCharge == null) return;
+
+        if (loopChargeSfx)
+        {
+            EnsureChargeSfxSource();
+            if (chargeSfxSource == null) return;
+
+            chargeSfxSource.clip = SFXManager.Instance.swordCharge;
+            chargeSfxSource.loop = true;
+            chargeSfxSource.volume = chargeSfxVolume;
+
+            if (!chargeSfxSource.isPlaying)
+                chargeSfxSource.Play();
+        }
+        else
+        {
+            PlaySfx(SFXManager.Instance.swordCharge);
+        }
+    }
+
+    private void StopChargeSfx()
+    {
+        if (chargeSfxSource == null) return;
+
+        if (chargeSfxSource.isPlaying)
+            chargeSfxSource.Stop();
+
+        chargeSfxSource.clip = null;
+    }
+
+    private void EnsureChargeSfxSource()
+    {
+        if (chargeSfxSource != null) return;
+
+        chargeSfxSource = gameObject.AddComponent<AudioSource>();
+        chargeSfxSource.playOnAwake = false;
+        chargeSfxSource.loop = true;
+        chargeSfxSource.volume = chargeSfxVolume;
+
+        if (SFXManager.Instance != null && SFXManager.Instance.sfxSource != null)
+        {
+            AudioSource referenceSource = SFXManager.Instance.sfxSource;
+            chargeSfxSource.outputAudioMixerGroup = referenceSource.outputAudioMixerGroup;
+            chargeSfxSource.spatialBlend = referenceSource.spatialBlend;
+            chargeSfxSource.rolloffMode = referenceSource.rolloffMode;
+            chargeSfxSource.minDistance = referenceSource.minDistance;
+            chargeSfxSource.maxDistance = referenceSource.maxDistance;
+            chargeSfxSource.priority = referenceSource.priority;
+        }
+    }
+
+    private void PlayReleaseSfx()
+    {
+        if (SFXManager.Instance == null) return;
+        PlaySfx(SFXManager.Instance.swordSlash2);
+    }
+
+    private void PlayHitSfx()
+    {
+        if (SFXManager.Instance == null) return;
+        PlaySfx(SFXManager.Instance.swordHit);
+    }
+
+    private void PlaySfx(AudioClip clip)
+    {
+        if (!playSfxFromScript) return;
+        if (clip == null) return;
+        if (SFXManager.Instance == null) return;
+        if (SFXManager.Instance.sfxSource == null) return;
+
+        SFXManager.Instance.PlaySFX(clip);
     }
 
     private void ShowStrikeGizmoBriefly()
@@ -301,8 +449,12 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill
 
     private void ResetAllState()
     {
+        StopChargeSfx();
+
         isCharging = false;
+        isRecovering = false;
         chargeTimer = 0f;
+        recoveryEndTime = -999f;
         showGizmo = false;
 
         if (anim != null)

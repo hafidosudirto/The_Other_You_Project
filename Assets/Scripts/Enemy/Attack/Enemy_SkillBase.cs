@@ -51,14 +51,14 @@ public class Enemy_SkillBase : MonoBehaviour
 
     private float nextReadyTime = 0f;
 
-    private EnemyAI ai;
+    private NodeManager ai;
     private EnemyCombatController combat;
     private CharacterBase selfStats;
 
     private void Awake()
     {
         // Penting: skill biasanya ada di child; ambil referensi dari parent/root. :contentReference[oaicite:1]{index=1}
-        ai = GetComponentInParent<EnemyAI>();
+        ai = GetComponentInParent<NodeManager>();
         combat = GetComponentInParent<EnemyCombatController>();
         selfStats = GetComponentInParent<CharacterBase>();
     }
@@ -76,7 +76,7 @@ public class Enemy_SkillBase : MonoBehaviour
         if (isActive) return;
         if (Time.time < nextReadyTime) return;
 
-        // Catatan: StartCoroutine berpotensi “stack” jika dipanggil berulang tanpa guard. :contentReference[oaicite:2]{index=2}
+        // Catatan: StartCoroutine berpotensi ï¿½stackï¿½ jika dipanggil berulang tanpa guard. :contentReference[oaicite:2]{index=2}
         StartCoroutine(SkillRoutine());
     }
 
@@ -90,6 +90,10 @@ public class Enemy_SkillBase : MonoBehaviour
         try
         {
             // WINDUP
+            // Telegraf serangan musuh = stimulus untuk pengukuran reaction_time player.
+            if (TelemetryLogger.Instance != null)
+                TelemetryLogger.Instance.RecordReactionStimulus();
+
             OnWindupStart();
             yield return new WaitForSeconds(windup);
 

@@ -97,6 +97,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 0}
+  autoFindPlayer: 1
+  autoFindInterval: 0.25
   mainFillImage: {fileID: 3131983262231141057}
   lagFillImage: {fileID: 6942453632788773956}
   energyText: {fileID: 5069985652479286840}

@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using TMPro;
 
 public enum PlayerActionType
 {
@@ -32,14 +33,21 @@ public enum SwordSkillSlot
 public enum BowSkillSlot
 {
     QuickShot = 0,
-    PiercingShot = 1,
+    SpreadArrow = 1,
     FullDraw = 2,
-    ConcussiveShot = 3
+    FullDrawFullCharge = 3,
+    ConcussiveShot = 4,
+
+    // Alias kompatibilitas: Piercing sekarang dianggap FullDraw penuh.
+    PiercingShot = FullDrawFullCharge
 }
 
 public class DataTracker : MonoBehaviour
 {
     public static DataTracker Instance { get; private set; }
+
+    private const int SwordSkillSlotTotal = 4;
+    private const int BowSkillSlotTotal = 5;
 
     private int offensiveCount;
     private int defensiveCount;
@@ -48,13 +56,30 @@ public class DataTracker : MonoBehaviour
     private int bowUsageCount;
     private int gauntletUsageCount;
 
-    private readonly int[] swordSkillCounts = new int[4];
-    private readonly int[] bowSkillCounts = new int[4]; // SEKARANG 4 SLOT (Slot 3 = Concussive)
+    private readonly int[] swordSkillCounts = new int[SwordSkillSlotTotal];
+    private readonly int[] bowSkillCounts = new int[BowSkillSlotTotal];
+
+    [Header("Real-Time Player Skill Debug UI - Sword")]
+    [SerializeField] private TMP_Text swordSkillDebugText;
+    [SerializeField] private GameObject swordSkillDebugPanel;
+    [SerializeField] private bool showSwordSkillDebugPanel = true;
+    [SerializeField] private string swordSkillDebugTitle = "SWORD SKILL DEBUG";
+
+    [Header("Real-Time Player Skill Debug UI - Bow")]
+    [SerializeField] private TMP_Text bowSkillDebugText;
+    [SerializeField] private GameObject bowSkillDebugPanel;
+    [SerializeField] private bool showBowSkillDebugPanel = true;
+    [SerializeField] private string bowSkillDebugTitle = "BOW SKILL DEBUG";
+
+    private readonly int[] debugSwordSkillCounts = new int[SwordSkillSlotTotal];
+    private readonly int[] debugBowSkillCounts = new int[BowSkillSlotTotal];
 
     private int dashCount;
     private int riposteCount;
     private int bowConcussiveCount;
 
+    [Header("Runtime Player Weapon")]
+    [SerializeField] private WeaponType activePlayerWeapon = WeaponType.None;
     private WeaponType lastUsedWeapon = WeaponType.None;
 
     [Header("Distance Tracking")]
@@ -64,6 +89,8 @@ public class DataTracker : MonoBehaviour
     [SerializeField] private float idleMovementThreshold = 0.03f;
 
     public PlayerDistanceState CurrentDistanceState { get; private set; }
+    public WeaponType ActivePlayerWeapon => activePlayerWeapon;
+    public WeaponType LastUsedWeapon => lastUsedWeapon;
 
     private Vector3 lastPlayerPos;
     private float lastDistance;
@@ -78,33 +105,204 @@ public class DataTracker : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+
+        // FIX GAME OVER REPLAY: JANGAN panggil DontDestroyOnLoad di sini.
+        // DataTracker berada pada GameObject "GameManager" yang sama dengan StageManager
+        // (dan StageStatManager/StageVisualDebug). DontDestroyOnLoad bekerja pada seluruh
+        // root GameObject, sehingga memanggilnya membuat StageManager ikut bertahan melewati
+        // reload scene. Saat Play Again memuat ulang SceneUtama, StageManager LAMA yang
+        // bertahan (dengan currentStage basi & FSM yang sudah selesai) tidak pernah menjalankan
+        // Awake/Start lagi -> BeginStage tak pernah dipanggil -> musuh tidak spawn & stage
+        // tidak reset. Karena seluruh stage berjalan dalam satu scene (SceneUtama) dan Play
+        // Again memang harus reset penuh, persistensi ini tidak diperlukan.
+    }
+
+    private void OnEnable()
+    {
+        PlayerPrefabSwitchManager.OnActiveWeaponChanged += SetActiveWeapon;
+    }
+
+    private void OnDisable()
+    {
+        PlayerPrefabSwitchManager.OnActiveWeaponChanged -= SetActiveWeapon;
     }
 
     private void Start()
     {
-        if (playerTransform == null)
-            playerTransform = GameObject.FindGameObjectWithTag("Player")?.transform;
+        RefreshActivePlayerReference();
 
         if (enemyTransform == null)
             Debug.LogWarning("[DataTracker] Enemy Transform belum di-assign.");
 
-        if (playerTransform != null && enemyTransform != null)
-        {
-            lastPlayerPos = playerTransform.position;
-            lastDistance = Vector2.Distance(playerTransform.position, enemyTransform.position);
-        }
+        ResetDistanceBaseline();
 
         lastCheckTime = Time.time;
+        UpdateSkillDebugUI();
     }
 
     private void Update()
     {
+        if (playerTransform == null || !playerTransform.gameObject.activeInHierarchy)
+            RefreshActivePlayerReference();
+
         if (Time.time > lastCheckTime + distanceCheckInterval)
         {
             TrackPlayerMovement();
             lastCheckTime = Time.time;
         }
+    }
+
+    public void SetPlayerTransform(Transform newPlayerTransform)
+    {
+        playerTransform = newPlayerTransform;
+
+        WeaponType resolvedWeapon = ResolveWeaponFromTransform(playerTransform);
+        SetActiveWeapon(resolvedWeapon);
+
+        ResetDistanceBaseline();
+
+        DebugHub.DDA(
+            $"[DataTracker] Player transform diperbarui -> " +
+            $"{(playerTransform != null ? playerTransform.name : "NULL")} | Weapon={activePlayerWeapon}"
+        );
+    }
+
+    public void SetEnemyTransform(Transform newEnemyTransform)
+    {
+        enemyTransform = newEnemyTransform;
+        ResetDistanceBaseline();
+    }
+
+    public void SetActiveWeapon(WeaponType newWeapon)
+    {
+        if (newWeapon == WeaponType.None)
+        {
+            WeaponType resolvedFromTransform = ResolveWeaponFromTransform(playerTransform);
+
+            if (resolvedFromTransform != WeaponType.None)
+                newWeapon = resolvedFromTransform;
+        }
+
+        activePlayerWeapon = newWeapon;
+
+        if (newWeapon != WeaponType.None)
+            lastUsedWeapon = newWeapon;
+    }
+
+    private void RefreshActivePlayerReference()
+    {
+        Transform activePlayer = FindActivePlayerTransform();
+
+        if (activePlayer != null)
+            SetPlayerTransform(activePlayer);
+    }
+
+    private Transform FindActivePlayerTransform()
+    {
+        PlayerWeaponIdentity[] identities = FindObjectsOfType<PlayerWeaponIdentity>(true);
+
+        foreach (PlayerWeaponIdentity identity in identities)
+        {
+            if (identity == null)
+                continue;
+
+            if (!identity.gameObject.activeInHierarchy)
+                continue;
+
+            if (identity.currentWeapon == WeaponType.Sword || identity.currentWeapon == WeaponType.Bow)
+                return identity.transform;
+        }
+
+        foreach (PlayerWeaponIdentity identity in identities)
+        {
+            if (identity == null)
+                continue;
+
+            if (!identity.gameObject.activeInHierarchy)
+                continue;
+
+            if (identity.currentWeapon == WeaponType.None)
+                return identity.transform;
+        }
+
+        try
+        {
+            GameObject taggedPlayer = GameObject.FindGameObjectWithTag("Player");
+
+            if (taggedPlayer != null && taggedPlayer.activeInHierarchy)
+                return taggedPlayer.transform;
+        }
+        catch (UnityException)
+        {
+            Debug.LogWarning("[DataTracker] Tag Player belum dibuat.");
+        }
+
+        Player fallbackPlayer = FindObjectOfType<Player>();
+
+        if (fallbackPlayer != null)
+            return fallbackPlayer.transform;
+
+        return null;
+    }
+
+    private WeaponType ResolveWeaponType(WeaponType explicitWeapon)
+    {
+        if (explicitWeapon != WeaponType.None)
+            return explicitWeapon;
+
+        if (activePlayerWeapon != WeaponType.None)
+            return activePlayerWeapon;
+
+        if (PlayerPrefabSwitchManager.CurrentWeapon != WeaponType.None)
+            return PlayerPrefabSwitchManager.CurrentWeapon;
+
+        WeaponType fromTransform = ResolveWeaponFromTransform(playerTransform);
+
+        if (fromTransform != WeaponType.None)
+            return fromTransform;
+
+        return lastUsedWeapon;
+    }
+
+    private WeaponType ResolveWeaponFromTransform(Transform source)
+    {
+        if (source == null)
+            return WeaponType.None;
+
+        PlayerWeaponIdentity identity = source.GetComponent<PlayerWeaponIdentity>();
+
+        if (identity == null)
+            identity = source.GetComponentInChildren<PlayerWeaponIdentity>(true);
+
+        if (identity == null)
+            identity = source.GetComponentInParent<PlayerWeaponIdentity>();
+
+        if (identity != null)
+            return identity.currentWeapon;
+
+        Player player = source.GetComponent<Player>();
+
+        if (player == null)
+            player = source.GetComponentInChildren<Player>(true);
+
+        if (player == null)
+            player = source.GetComponentInParent<Player>();
+
+        if (player != null)
+            return player.weaponType;
+
+        return WeaponType.None;
+    }
+
+    private void ResetDistanceBaseline()
+    {
+        if (playerTransform == null)
+            return;
+
+        lastPlayerPos = playerTransform.position;
+
+        if (enemyTransform != null)
+            lastDistance = Vector2.Distance(playerTransform.position, enemyTransform.position);
     }
 
     private void TrackPlayerMovement()
@@ -124,7 +322,7 @@ public class DataTracker : MonoBehaviour
         }
         else
         {
-            CurrentDistanceState = (currentDistance < lastDistance)
+            CurrentDistanceState = currentDistance < lastDistance
                 ? PlayerDistanceState.Chase
                 : PlayerDistanceState.Retreat;
         }
@@ -135,6 +333,8 @@ public class DataTracker : MonoBehaviour
 
     public void RecordAction(PlayerActionType actionType, WeaponType weaponType)
     {
+        weaponType = ResolveWeaponType(weaponType);
+
         if (weaponType != WeaponType.None)
             lastUsedWeapon = weaponType;
 
@@ -142,18 +342,26 @@ public class DataTracker : MonoBehaviour
         AddWeaponUsage(weaponType);
 
         DebugHub.DDA(
-            $"Action Recorded -> O={offensiveCount}, D={defensiveCount}, Weapon={lastUsedWeapon}"
+            $"Action Recorded -> O={offensiveCount}, D={defensiveCount}, " +
+            $"Weapon={lastUsedWeapon}, ActiveWeapon={activePlayerWeapon}"
         );
     }
 
     public void RecordDefenseDash(WeaponType weaponType = WeaponType.None)
     {
+        weaponType = ResolveWeaponType(weaponType);
+
         if (weaponType != WeaponType.None)
             lastUsedWeapon = weaponType;
 
         defensiveCount++;
         dashCount++;
+
         AddWeaponUsage(weaponType);
+
+        // Dash = aksi defensif; jika menyusul stimulus musuh, dihitung sebagai reaksi.
+        if (TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordReactionResponse();
 
         DebugHub.DDA(
             $"Defense Dash Recorded -> O={offensiveCount}, D={defensiveCount}, " +
@@ -163,17 +371,24 @@ public class DataTracker : MonoBehaviour
 
     public void RecordSwordSkill(SwordSkillSlot slot, PlayerActionType actionType)
     {
+        SetActiveWeapon(WeaponType.Sword);
         lastUsedWeapon = WeaponType.Sword;
 
         AddPlaystyleCount(actionType);
         swordUsageCount++;
 
         int idx = (int)slot;
+
         if (idx >= 0 && idx < swordSkillCounts.Length)
             swordSkillCounts[idx]++;
 
         if (slot == SwordSkillSlot.Riposte)
             riposteCount++;
+
+        if (TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.RecordSkillCast(WeaponType.Sword, slot.ToString(), actionType);
+
+        RecordSwordSkillForDebug(slot);
 
         DebugHub.DDA(
             $"Sword Skill Recorded -> {slot} | O={offensiveCount}, D={defensiveCount}, " +
@@ -182,49 +397,169 @@ public class DataTracker : MonoBehaviour
         );
     }
 
-    public void RecordSwordSlashCombo() => RecordSwordSkill(SwordSkillSlot.SlashCombo, PlayerActionType.Offensive);
-    public void RecordSwordWhirlwind() => RecordSwordSkill(SwordSkillSlot.Whirlwind, PlayerActionType.Offensive);
-    public void RecordSwordChargedStrike() => RecordSwordSkill(SwordSkillSlot.ChargedStrike, PlayerActionType.Offensive);
-    public void RecordSwordRiposte() => RecordSwordSkill(SwordSkillSlot.Riposte, PlayerActionType.Defensive);
+    public void RecordSwordSlashCombo()
+    {
+        RecordSwordSkill(SwordSkillSlot.SlashCombo, PlayerActionType.Offensive);
+    }
+
+    public void RecordSwordWhirlwind()
+    {
+        RecordSwordSkill(SwordSkillSlot.Whirlwind, PlayerActionType.Offensive);
+    }
+
+    public void RecordSwordChargedStrike()
+    {
+        RecordSwordSkill(SwordSkillSlot.ChargedStrike, PlayerActionType.Offensive);
+    }
+
+    public void RecordSwordRiposte()
+    {
+        RecordSwordSkill(SwordSkillSlot.Riposte, PlayerActionType.Defensive);
+    }
 
     public void RecordBowSkill(BowSkillSlot slot)
     {
+        SetActiveWeapon(WeaponType.Bow);
         lastUsedWeapon = WeaponType.Bow;
 
-        // Skill bow utama selalu dihitung sebagai serangan
-        AddPlaystyleCount(PlayerActionType.Offensive);
+        if (slot == BowSkillSlot.ConcussiveShot)
+            AddPlaystyleCount(PlayerActionType.Defensive);
+        else
+            AddPlaystyleCount(PlayerActionType.Offensive);
+
         bowUsageCount++;
 
         int idx = (int)slot;
+
         if (idx >= 0 && idx < bowSkillCounts.Length)
             bowSkillCounts[idx]++;
 
+        if (slot == BowSkillSlot.ConcussiveShot)
+            bowConcussiveCount++;
+
+        if (TelemetryLogger.Instance != null)
+        {
+            PlayerActionType bowAction = slot == BowSkillSlot.ConcussiveShot
+                ? PlayerActionType.Defensive
+                : PlayerActionType.Offensive;
+            TelemetryLogger.Instance.RecordSkillCast(WeaponType.Bow, slot.ToString(), bowAction);
+        }
+
+        RecordBowSkillForDebug(slot);
+
         DebugHub.DDA(
             $"Bow Skill Recorded -> {slot} | O={offensiveCount}, D={defensiveCount}, " +
-            $"BowUse={bowUsageCount}, BowSkillCounts=[{bowSkillCounts[0]}, {bowSkillCounts[1]}, {bowSkillCounts[2]}, {bowSkillCounts[3]}]"
+            $"BowUse={bowUsageCount}, " +
+            $"BowSkillCounts=[{bowSkillCounts[0]}, {bowSkillCounts[1]}, {bowSkillCounts[2]}, {bowSkillCounts[3]}, {bowSkillCounts[4]}], " +
+            $"BowConcussiveTotal={bowConcussiveCount}"
         );
     }
 
-    public void RecordBowQuickShot() => RecordBowSkill(BowSkillSlot.QuickShot);
-    public void RecordBowPiercingShot() => RecordBowSkill(BowSkillSlot.PiercingShot);
-    public void RecordBowFullDraw() => RecordBowSkill(BowSkillSlot.FullDraw);
+    public void RecordBowQuickShot()
+    {
+        RecordBowSkill(BowSkillSlot.QuickShot);
+    }
 
-    // Concussive dihitung sebagai Defense, tapi dimasukkan ke array Bow Slot [3]
+    public void RecordBowSpreadArrow()
+    {
+        RecordBowSkill(BowSkillSlot.SpreadArrow);
+    }
+
+    public void RecordBowFullDraw()
+    {
+        RecordBowSkill(BowSkillSlot.FullDraw);
+    }
+
+    public void RecordBowFullDrawNormal()
+    {
+        RecordBowSkill(BowSkillSlot.FullDraw);
+    }
+
+    public void RecordBowFullDrawFullCharge()
+    {
+        RecordBowSkill(BowSkillSlot.FullDrawFullCharge);
+    }
+
+    public void RecordBowFullDrawPiercing()
+    {
+        RecordBowSkill(BowSkillSlot.FullDrawFullCharge);
+    }
+
+    public void RecordBowPiercingShot()
+    {
+        RecordBowSkill(BowSkillSlot.FullDrawFullCharge);
+    }
+
     public void RecordBowConcussiveShot()
     {
-        lastUsedWeapon = WeaponType.Bow;
+        RecordBowSkill(BowSkillSlot.ConcussiveShot);
+    }
 
-        AddPlaystyleCount(PlayerActionType.Defensive);
-        bowUsageCount++;
+    // Opsional: dapat dipanggil oleh script skill baru jika nama method Record... belum disambungkan.
+    public void RecordSkillByName(string skillName)
+    {
+        if (string.IsNullOrWhiteSpace(skillName))
+            return;
 
-        bowConcussiveCount++;
-        bowSkillCounts[3]++; // SEKARANG MASUK KE ARRAY BOW UNTUK DINORMALISASI
+        string key = skillName.ToLowerInvariant()
+            .Replace(" ", "")
+            .Replace("_", "")
+            .Replace("-", "");
 
-        DebugHub.DDA(
-            $"Bow Concussive (DEFENSE) Recorded -> O={offensiveCount}, D={defensiveCount}, " +
-            $"BowUse={bowUsageCount}, BowSkillCounts=[{bowSkillCounts[0]}, {bowSkillCounts[1]}, {bowSkillCounts[2]}, {bowSkillCounts[3]}], " +
-            $"BowConcussiveTotal={bowConcussiveCount}"
-        );
+        switch (key)
+        {
+            case "slashcombo":
+            case "swordslashcombo":
+                RecordSwordSlashCombo();
+                break;
+
+            case "whirlwind":
+            case "swordwhirlwind":
+                RecordSwordWhirlwind();
+                break;
+
+            case "chargedstrike":
+            case "swordchargedstrike":
+                RecordSwordChargedStrike();
+                break;
+
+            case "riposte":
+            case "swordriposte":
+                RecordSwordRiposte();
+                break;
+
+            case "quickshot":
+            case "bowquickshot":
+                RecordBowQuickShot();
+                break;
+
+            case "spreadarrow":
+            case "bowspreadarrow":
+                RecordBowSpreadArrow();
+                break;
+
+            case "fulldraw":
+            case "bowfulldraw":
+            case "fulldrawnormal":
+                RecordBowFullDraw();
+                break;
+
+            case "fulldrawfullcharge":
+            case "fullcharge":
+            case "piercingshot":
+            case "bowpiercingshot":
+                RecordBowFullDrawFullCharge();
+                break;
+
+            case "concussiveshot":
+            case "bowconcussiveshot":
+                RecordBowConcussiveShot();
+                break;
+
+            default:
+                Debug.LogWarning("[DataTracker] Nama skill belum dikenali: " + skillName);
+                break;
+        }
     }
 
     private void AddPlaystyleCount(PlayerActionType actionType)
@@ -261,7 +596,6 @@ public class DataTracker : MonoBehaviour
             return;
         }
 
-        // Mengirim 10 Parameter penuh ke DDAController
         DDAController.Instance.UpdatePlayerProfile(
             offensiveCount,
             defensiveCount,
@@ -269,7 +603,7 @@ public class DataTracker : MonoBehaviour
             bowUsageCount,
             gauntletUsageCount,
             swordSkillCounts,
-            bowSkillCounts, // Sekarang panjangnya 4
+            bowSkillCounts,
             dashCount,
             riposteCount,
             bowConcussiveCount
@@ -279,14 +613,20 @@ public class DataTracker : MonoBehaviour
             $"Stage Final Data Sent -> O={offensiveCount}, D={defensiveCount}, " +
             $"WeaponUse[S={swordUsageCount}, B={bowUsageCount}, G={gauntletUsageCount}], " +
             $"SwordSkillCounts=[{swordSkillCounts[0]}, {swordSkillCounts[1]}, {swordSkillCounts[2]}, {swordSkillCounts[3]}], " +
-            $"BowSkillCounts=[{bowSkillCounts[0]}, {bowSkillCounts[1]}, {bowSkillCounts[2]}, {bowSkillCounts[3]}], " +
+            $"BowSkillCounts=[{bowSkillCounts[0]}, {bowSkillCounts[1]}, {bowSkillCounts[2]}, {bowSkillCounts[3]}, {bowSkillCounts[4]}], " +
             $"Defense=[Dash={dashCount}, Riposte={riposteCount}, Concussive={bowConcussiveCount}]"
         );
 
-        ResetStageData();
+        // Simpan snapshot per-stage SEBELUM di-reset, untuk baris telemetry stage_summary.
+        if (TelemetryLogger.Instance != null)
+            TelemetryLogger.Instance.CaptureStageProfileSnapshot(
+                offensiveCount, defensiveCount, dashCount, riposteCount,
+                bowConcussiveCount, swordUsageCount, bowUsageCount);
+
+        ResetData();
     }
 
-    private void ResetStageData()
+    public void ResetData()
     {
         offensiveCount = 0;
         defensiveCount = 0;
@@ -295,16 +635,169 @@ public class DataTracker : MonoBehaviour
         bowUsageCount = 0;
         gauntletUsageCount = 0;
 
-        dashCount = 0;
-        riposteCount = 0;
-        bowConcussiveCount = 0;
-
         for (int i = 0; i < swordSkillCounts.Length; i++)
             swordSkillCounts[i] = 0;
 
         for (int i = 0; i < bowSkillCounts.Length; i++)
             bowSkillCounts[i] = 0;
 
-        lastUsedWeapon = WeaponType.None;
+        dashCount = 0;
+        riposteCount = 0;
+        bowConcussiveCount = 0;
+
+        DebugHub.DDA("[DataTracker] Runtime counter direset. Profil DDA tidak ikut direset.");
+    }
+
+    public void ResetTracker()
+    {
+        ResetData();
+    }
+
+    public void ResetAll()
+    {
+        ResetData();
+    }
+
+    public void ClearData()
+    {
+        ResetData();
+    }
+
+    private void RecordSwordSkillForDebug(SwordSkillSlot slot)
+    {
+        int idx = (int)slot;
+
+        if (idx >= 0 && idx < debugSwordSkillCounts.Length)
+            debugSwordSkillCounts[idx]++;
+
+        UpdateSkillDebugUI();
+    }
+
+    private void RecordBowSkillForDebug(BowSkillSlot slot)
+    {
+        int idx = (int)slot;
+
+        if (idx >= 0 && idx < debugBowSkillCounts.Length)
+            debugBowSkillCounts[idx]++;
+
+        UpdateSkillDebugUI();
+    }
+
+    public void ResetSkillDebugData()
+    {
+        for (int i = 0; i < debugSwordSkillCounts.Length; i++)
+            debugSwordSkillCounts[i] = 0;
+
+        for (int i = 0; i < debugBowSkillCounts.Length; i++)
+            debugBowSkillCounts[i] = 0;
+
+        UpdateSkillDebugUI();
+
+        Debug.Log("[DataTracker] Real-time skill debug player direset untuk stage berikutnya.");
+    }
+
+    public float[] GetCurrentSwordSkillDebugWeightsCopy()
+    {
+        return BuildPercentArray(debugSwordSkillCounts);
+    }
+
+    public float[] GetCurrentBowSkillDebugWeightsCopy()
+    {
+        return BuildPercentArray(debugBowSkillCounts);
+    }
+
+    private void UpdateSkillDebugUI()
+    {
+        UpdateSwordSkillDebugUI();
+        UpdateBowSkillDebugUI();
+    }
+
+    private void UpdateSwordSkillDebugUI()
+    {
+        if (swordSkillDebugPanel != null)
+            swordSkillDebugPanel.SetActive(showSwordSkillDebugPanel);
+
+        if (swordSkillDebugText == null)
+            return;
+
+        swordSkillDebugText.SetText(BuildSwordSkillDebugText());
+    }
+
+    private void UpdateBowSkillDebugUI()
+    {
+        if (bowSkillDebugPanel != null)
+            bowSkillDebugPanel.SetActive(showBowSkillDebugPanel);
+
+        if (bowSkillDebugText == null)
+            return;
+
+        bowSkillDebugText.SetText(BuildBowSkillDebugText());
+    }
+
+    private string BuildSwordSkillDebugText()
+    {
+        return
+            $"{swordSkillDebugTitle}\n" +
+            "SlashCombo | Whirlwind | ChargedStrike | Riposte\n" +
+            $"{FormatPercentRow(debugSwordSkillCounts)}\n" +
+            $"{FormatCountRow(debugSwordSkillCounts)}";
+    }
+
+    private string BuildBowSkillDebugText()
+    {
+        return
+            $"{bowSkillDebugTitle}\n" +
+            "QuickShot | SpreadArrow | FullDraw | FullCharge | Concussive\n" +
+            $"{FormatPercentRow(debugBowSkillCounts)}\n" +
+            $"{FormatCountRow(debugBowSkillCounts)}";
+    }
+
+    private string FormatPercentRow(int[] counts)
+    {
+        float[] weights = BuildPercentArray(counts);
+        string result = "";
+
+        for (int i = 0; i < weights.Length; i++)
+        {
+            result += $"{weights[i]:F0}%";
+
+            if (i < weights.Length - 1)
+                result += ", ";
+        }
+
+        return result;
+    }
+
+    private string FormatCountRow(int[] counts)
+    {
+        string result = "Count: ";
+
+        for (int i = 0; i < counts.Length; i++)
+        {
+            result += counts[i].ToString();
+
+            if (i < counts.Length - 1)
+                result += ", ";
+        }
+
+        return result;
+    }
+
+    private float[] BuildPercentArray(int[] counts)
+    {
+        float[] result = new float[counts.Length];
+
+        int total = 0;
+
+        for (int i = 0; i < counts.Length; i++)
+            total += counts[i];
+
+        if (total <= 0)
+            return result;
+
+        for (int i = 0; i < counts.Length; i++)
+            result[i] = counts[i] * 100f / total;
+
+        return result;
     }
 }
