@@ -1,6 +1,8 @@
 using System;
 using UnityEngine;
 
+#region Skill Slot Definition
+
 [Serializable]
 public class SkillSlot
 {
@@ -25,8 +27,19 @@ public class SkillSlot
     public bool HasSkill => skillBehaviour != null;
 }
 
+#endregion
+
+/// <summary>
+/// Registry + dispatcher slot skill milik satu CharacterBase. Membaca input
+/// keyboard, menjadi gerbang pembayaran energi, mencatat aksi ke DDA, dan
+/// menyimpan daftar slot skill.
+/// CATATAN ARSITEKTUR (revisi PA): kelas ini memegang 4 concern sekaligus
+/// (Input, Energy, DDA, Registry) — kandidat pemisahan di fase lanjut.
+/// </summary>
 public class SkillBase : MonoBehaviour
 {
+    #region Serialized Config
+
     [Header("Skill Slots")]
     [Tooltip("Urutan mekanik skill. Slot 0 = basic attack, Slot 1 = charged/secondary attack, Slot 2 = Q, Slot 3 = E.")]
     public SkillSlot[] slots;
@@ -48,6 +61,10 @@ public class SkillBase : MonoBehaviour
     [Tooltip("Input untuk Slot 3. Umumnya E.")]
     public KeyCode slot4Key = KeyCode.Alpha4;
 
+    #endregion
+
+    #region Events & State
+
     public CharacterBase Owner => owner;
 
     public event Action<int, SkillSlot> OnSlotInputPressed;
@@ -56,6 +73,10 @@ public class SkillBase : MonoBehaviour
 
     private float bufferedOffensive = 0f;
     private float bufferedDefensive = 0f;
+
+    #endregion
+
+    #region Unity Lifecycle / Input
 
     private void Awake()
     {
@@ -84,11 +105,19 @@ public class SkillBase : MonoBehaviour
         if (Input.GetKeyDown(slot4Key)) TriggerSlot(3);
     }
 
+    #endregion
+
+    #region Owner & Energy Gateway
+
     public void RebindOwner(CharacterBase newOwner)
     {
         owner = newOwner != null ? newOwner : FindOwner();
     }
 
+    /// <summary>
+    /// Meneruskan permintaan pembayaran energi ke owner (CharacterBase).
+    /// </summary>
+    /// <returns>true bila energi cukup/dipotong; false bila owner tidak ada atau energi kurang.</returns>
     public bool TrySpendEnergy(float cost)
     {
         if (cost <= 0f)
@@ -106,6 +135,15 @@ public class SkillBase : MonoBehaviour
         return owner.TrySpendEnergy(cost);
     }
 
+    #endregion
+
+    #region Slot Triggering
+
+    /// <summary>
+    /// Titik masuk eksekusi satu slot skill: validasi slot, bayar energi bila
+    /// skill memintanya lewat IEnergySkill.PayEnergyInSkillBase, catat ke DDA,
+    /// lalu panggil ISkill.TriggerSkill. Menyiarkan event untuk HUD.
+    /// </summary>
     public void TriggerSlot(int slotIndex)
     {
         SkillSlot slot = GetSlot(slotIndex);
@@ -143,6 +181,14 @@ public class SkillBase : MonoBehaviour
         OnSlotTriggeredBySkillBase?.Invoke(slotIndex, slot);
     }
 
+    #endregion
+
+    #region DDA Recording (Buffer)
+
+    /// <summary>
+    /// Menambah bobot aksi (dValue) slot ke buffer offensive/defensive, lalu
+    /// mem-flush ke DataTracker bila buffer sudah mencapai 1.0.
+    /// </summary>
     public void RegisterSkillCast(int slotIndex)
     {
         SkillSlot slot = GetSlot(slotIndex);
@@ -166,6 +212,10 @@ public class SkillBase : MonoBehaviour
         DebugHub.Skill($"CAST {slot.slotName}");
         TryFlushToDDA(slot.weaponType);
     }
+
+    #endregion
+
+    #region Slot Query Helpers
 
     public SkillSlot GetSlot(int slotIndex)
     {
@@ -288,6 +338,10 @@ public class SkillBase : MonoBehaviour
         return IsEnergyAvailableForSlot(slotIndex);
     }
 
+    #endregion
+
+    #region Private Helpers
+
     private void TryFlushToDDA(WeaponType weaponType)
     {
         while (bufferedOffensive >= 1f)
@@ -340,4 +394,6 @@ public class SkillBase : MonoBehaviour
                 slots[i] = new SkillSlot();
         }
     }
+
+    #endregion
 }

@@ -36,6 +36,13 @@ public class Dash : MonoBehaviour, ISkill
     private float lastDashTime = -999f;
     private Coroutine dashRoutine;
 
+    /// <summary>
+    /// Read-only: true selama dash berlangsung. Dibaca oleh HFSM
+    /// (PlayerStateController) untuk menampilkan state Locomotion/Dash.
+    /// Tidak mengubah perilaku dash.
+    /// </summary>
+    public bool IsDashing => isDashing;
+
     private void Awake()
     {
         if (player == null)

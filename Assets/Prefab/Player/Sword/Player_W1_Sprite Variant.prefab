@@ -286,6 +286,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 1718376399928103269, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       insertIndex: -1
       addedObject: {fileID: 9133870004685489443}
+    - targetCorrespondingSourceObject: {fileID: 1718376399928103269, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 819984089210940867}
   m_SourcePrefab: {fileID: 100100000, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
 --- !u!114 &2210724808990204181 stripped
 MonoBehaviour:
@@ -380,6 +383,23 @@ MonoBehaviour:
   - Riposte_Ready
   - Riposte_Parry
   - Riposte_Counter
+--- !u!114 &819984089210940867
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6433921802813180583}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59ba5d7630a2a4b6b9bed2773edfec29, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  player: {fileID: 0}
+  character: {fileID: 0}
+  body: {fileID: 0}
+  moveVelocityThreshold: 0.05
+  currentStateDebug: (belum mulai)
 --- !u!95 &7112847830760851485 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 3180929586462168031, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}

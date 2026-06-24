@@ -2,8 +2,18 @@ using UnityEngine;
 using System;
 using System.Collections;
 
+/// <summary>
+/// Base class untuk Player dan Enemy. Menyediakan HP, energi, damage,
+/// stagger/knockback/stun, riposte, dan death dalam satu komponen.
+/// CATATAN ARSITEKTUR (revisi PA): kelas ini saat ini memegang beberapa
+/// tanggung jawab sekaligus (kandidat pelanggaran SRP). Pemisahan bertahap
+/// direncanakan mulai Fase 2 (mis. Stagger -> komponen terpisah) memakai pola
+/// wrapper/delegasi agar API publik tetap kompatibel dengan prefab/scene.
+/// </summary>
 public class CharacterBase : MonoBehaviour
 {
+    #region Serialized Fields, Events & Properties
+
     [Header("Character Stats")]
     public float maxHP = 1000f;
     public float currentHP = 1000f;
@@ -85,6 +95,10 @@ public class CharacterBase : MonoBehaviour
 
     public bool IsStaggerImmune => Time.time < _staggerImmunityUntil;
 
+    #endregion
+
+    #region Unity Lifecycle
+
     protected virtual void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -109,6 +123,10 @@ public class CharacterBase : MonoBehaviour
     {
         TickEnergyRegen();
     }
+
+    #endregion
+
+    #region Energy System
 
     private void TickEnergyRegen()
     {
@@ -144,11 +162,15 @@ public class CharacterBase : MonoBehaviour
         SetEnergyRegenBlocked(false);
     }
 
+    // TODO Fase 1: duplikat dari StopEnergyRegen() — evaluasi penyatuan/penghapusan.
+    // Jangan dihapus sekarang: mungkin masih dirujuk via UnityEvent/Animation Event di Inspector.
     public void StopRegenerasiEnergi()
     {
         SetEnergyRegenBlocked(true);
     }
 
+    // TODO Fase 1: duplikat dari StartEnergyRegen() — evaluasi penyatuan/penghapusan.
+    // Jangan dihapus sekarang: mungkin masih dirujuk via UnityEvent/Animation Event di Inspector.
     public void StartRegenerasiEnergi()
     {
         SetEnergyRegenBlocked(false);
@@ -182,6 +204,10 @@ public class CharacterBase : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Menambah energi sebesar <paramref name="amount"/> (regen/pickup), di-clamp ke maxEnergy.
+    /// Memicu OnEnergyChanged bila nilai benar-benar berubah.
+    /// </summary>
     public void AddEnergy(float amount)
     {
         if (amount <= 0f)
@@ -194,6 +220,10 @@ public class CharacterBase : MonoBehaviour
             OnEnergyChanged?.Invoke();
     }
 
+    /// <summary>
+    /// Mengurangi energi sebesar <paramref name="cost"/> jika cukup.
+    /// </summary>
+    /// <returns>true bila energi mencukupi dan dipotong; false bila tidak cukup (energi tidak berubah).</returns>
     public bool TrySpendEnergy(float cost)
     {
         if (cost <= 0f)
@@ -212,6 +242,10 @@ public class CharacterBase : MonoBehaviour
     {
         SetEnergy(maxEnergy);
     }
+
+    #endregion
+
+    #region Health
 
     public void SetHP(float value)
     {
@@ -257,6 +291,10 @@ public class CharacterBase : MonoBehaviour
         }
     }
 
+    #endregion
+
+    #region Utility
+
     public void Flip()
     {
         isFacingRight = !isFacingRight;
@@ -271,6 +309,14 @@ public class CharacterBase : MonoBehaviour
         return !isStaggered && currentHP > 0f;
     }
 
+    #endregion
+
+    #region Damage & Riposte
+
+    /// <summary>
+    /// Menerapkan damage ke karakter ini. Jika sedang riposte-stance, serangan
+    /// dikonversi menjadi parry (bukan damage). Memicu Die() bila HP habis.
+    /// </summary>
     public virtual void TakeDamage(float dmg, GameObject attacker = null)
     {
         if (currentHP <= 0f)
@@ -355,6 +401,10 @@ public class CharacterBase : MonoBehaviour
         canRiposte = true;
     }
 
+    #endregion
+
+    #region Stagger / Knockback / Stun
+
     public void ApplyKnockback(Vector2 direction, float force)
     {
         if (force <= 0f || currentHP <= 0f)
@@ -419,6 +469,10 @@ public class CharacterBase : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Menerapkan stagger/knockback langsung tanpa cek immunity (lihat TryApplyStagger
+    /// untuk versi yang menghormati immunity window + staggerResistance).
+    /// </summary>
     public void ApplyStagger(Vector2 direction, float force, float duration)
     {
         if (currentHP <= 0f)
@@ -462,6 +516,14 @@ public class CharacterBase : MonoBehaviour
         }
     }
 
+    #endregion
+
+    #region Death
+
+    /// <summary>
+    /// Menandai karakter mati (idempoten), menyiarkan OnDied, memanggil
+    /// EnemyDeathHandler bila ada, lalu menghancurkan GameObject.
+    /// </summary>
     public virtual void Die()
     {
         if (hasDied)
@@ -483,4 +545,6 @@ public class CharacterBase : MonoBehaviour
 
         Destroy(gameObject);
     }
+
+    #endregion
 }
