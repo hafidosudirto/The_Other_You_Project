@@ -12,4 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 91d2f36ba0f7e9d449a86af6a2e1a2e3, type: 3}
   m_Name: StaggerCooldownSettings
   m_EditorClassIdentifier: 
-  immunityDuration: 0.4
+  immunityDuration: 0.2

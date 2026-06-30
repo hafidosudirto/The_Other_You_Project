@@ -358,6 +358,8 @@ MonoBehaviour:
   verticalTolerance: 0.45
   attackCooldown: 2
   attackStateDuration: 0.65
+  lockMovementWhileAttacking: 1
+  attackMovementLockTail: 0.15
   damagedDuration: 1
   damagedStateFullPath: MinionRange_Damaged
   hordeRadius: 2.5
@@ -368,7 +370,7 @@ MonoBehaviour:
   projectilePrefab: {fileID: 2471379717869543011, guid: 985c0759789e7cb4786afabcae096ac1, type: 3}
   firePoint: {fileID: 7381294933292019889}
   projectileDamageMultiplier: 1
-  projectileSkill: {fileID: 0}
+  projectileSkill: {fileID: -6954381887912492541}
   attackTokens: 2
   isBoss: 0
   tokenDeniedRetryDelay: 0.2

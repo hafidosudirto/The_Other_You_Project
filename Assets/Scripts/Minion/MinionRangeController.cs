@@ -60,6 +60,16 @@ public class MinionRangeController : Enemy
     [Tooltip("Durasi state Attack (animasi Attack). Dirancang ≈ 0.55–0.65s untuk animation event release.")]
     public float attackStateDuration = 0.65f;
 
+    [Header("Attack Movement Lock")]
+    [Tooltip("Jika aktif, minion benar-benar DIAM selama menyerang (tidak chase/retreat/align). " +
+             "Mencegah minion 'menggeser' saat animasi menembak masih berjalan.")]
+    public bool lockMovementWhileAttacking = true;
+
+    [Tooltip("Tambahan waktu kunci pergerakan SETELAH state Attack selesai, untuk menutupi sisa " +
+             "(recovery) animasi tembak agar minion tidak langsung bergerak begitu panah lepas.")]
+    [Min(0f)]
+    public float attackMovementLockTail = 0.15f;
+
     [Header("Damaged State")]
     [Tooltip("Durasi minion diam ketika terkena damage (animasi Damaged).")]
     public float damagedDuration = 1.0f;
@@ -116,6 +126,9 @@ public class MinionRangeController : Enemy
 
     private float stateTimer;
     private float cooldownTimer;
+
+    // Sisa waktu kunci pergerakan akibat menyerang (state Attack + tail recovery).
+    private float attackMoveLockTimer;
 
     private float assignedOrbitAngle;
 
@@ -303,6 +316,9 @@ public class MinionRangeController : Enemy
         if (cooldownTimer > 0f)
             cooldownTimer -= Time.deltaTime;
 
+        if (attackMoveLockTimer > 0f)
+            attackMoveLockTimer -= Time.deltaTime;
+
         switch (currentState)
         {
             case MinionState.Idle:
@@ -365,6 +381,19 @@ public class MinionRangeController : Enemy
         if (distToPlayer > detectionRange)
         {
             ChangeState(MinionState.Idle);
+            return;
+        }
+
+        // ----- Kunci pergerakan saat/seusai menyerang -----
+        // Menutupi sisa (tail) animasi tembak setelah state Attack berakhir agar minion
+        // tidak langsung chase/retreat/align selagi animasi menembak masih terlihat.
+        if (lockMovementWhileAttacking && attackMoveLockTimer > 0f)
+        {
+            if (rb != null)
+                rb.velocity = Vector2.zero;
+
+            animator.SetBool(IsMovingHash, false);
+            FacePlayerHorizontally();
             return;
         }
 
@@ -659,6 +688,13 @@ public class MinionRangeController : Enemy
 
                 stateTimer = Mathf.Max(0.01f, attackStateDuration);
                 cooldownTimer = attackCooldown + stateTimer;
+
+                // Kunci pergerakan selama menyerang + sisa recovery animasi tembak.
+                attackMoveLockTimer = stateTimer + Mathf.Max(0f, attackMovementLockTail);
+
+                // Hentikan sisa kecepatan (mis. dari knockback) agar minion benar-benar diam saat menembak.
+                if (rb != null)
+                    rb.velocity = Vector2.zero;
 
                 // Damage akan ditangani oleh Animation Event →
                 // BowAnimationEventRelay_MinionRange → MinionRange_Projectile → ArrowDamage.

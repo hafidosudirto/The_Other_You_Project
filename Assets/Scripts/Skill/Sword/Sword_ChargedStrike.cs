@@ -32,6 +32,11 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill, ISkillCo
     public float attackRadius = 1.6f;
     public float attackAngle = 100f;
 
+    [Tooltip("Geser pusat hitbox ke DEPAN (arah hadap) agar lingkaran serang menutupi seluruh " +
+             "efek visual tebasan yang menjorok jauh ke depan. X positif = ke arah hadap player.\n" +
+             "Naikkan X (mis. 0.8–1.2) bila ujung efek masih tidak kena hit.")]
+    public Vector2 hitOffset = new Vector2(0.8f, 0f);
+
     [Header("Stagger / Tuning")]
     [Tooltip("Atur stagger tiap hit Charged Strike.\nImmunity duration diatur terpusat di StaggerCooldownSettings asset.")]
     [SerializeField] private SkillStaggerConfig staggerConfig = new SkillStaggerConfig
@@ -315,7 +320,12 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill, ISkillCo
 
         ShowStrikeGizmoBriefly();
 
-        Vector3 origin = player.transform.position;
+        // Geser pusat hitbox ke arah hadap agar lingkaran serang menutupi seluruh efek tebasan.
+        Vector3 offset = new Vector3(hitOffset.x, hitOffset.y, 0f);
+        if (!player.isFacingRight)
+            offset.x = -offset.x;
+
+        Vector3 origin = player.transform.position + offset;
         Vector3 dir = player.isFacingRight ? Vector3.right : Vector3.left;
 
         Collider2D[] hits = Physics2D.OverlapCircleAll(origin, attackRadius);
@@ -323,17 +333,25 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill, ISkillCo
 
         foreach (Collider2D hit in hits)
         {
-            CharacterBase target = hit.GetComponent<CharacterBase>();
+            CharacterBase target = hit.GetComponentInParent<CharacterBase>();
             if (!target || target == player) continue;
 
-            Vector2 toTarget = (target.transform.position - origin).normalized;
-            float angle = Vector2.Angle(dir, toTarget);
+            // Cek cone dari TITIK TERDEKAT collider ke origin, bukan dari pivot
+            // (transform.position) yang biasanya di kaki. Memakai pivot membuat musuh
+            // dekat ditolak karena vektor ke kaki menukik tajam — hanya ujung pedang
+            // yang kena. ClosestPoint membuat musuh besar/tinggi tetap terdeteksi.
+            Vector2 closestPoint = hit.ClosestPoint(origin);
+            Vector2 toTarget = closestPoint - (Vector2)origin;
+
+            // Origin di dalam collider (overlap penuh) → jarak ~0, langsung kena.
+            bool insideCollider = toTarget.sqrMagnitude < 0.0001f;
+            float angle = insideCollider ? 0f : Vector2.Angle(dir, toTarget.normalized);
 
             if (angle <= attackAngle * 0.5f)
             {
                 target.TakeDamage(damage, null);
 
-                Vector2 knockDir = (target.transform.position - origin).normalized;
+                Vector2 knockDir = insideCollider ? (Vector2)dir : toTarget.normalized;
                 staggerConfig.Apply(target, knockDir);
 
                 hasHit = true;
@@ -475,7 +493,13 @@ public class Sword_ChargedStrike : MonoBehaviour, ISkill, IEnergySkill, ISkillCo
         if (!showGizmo || player == null)
             return;
 
-        Vector3 origin = player.transform.position;
+        // Pakai offset + radius/angle ASLI agar gizmo mencerminkan hitbox sebenarnya,
+        // sehingga mudah di-align dengan efek visual tebasan.
+        Vector3 offset = new Vector3(hitOffset.x, hitOffset.y, 0f);
+        if (!player.isFacingRight)
+            offset.x = -offset.x;
+
+        Vector3 origin = player.transform.position + offset;
         Vector3 dir = player.isFacingRight ? Vector3.right : Vector3.left;
 
         Gizmos.color = gizmoColor;

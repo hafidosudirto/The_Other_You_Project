@@ -16,6 +16,16 @@ public class MinionMeleeController : Enemy
     public float attackRange = 1.2f;
     public float attackCooldown = 2f;
 
+    [Header("Attack Movement Lock")]
+    [Tooltip("Jika aktif, minion benar-benar DIAM selama menyerang (tidak mengejar/menghindar/orbit). " +
+             "Mencegah minion 'menggeser' saat animasi mengayun masih berjalan.")]
+    public bool lockMovementWhileAttacking = true;
+
+    [Tooltip("Tambahan waktu kunci pergerakan SETELAH state Attack selesai, untuk menutupi sisa " +
+             "(recovery) animasi serang agar minion tidak langsung bergerak begitu ayunan selesai.")]
+    [Min(0f)]
+    public float attackMovementLockTail = 0.15f;
+
     [Tooltip("Durasi minion diam ketika terkena damage. Untuk testing, gunakan 1.0 agar animasi terlihat jelas.")]
     public float damagedDuration = 1.0f;
 
@@ -80,6 +90,9 @@ public class MinionMeleeController : Enemy
 
     private float stateTimer;
     private float cooldownTimer;
+
+    // Sisa waktu kunci pergerakan akibat menyerang (state Attack + tail recovery).
+    private float attackMoveLockTimer;
 
     private float assignedOrbitAngle;
 
@@ -214,6 +227,9 @@ public class MinionMeleeController : Enemy
         if (cooldownTimer > 0f)
             cooldownTimer -= Time.deltaTime;
 
+        if (attackMoveLockTimer > 0f)
+            attackMoveLockTimer -= Time.deltaTime;
+
         switch (currentState)
         {
             case MinionState.Idle:
@@ -269,6 +285,19 @@ public class MinionMeleeController : Enemy
         if (distToPlayer > detectionRange)
         {
             ChangeState(MinionState.Idle);
+            return;
+        }
+
+        // ----- Kunci pergerakan saat/seusai menyerang -----
+        // Menutupi sisa (tail) animasi ayunan setelah state Attack berakhir agar minion
+        // tidak langsung mengejar/orbit selagi animasi serang masih terlihat.
+        if (lockMovementWhileAttacking && attackMoveLockTimer > 0f)
+        {
+            if (rb != null)
+                rb.velocity = Vector2.zero;
+
+            animator.SetBool(IsMovingHash, false);
+            FacePlayerHorizontally();
             return;
         }
 
@@ -519,6 +548,13 @@ public class MinionMeleeController : Enemy
 
                 stateTimer = Mathf.Max(0.01f, attackStateDuration);
                 cooldownTimer = attackCooldown + stateTimer;
+
+                // Kunci pergerakan selama menyerang + sisa recovery animasi ayunan.
+                attackMoveLockTimer = stateTimer + Mathf.Max(0f, attackMovementLockTail);
+
+                // Hentikan sisa kecepatan (mis. dari knockback) agar minion benar-benar diam saat menyerang.
+                if (rb != null)
+                    rb.velocity = Vector2.zero;
 
                 GiveDamageToPlayer();
                 break;

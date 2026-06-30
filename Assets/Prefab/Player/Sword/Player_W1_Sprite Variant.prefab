@@ -13,8 +13,16 @@ PrefabInstance:
       value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 497706870744875888, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: damageConfig.damageRiposte
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 497706870744875888, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: staggerConfig.knockbackForce
-      value: 6
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 497706870744875888, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: staggerConfig.staggerDuration
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 1718376399928103269, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: m_Name
@@ -50,19 +58,31 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: damageConfig.damageSlash1
-      value: 2
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: damageConfig.damageSlash2
-      value: 6
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: staggerConfig.knockbackForce
-      value: 6
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 2714046786445390265, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: staggerConfig.staggerDuration
+      value: 0.3
       objectReference: {fileID: 0}
     - target: {fileID: 3802485017805506531, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: energyCost
       value: 35
+      objectReference: {fileID: 0}
+    - target: {fileID: 3802485017805506531, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: hitOffset.x
+      value: 1.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 3802485017805506531, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: attackRadius
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 3802485017805506531, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: maxDamageMultiplier
@@ -71,6 +91,26 @@ PrefabInstance:
     - target: {fileID: 3802485017805506531, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: minDamageMultiplier
       value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3802485017805506531, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: staggerConfig.aktif
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3802485017805506531, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: staggerConfig.knockbackForce
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 3802485017805506531, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: staggerConfig.staggerDuration
+      value: 0.6
+      objectReference: {fileID: 0}
+    - target: {fileID: 3802485017805506531, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: damageConfig.damageChargeMinimum
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 3802485017805506531, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: damageConfig.damageChargeMaksimum
+      value: 28
       objectReference: {fileID: 0}
     - target: {fileID: 4160140468893309881, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: anim
@@ -129,12 +169,20 @@ PrefabInstance:
       value: 55
       objectReference: {fileID: 0}
     - target: {fileID: 5032635997263216504, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: hitInterval
+      value: 0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: 5032635997263216504, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: damageMultiplier
       value: 0.7
       objectReference: {fileID: 0}
     - target: {fileID: 5032635997263216504, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
-      propertyPath: staggerConfig.knockbackForce
+      propertyPath: damageConfig.damagePerTick
       value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 5032635997263216504, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
+      propertyPath: staggerConfig.knockbackForce
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 5387256162423111338, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}
       propertyPath: anim
@@ -398,8 +446,13 @@ MonoBehaviour:
   player: {fileID: 0}
   character: {fileID: 0}
   body: {fileID: 0}
+  dash: {fileID: 0}
   moveVelocityThreshold: 0.05
   currentStateDebug: (belum mulai)
+  previousStateDebug: '-'
+  lastTransitionDebug: '-'
+  lastTriggerDebug: '-'
+  recentTransitionsDebug: 
 --- !u!95 &7112847830760851485 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 3180929586462168031, guid: 98a710ddfdd504442bb01ff8a2672b2d, type: 3}

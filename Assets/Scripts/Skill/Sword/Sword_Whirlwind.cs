@@ -207,7 +207,7 @@ public class Sword_Whirlwind : MonoBehaviour, ISkill, IEnergySkill, ISkillCooldo
 
         foreach (Collider2D h in hits)
         {
-            CharacterBase target = h.GetComponent<CharacterBase>();
+            CharacterBase target = h.GetComponentInParent<CharacterBase>();
             if (target == null || target == player)
                 continue;
 

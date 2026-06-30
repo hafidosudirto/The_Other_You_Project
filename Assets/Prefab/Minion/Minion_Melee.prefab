@@ -319,8 +319,8 @@ MonoBehaviour:
   currentState: 0
   detectionRange: 15
   attackRange: 1.2
-  attackCooldown: 2
-  damagedDuration: 1
+  attackCooldown: 2.5
+  damagedDuration: 1.2
   damagedStateFullPath: MinionMelee_Damaged
   hordeRadius: 2.5
   separationRadius: 1.5

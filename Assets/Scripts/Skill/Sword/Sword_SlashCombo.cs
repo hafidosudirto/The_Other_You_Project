@@ -381,17 +381,29 @@ public class Sword_SlashCombo : MonoBehaviour, ISkill, IEnergySkill, ISkillCoold
 
         foreach (var h in hits)
         {
-            var target = h.GetComponent<CharacterBase>();
+            var target = h.GetComponentInParent<CharacterBase>();
             if (!target || target == character) continue;
 
-            Vector2 toTarget = (target.transform.position - origin).normalized;
-            float angleBetween = Vector2.Angle(dir, toTarget);
+            // Cek cone dari TITIK TERDEKAT collider ke origin, bukan dari pivot
+            // (transform.position) yang biasanya di kaki. Memakai pivot membuat musuh
+            // dekat ditolak karena vektor ke kaki menukik tajam — hanya ujung pedang
+            // yang kena. ClosestPoint membuat musuh besar/tinggi tetap terdeteksi.
+            Vector2 closestPoint = h.ClosestPoint(origin);
+            Vector2 toTarget = closestPoint - (Vector2)origin;
+
+            // Origin di dalam collider (overlap penuh) → jarak ~0, langsung kena.
+            bool insideCollider = toTarget.sqrMagnitude < 0.0001f;
+            float angleBetween = insideCollider ? 0f : Vector2.Angle(dir, toTarget.normalized);
 
             if (angleBetween <= angle * 0.5f)
             {
                 float dmg = isSlash2Phase ? damageConfig.damageSlash2 : damageConfig.damageSlash1;
                 target.TakeDamage(dmg);
-                staggerConfig.Apply(target, toTarget);
+
+                // Arah stagger: ikut arah hadap kalau overlap penuh (toTarget ~0),
+                // selain itu dorong sesuai arah dari origin ke musuh.
+                Vector2 knockDir = insideCollider ? (Vector2)dir : toTarget.normalized;
+                staggerConfig.Apply(target, knockDir);
                 hasHit = true;
 
                 if (!playHitSfxOncePerSlash)
